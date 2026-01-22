@@ -1,0 +1,7 @@
+# Output directory for generated documents
+# Subdirectories:
+# - concept/     Game briefs, vision docs
+# - design/      GDD, mechanics docs
+# - technical/   Architecture, tech specs
+# - narrative/   Story, dialogue
+# - analysis/    Brainstorming, research

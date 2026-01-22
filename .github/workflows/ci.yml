@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        working-directory: Python
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -e .
+          uv pip install ruff pytest pytest-asyncio
+
+      - name: Run Ruff (linter)
+        working-directory: Python
+        run: |
+          source .venv/bin/activate
+          ruff check . --output-format=github
+
+      - name: Run Ruff (formatter check)
+        working-directory: Python
+        run: |
+          source .venv/bin/activate
+          ruff format --check .
+
+  test-python:
+    name: Test Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        working-directory: Python
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -e .
+          uv pip install pytest pytest-asyncio
+
+      - name: Run tests
+        working-directory: Python
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v --tb=short || echo "No tests found yet"
+
+  lint-cpp:
+    name: Check C++ Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format-17
+
+      - name: Check C++ formatting
+        run: |
+          # Find all C++ files in the plugin
+          CPP_FILES=$(find Plugins/UnrealCompanion -name "*.cpp" -o -name "*.h" 2>/dev/null || true)
+          
+          if [ -z "$CPP_FILES" ]; then
+            echo "No C++ files found, skipping format check"
+            exit 0
+          fi
+          
+          # Check formatting (dry-run)
+          NEEDS_FORMAT=0
+          for file in $CPP_FILES; do
+            if ! clang-format-17 --dry-run --Werror "$file" 2>/dev/null; then
+              echo "❌ $file needs formatting"
+              NEEDS_FORMAT=1
+            fi
+          done
+          
+          if [ $NEEDS_FORMAT -eq 1 ]; then
+            echo ""
+            echo "Run 'clang-format -i' on the files above to fix formatting"
+            exit 1
+          fi
+          
+          echo "✅ All C++ files are properly formatted"

@@ -1,0 +1,12 @@
+{
+  "name": "{{PROJECT_NAME}}",
+  "uproject": "{{UPROJECT_RELATIVE}}",
+  "uproject_path": "{{UPROJECT_PATH}}",
+  "source_version": "1.0",
+  "created_at": "{{CREATED_AT}}",
+  "web_ui_url": "{{WEB_UI_URL}}",
+  "settings": {
+    "default_agent": "game-dev",
+    "auto_sync_tasks": true
+  }
+}

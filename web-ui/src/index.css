@@ -1,0 +1,701 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 262 83% 58%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 83% 58%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Cyber Mint Theme - Dark with cyan/emerald accents */
+    --background: 220 20% 4%;
+    --foreground: 180 10% 95%;
+    --card: 220 20% 7%;
+    --card-foreground: 180 10% 95%;
+    --popover: 220 20% 8%;
+    --popover-foreground: 180 10% 95%;
+    --primary: 173 80% 50%;  /* Cyan */
+    --primary-foreground: 220 20% 4%;
+    --secondary: 220 15% 12%;
+    --secondary-foreground: 180 10% 95%;
+    --muted: 220 15% 12%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 160 84% 45%;  /* Emerald */
+    --accent-foreground: 220 20% 4%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 15%;
+    --input: 220 15% 15%;
+    --ring: 173 80% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
+
+/* Glow effects */
+.glow-primary {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+.glow-success {
+  box-shadow: 0 0 10px hsl(142 76% 36% / 0.4);
+}
+
+.glow-error {
+  box-shadow: 0 0 10px hsl(0 84% 60% / 0.4);
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 bg-clip-text text-transparent;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-200 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5;
+}
+
+/* Status dot animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-dot-pulse {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Slide in animation for toasts */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* ==========================================
+   ADVANCED ANIMATIONS & EFFECTS
+   ========================================== */
+
+/* Shimmer effect - loading state */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Pulse glow - for active items */
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 5px hsl(var(--primary) / 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.6), 0 0 30px hsl(var(--primary) / 0.3);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Sparkle animation */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+.sparkle {
+  position: relative;
+}
+
+.sparkle::before,
+.sparkle::after {
+  content: '✦';
+  position: absolute;
+  font-size: 0.75rem;
+  color: hsl(var(--primary));
+  opacity: 0;
+}
+
+.sparkle::before {
+  top: -8px;
+  right: -8px;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.sparkle::after {
+  bottom: -8px;
+  left: -8px;
+  animation: sparkle 2s ease-in-out infinite 1s;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Scale in */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+/* Bounce in */
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s ease-out;
+}
+
+/* Progress bar animation */
+@keyframes progress-flow {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-animated {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(142 76% 45%) 50%,
+    hsl(var(--primary)) 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-flow 2s linear infinite;
+}
+
+/* Gradient border */
+.gradient-border {
+  position: relative;
+  background: hsl(var(--card));
+  border-radius: var(--radius);
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary)) 0%,
+    hsl(262 83% 68%) 50%,
+    hsl(var(--primary)) 100%
+  );
+  z-index: -1;
+  opacity: 0.5;
+}
+
+/* Particle container */
+.particles {
+  position: relative;
+  overflow: hidden;
+}
+
+.particles::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.15) 1px, transparent 1px),
+    radial-gradient(circle at 80% 80%, hsl(var(--primary) / 0.1) 1px, transparent 1px),
+    radial-gradient(circle at 40% 60%, hsl(var(--primary) / 0.12) 1px, transparent 1px);
+  background-size: 60px 60px, 80px 80px, 100px 100px;
+  animation: particles-float 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes particles-float {
+  0% { transform: translateY(0) translateX(0); }
+  100% { transform: translateY(-50px) translateX(20px); }
+}
+
+/* Shine effect on hover */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--primary) / 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.shine:hover::after {
+  left: 100%;
+}
+
+/* Success checkmark animation */
+@keyframes checkmark {
+  0% { stroke-dashoffset: 50; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.checkmark-animated {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: checkmark 0.5s ease-out forwards;
+}
+
+/* Typing indicator */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+.typing-indicator span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  background: hsl(var(--muted-foreground));
+  border-radius: 50%;
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Stagger animation for lists */
+.stagger-in > * {
+  opacity: 0;
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.stagger-in > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-in > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-in > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-in > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-in > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-in > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-in > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger-in > *:nth-child(8) { animation-delay: 0.4s; }
+
+/* Glow text */
+.glow-text {
+  text-shadow: 0 0 10px hsl(var(--primary) / 0.5), 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+/* Card lift on hover */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 40px hsl(var(--primary) / 0.1);
+}
+
+/* Active ring */
+.active-ring {
+  position: relative;
+}
+
+.active-ring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid hsl(var(--primary));
+  opacity: 0;
+  animation: ring-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { opacity: 0; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.02); }
+}
+
+/* ========================================
+   CYBER MINT THEME ENHANCEMENTS
+   ======================================== */
+
+/* Gradient backgrounds */
+.cyber-gradient {
+  background: linear-gradient(135deg, 
+    hsl(173 80% 50% / 0.1) 0%, 
+    hsl(160 84% 45% / 0.1) 50%,
+    hsl(173 80% 50% / 0.05) 100%
+  );
+}
+
+.cyber-gradient-strong {
+  background: linear-gradient(135deg, 
+    hsl(173 80% 50%) 0%, 
+    hsl(160 84% 45%) 100%
+  );
+}
+
+/* Cyber glow effects */
+.cyber-glow {
+  box-shadow: 
+    0 0 20px hsl(173 80% 50% / 0.3),
+    0 0 40px hsl(173 80% 50% / 0.1);
+}
+
+.cyber-glow-emerald {
+  box-shadow: 
+    0 0 20px hsl(160 84% 45% / 0.3),
+    0 0 40px hsl(160 84% 45% / 0.1);
+}
+
+/* Cyber border glow */
+.cyber-border {
+  border: 1px solid hsl(173 80% 50% / 0.3);
+  box-shadow: 
+    inset 0 0 20px hsl(173 80% 50% / 0.05),
+    0 0 10px hsl(173 80% 50% / 0.1);
+}
+
+/* Animated gradient border */
+.cyber-border-animated {
+  position: relative;
+  background: linear-gradient(var(--background), var(--background)) padding-box,
+              linear-gradient(135deg, hsl(173 80% 50%), hsl(160 84% 45%), hsl(173 80% 50%)) border-box;
+  border: 1px solid transparent;
+  background-size: 100% 100%, 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 0%, 0% 0%; }
+  50% { background-position: 0% 0%, 100% 100%; }
+}
+
+/* Text gradients */
+.cyber-text {
+  background: linear-gradient(135deg, hsl(173 80% 50%), hsl(160 84% 45%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Neon text effect */
+.neon-text {
+  text-shadow: 
+    0 0 5px hsl(173 80% 50% / 0.5),
+    0 0 10px hsl(173 80% 50% / 0.3),
+    0 0 20px hsl(173 80% 50% / 0.2);
+}
+
+/* Cyber button hover */
+.cyber-button {
+  transition: all 0.3s ease;
+}
+
+.cyber-button:hover {
+  box-shadow: 
+    0 0 15px hsl(173 80% 50% / 0.4),
+    0 5px 20px hsl(173 80% 50% / 0.2);
+  transform: translateY(-2px);
+}
+
+/* Scan line effect (subtle) */
+.cyber-scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    hsl(173 80% 50% / 0.03) 2px,
+    hsl(173 80% 50% / 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+/* Pulse dot animation for status */
+.status-dot-pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% { 
+    box-shadow: 0 0 0 4px transparent;
+    opacity: 0.8;
+  }
+}
+
+/* Fade in animation */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Slide in from right */
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Subtle hover lift for cards */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px hsl(var(--glow-color, 173 80% 50%) / 0.15);
+}
+
+/* ========================================
+   DYNAMIC THEME SYSTEM
+   ======================================== */
+
+/* Theme gradient variables */
+:root {
+  --gradient-from: 173 80% 50%;
+  --gradient-to: 160 84% 45%;
+  --glow-color: 173 80% 50%;
+}
+
+/* Dynamic gradients using CSS variables */
+.theme-gradient {
+  background: linear-gradient(135deg, 
+    hsl(var(--gradient-from)) 0%, 
+    hsl(var(--gradient-to)) 100%
+  );
+}
+
+.theme-gradient-text {
+  background: linear-gradient(135deg, 
+    hsl(var(--gradient-from)), 
+    hsl(var(--gradient-to))
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-gradient-subtle {
+  background: linear-gradient(135deg, 
+    hsl(var(--gradient-from) / 0.1) 0%, 
+    hsl(var(--gradient-to) / 0.1) 100%
+  );
+}
+
+.theme-glow {
+  box-shadow: 
+    0 0 20px hsl(var(--glow-color) / 0.3),
+    0 0 40px hsl(var(--glow-color) / 0.1);
+}
+
+.theme-border-glow {
+  border: 1px solid hsl(var(--glow-color) / 0.3);
+  box-shadow: 
+    inset 0 0 20px hsl(var(--glow-color) / 0.05),
+    0 0 10px hsl(var(--glow-color) / 0.1);
+}
+
+/* ========================================
+   THEME PATTERNS
+   ======================================== */
+
+/* Scanlines pattern (Cyber, Retro) */
+[data-theme-pattern="scanlines"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    hsl(var(--glow-color) / 0.02) 2px,
+    hsl(var(--glow-color) / 0.02) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Parchment texture (Fantasy) */
+[data-theme-pattern="parchment"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Grid pattern (Arcade) */
+[data-theme-pattern="grid"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(hsl(var(--glow-color) / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--glow-color) / 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Noise pattern (Horror, Noir) */
+[data-theme-pattern="noise"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Dots pattern (Nature) */
+[data-theme-pattern="dots"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(
+    circle at center,
+    hsl(var(--glow-color) / 0.05) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* No pattern */
+[data-theme-pattern="none"]::before {
+  display: none;
+}
+
+/* ========================================
+   THEME-SPECIFIC ENHANCEMENTS
+   ======================================== */
+
+/* Fantasy theme: Serifed headings */
+[data-theme="fantasy"] h1,
+[data-theme="fantasy"] h2,
+[data-theme="fantasy"] h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.02em;
+}
+
+/* Retro theme: Monospace everywhere */
+[data-theme="retro"] {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+[data-theme="retro"] * {
+  text-shadow: 0 0 10px hsl(var(--glow-color) / 0.5);
+}
+
+/* Horror theme: Subtle red tint on hover */
+[data-theme="horror"] .hover-lift:hover {
+  box-shadow: 0 8px 25px -5px hsl(0 72% 50% / 0.2);
+}
+
+/* Arcade theme: Extra glow */
+[data-theme="arcade"] button:hover,
+[data-theme="arcade"] a:hover {
+  filter: brightness(1.1);
+}

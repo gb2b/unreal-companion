@@ -1,0 +1,56 @@
+id: gdd
+version: "1.0"
+name: "Game Design Document"
+description: "Complete game design specification"
+agent: "game-designer"
+estimated_time: "2-4 hours"
+category: "design"
+
+# Load existing documents - GDD builds on Game Brief
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: false
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: true  # GDD requires a Game Brief
+  - name: "brainstorms"
+    patterns: ["output/analysis/*brainstorm*.md"]
+    strategy: "index"
+    required: false
+
+# Output configuration
+output:
+  path: "output/design/gdd.md"
+  format: "md"
+  update_context: true
+  chapters: true  # Generate as chapters
+
+# Steps - GDD is comprehensive
+steps:
+  - id: "import"
+    file: "steps/step-01-import.md"
+  - id: "overview"
+    file: "steps/step-02-overview.md"
+  - id: "gameplay"
+    file: "steps/step-03-gameplay.md"
+  - id: "mechanics"
+    file: "steps/step-04-mechanics.md"
+  - id: "progression"
+    file: "steps/step-05-progression.md"
+  - id: "narrative"
+    file: "steps/step-06-narrative.md"
+  - id: "presentation"
+    file: "steps/step-07-presentation.md"
+  - id: "technical"
+    file: "steps/step-08-technical.md"
+  - id: "review"
+    file: "steps/step-09-review.md"
+
+celebrations:
+  complete: |
+    📚 Your GDD is complete!
+    This comprehensive document will guide your entire development.
+    Time to start building!

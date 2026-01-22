@@ -1,0 +1,269 @@
+"""
+Prompt Builder
+
+Constructs rich prompts for workflow steps with agent persona,
+context, and user input.
+"""
+
+from typing import Optional, Any
+from dataclasses import dataclass
+
+
+@dataclass
+class BuiltPrompt:
+    """A constructed prompt with system and user messages."""
+    system_prompt: str
+    user_prompt: str
+    context_summary: str
+
+
+class PromptBuilder:
+    """
+    Builds prompts for workflow execution.
+    
+    Combines:
+    - Agent persona and communication style
+    - Step instructions and questions
+    - Project context and loaded documents
+    - User responses and history
+    """
+    
+    def __init__(self, agent_service=None, context_discovery=None):
+        """
+        Initialize the prompt builder.
+        
+        Args:
+            agent_service: Service to load agent definitions
+            context_discovery: Service to load project context
+        """
+        self.agent_service = agent_service
+        self.context_discovery = context_discovery
+    
+    def build(
+        self,
+        step: dict,
+        session: Any,  # WorkflowSession
+        user_message: str,
+        choices: list[str] = None,
+        agent: dict = None,
+        loaded_context: dict = None,
+    ) -> BuiltPrompt:
+        """
+        Build prompts for a workflow step.
+        
+        Args:
+            step: Step definition from workflow
+            session: Current workflow session
+            user_message: User's input
+            choices: Selected suggestion IDs
+            agent: Agent definition
+            loaded_context: Pre-loaded documents
+            
+        Returns:
+            BuiltPrompt with system and user prompts
+        """
+        # Build system prompt
+        system_prompt = self._build_system_prompt(agent, step, loaded_context)
+        
+        # Build user prompt
+        user_prompt = self._build_user_prompt(session, user_message, choices, step)
+        
+        # Context summary for logging
+        context_summary = self._summarize_context(loaded_context, session)
+        
+        return BuiltPrompt(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            context_summary=context_summary,
+        )
+    
+    def _build_system_prompt(
+        self,
+        agent: dict,
+        step: dict,
+        loaded_context: dict = None,
+    ) -> str:
+        """Build the system prompt with agent persona and instructions."""
+        parts = []
+        
+        # Agent persona
+        if agent:
+            persona = agent.get("persona", {})
+            parts.append(f"""# Your Role
+You are **{agent.get('name', 'Assistant')}**, {agent.get('title', 'AI Assistant')}.
+
+## Identity
+{persona.get('identity', 'You are a helpful AI assistant.')}
+
+## Communication Style
+{persona.get('communication_style', 'Be helpful and clear.')}
+
+## Principles
+{self._format_list(persona.get('principles', []))}
+""")
+        
+        # Step instructions
+        if step:
+            parts.append(f"""# Current Step
+**{step.get('title', 'Step')}** - {step.get('progress', '')}
+
+## Your Goal
+{step.get('goal', step.get('description', 'Help the user complete this step.'))}
+
+## Instructions
+{step.get('instructions', '')}
+""")
+        
+        # Loaded context
+        if loaded_context:
+            context_parts = []
+            for name, content in loaded_context.items():
+                if content:
+                    # Truncate very long content
+                    truncated = content[:5000] if len(content) > 5000 else content
+                    context_parts.append(f"### {name}\n{truncated}")
+            
+            if context_parts:
+                parts.append(f"""# Project Context
+The following documents have been loaded for reference:
+
+{chr(10).join(context_parts)}
+""")
+        
+        # Output format
+        if step and step.get("output_template"):
+            parts.append(f"""# Output Format
+When generating content, follow this template structure:
+```
+{step.get('output_template', '')}
+```
+""")
+        
+        # Behavior rules
+        parts.append("""# Behavior Rules
+1. Stay in character as defined in your persona
+2. Be conversational but focused on the task
+3. Ask clarifying questions if needed
+4. Validate user responses against requirements
+5. Provide helpful suggestions when appropriate
+6. Generate content that matches the output format
+""")
+        
+        return "\n".join(parts)
+    
+    def _build_user_prompt(
+        self,
+        session: Any,
+        user_message: str,
+        choices: list[str] = None,
+        step: dict = None,
+    ) -> str:
+        """Build the user prompt with context and message."""
+        parts = []
+        
+        # Previous responses in this session
+        if session and session.responses:
+            parts.append("## Previous Responses in This Session")
+            for step_id, responses in session.responses.items():
+                if isinstance(responses, dict):
+                    for q_id, answer in responses.items():
+                        parts.append(f"- **{q_id}**: {answer}")
+                else:
+                    parts.append(f"- **{step_id}**: {responses}")
+            parts.append("")
+        
+        # Current document state (if any)
+        if session and session.document_content:
+            # Only show last section to save tokens
+            doc_preview = session.document_content[-2000:] if len(session.document_content) > 2000 else session.document_content
+            parts.append(f"""## Document in Progress (last section)
+```markdown
+{doc_preview}
+```
+""")
+        
+        # Current questions for this step
+        if step and step.get("questions"):
+            parts.append("## Questions for This Step")
+            for q in step.get("questions", []):
+                required = " (required)" if q.get("required") else ""
+                parts.append(f"- **{q.get('id', '')}**: {q.get('prompt', q.get('label', ''))}{required}")
+            parts.append("")
+        
+        # User's message
+        if choices:
+            parts.append(f"## User's Selection\nSelected options: {', '.join(choices)}")
+        
+        if user_message:
+            parts.append(f"## User's Message\n{user_message}")
+        
+        return "\n".join(parts)
+    
+    def _summarize_context(
+        self,
+        loaded_context: dict,
+        session: Any,
+    ) -> str:
+        """Create a brief summary of the context for logging."""
+        parts = []
+        
+        if loaded_context:
+            for name, content in loaded_context.items():
+                if content:
+                    parts.append(f"{name}: {len(content)} chars")
+        
+        if session:
+            parts.append(f"Step: {session.current_step}/{session.total_steps}")
+            parts.append(f"Responses: {len(session.responses)} steps")
+        
+        return ", ".join(parts) if parts else "No context"
+    
+    def _format_list(self, items: list) -> str:
+        """Format a list as markdown bullet points."""
+        if not items:
+            return "_None specified_"
+        return "\n".join(f"- {item}" for item in items)
+    
+    def build_suggestion_prompt(
+        self,
+        step: dict,
+        user_response: str,
+        agent: dict = None,
+    ) -> str:
+        """
+        Build a prompt to generate suggestions for the user.
+        
+        Used after the agent responds to generate clickable suggestions.
+        """
+        return f"""Based on the current step and user's response, generate 3-5 helpful suggestions.
+
+## Current Step
+{step.get('title', 'Unknown')}
+
+## Step Questions
+{self._format_questions(step.get('questions', []))}
+
+## User's Response
+{user_response}
+
+## Instructions
+Generate suggestions that would help the user answer the questions or move forward.
+Return as JSON array:
+[
+  {{"id": "suggestion-1", "type": "choice", "label": "Suggestion text", "description": "Optional description"}},
+  ...
+]
+
+Types: choice (single pick), reference (game example), example (text example), follow_up (question)
+"""
+    
+    def _format_questions(self, questions: list) -> str:
+        """Format questions as a readable list."""
+        if not questions:
+            return "_No questions_"
+        
+        lines = []
+        for q in questions:
+            req = " *" if q.get("required") else ""
+            lines.append(f"- {q.get('id', '?')}: {q.get('prompt', q.get('label', ''))}{req}")
+        return "\n".join(lines)

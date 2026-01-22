@@ -1,0 +1,54 @@
+name: 'Feature Request'
+description: 'Suggest a new feature or improvement for Unreal Companion'
+labels:
+  - 'enhancement'
+body:
+  - type: 'markdown'
+    attributes:
+      value: |-
+        Thanks for suggesting an enhancement!
+        
+        Please search existing issues first to avoid duplicates.
+
+  - type: 'textarea'
+    id: 'feature'
+    attributes:
+      label: 'What would you like to be added?'
+      description: 'A clear description of the feature.'
+    validations:
+      required: true
+
+  - type: 'dropdown'
+    id: 'category'
+    attributes:
+      label: 'Feature Category'
+      options:
+        - 'New MCP Tool'
+        - 'Existing Tool Enhancement'
+        - 'C++ Plugin'
+        - 'Python Server'
+        - 'Documentation'
+        - 'Performance'
+        - 'Other'
+    validations:
+      required: true
+
+  - type: 'textarea'
+    id: 'rationale'
+    attributes:
+      label: 'Why is this needed?'
+      description: 'Describe the use case or problem this would solve.'
+    validations:
+      required: true
+
+  - type: 'textarea'
+    id: 'alternatives'
+    attributes:
+      label: 'Alternatives Considered'
+      description: 'Any workarounds or alternative approaches you have considered.'
+
+  - type: 'textarea'
+    id: 'additional-context'
+    attributes:
+      label: 'Additional Context'
+      description: 'Mockups, examples, or related tools.'

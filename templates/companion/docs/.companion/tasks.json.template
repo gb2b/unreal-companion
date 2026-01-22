@@ -1,0 +1,10 @@
+{
+  "sectors": [
+    {"id": "dev", "name": "Development", "icon": "Code", "color": "blue", "order": 0},
+    {"id": "design", "name": "Design", "icon": "Palette", "color": "purple", "order": 1},
+    {"id": "art", "name": "Art & Assets", "icon": "Image", "color": "pink", "order": 2},
+    {"id": "audio", "name": "Audio", "icon": "Music", "color": "amber", "order": 3}
+  ],
+  "tasks": [],
+  "updated_at": "{{CREATED_AT}}"
+}

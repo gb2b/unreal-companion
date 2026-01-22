@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.venv/
+
+# Build
+dist/
+build/
+
+# Environment
+.env
+server/.env
+
+# Database
+server/data/
+!server/data/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

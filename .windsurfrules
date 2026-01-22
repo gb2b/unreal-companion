@@ -1,0 +1,47 @@
+# Unreal Companion - Windsurf Rules
+
+## Project Context
+
+MCP server for Unreal Engine 5.7+. Python (FastMCP) + C++ Plugin architecture.
+
+## Key Files
+
+- `AGENTS.md` - Project knowledge base
+- `Python/tools/` - MCP tool implementations (62 tools)
+- `Plugins/UnrealCompanion/` - C++ plugin
+
+## Python Tool Guidelines
+
+For `@mcp.tool()` decorated functions:
+
+- No `Any`, `object`, `Optional[T]`, `Union[T]` types
+- Use `x: T = None` for optional params (not `x: T | None = None`)
+- Include docstrings with Args, Returns, Example
+
+## Unreal Engine 5.7
+
+- Z-up, left-handed coordinate system
+- Units: cm, kg, degrees
+- Axes: X=Red (forward), Y=Green (right), Z=Blue (up)
+
+## Tool Naming
+
+```
+Python function = C++ command = MCP tool name
+Format: category_action (snake_case)
+```
+
+## Batch Operations
+
+All batch tools support:
+- `on_error`: "rollback", "continue", "stop"
+- `dry_run`: Validate without executing
+- `auto_compile`: Auto-compile (default: true)
+
+## Common Paths
+
+```
+/Game/Blueprints/    # Blueprints
+/Game/Materials/     # Materials
+/Game/UI/            # Widgets
+```

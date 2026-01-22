@@ -1,0 +1,88 @@
+---
+description: Initialize Unreal Companion for a project
+globs:
+alwaysApply: false
+---
+
+# Workflow: Initialize Project
+
+This workflow sets up Unreal Companion for a new or existing Unreal Engine project.
+
+## When to Use
+
+- First time using Companion with this project
+- Want to enable AI-assisted development features
+- Need to set up docs structure and task board
+
+## Steps
+
+### Step 1: Locate the .uproject file
+
+Ask the user for the path to their `.uproject` file.
+
+**Question**: What's the path to your Unreal project file (.uproject)?
+
+Examples:
+- `/Users/dev/UnrealProjects/MyGame/MyGame.uproject`
+- `C:\Projects\MyGame\MyGame.uproject`
+
+### Step 2: Verify the path
+
+Before proceeding, verify:
+1. The file exists
+2. It ends with `.uproject`
+3. It's a valid JSON file (Unreal project format)
+
+### Step 3: Initialize via API
+
+Call the initialization endpoint:
+
+```bash
+curl -X POST http://localhost:8000/api/projects/init \
+  -H "Content-Type: application/json" \
+  -d '{"uproject_path": "/path/to/MyGame.uproject"}'
+```
+
+Or if you have direct file access, the initialization creates:
+
+```
+.unreal-companion/
+├── config.json           # Project configuration
+├── COMPANION.md          # Project index (START HERE)
+├── AGENTS.md             # Instructions for Claude Code
+├── CLAUDE.md             # Instructions for Claude Desktop
+├── docs/
+│   ├── concept/          # Game briefs, prototypes
+│   ├── design/           # GDD, mechanics
+│   ├── technical/        # Architecture, specs
+│   ├── production/       # Sprints, planning
+│   └── .companion/
+│       └── tasks.json    # Task board
+└── .cursor/rules/bmgd/   # Cursor rules
+    └── index.mdc
+```
+
+### Step 4: Confirm success
+
+After initialization:
+1. Read `.unreal-companion/COMPANION.md` to verify
+2. The project is now registered globally
+3. It will appear in the Web UI at http://localhost:8000
+
+### Step 5: Next steps
+
+Suggest to the user:
+
+1. **Quick Prototype** (5 min) - Define your game idea
+   → Run `@bmgd/workflows/quick-prototype`
+
+2. **Game Brief** (30 min) - Complete game brief
+   → Run `@bmgd/workflows/game-brief`
+
+3. **Check Web UI** - Visual interface
+   → Open http://localhost:8000
+
+## Example Conversation
+
+```
+User: I want to set up Companion for my project

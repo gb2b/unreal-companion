@@ -1,0 +1,86 @@
+name: 'Bug Report'
+description: 'Report a bug to help us improve Unreal Companion'
+labels:
+  - 'bug'
+body:
+  - type: 'markdown'
+    attributes:
+      value: |-
+        Thanks for taking the time to fill out this bug report!
+        
+        Please search existing issues first to avoid duplicates.
+
+  - type: 'textarea'
+    id: 'problem'
+    attributes:
+      label: 'What happened?'
+      description: 'A clear and concise description of the bug.'
+    validations:
+      required: true
+
+  - type: 'textarea'
+    id: 'expected'
+    attributes:
+      label: 'What did you expect to happen?'
+    validations:
+      required: true
+
+  - type: 'dropdown'
+    id: 'ue-version'
+    attributes:
+      label: 'Unreal Engine Version'
+      options:
+        - 'UE 5.5'
+        - 'UE 5.6'
+        - 'UE 5.7'
+        - 'Other'
+    validations:
+      required: true
+
+  - type: 'dropdown'
+    id: 'mcp-client'
+    attributes:
+      label: 'MCP Client'
+      options:
+        - 'Cursor'
+        - 'Claude Desktop'
+        - 'Windsurf'
+        - 'Other'
+    validations:
+      required: true
+
+  - type: 'dropdown'
+    id: 'os'
+    attributes:
+      label: 'Operating System'
+      options:
+        - 'Windows'
+        - 'macOS'
+        - 'Linux'
+    validations:
+      required: true
+
+  - type: 'textarea'
+    id: 'reproduction'
+    attributes:
+      label: 'Steps to Reproduce'
+      description: 'How can we reproduce the issue?'
+      value: |-
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: 'textarea'
+    id: 'logs'
+    attributes:
+      label: 'Relevant Logs'
+      description: 'Paste logs from `~/.unreal_mcp/unreal_mcp.log` or Unreal Output Log (filter: LogMCPBridge).'
+      render: 'shell'
+
+  - type: 'textarea'
+    id: 'additional-context'
+    attributes:
+      label: 'Additional Context'
+      description: 'Screenshots, tool name, Blueprint name, etc.'

@@ -1,0 +1,43 @@
+# {{PROJECT_NAME}} - Companion Index
+
+> Point d'entrée pour tous les clients LLM (Cursor, Claude Code, etc.)
+
+## Project Info
+
+- **Name**: {{PROJECT_NAME}}
+- **Created**: {{CREATED_AT}}
+- **Web UI**: {{WEB_UI_URL}}
+
+## Quick Start
+
+1. Run `@bmgd/workflows/quick-prototype` to define your game (5 min)
+2. Create a Game Brief with `@bmgd/workflows/game-brief` (30 min)
+3. Check tasks in `docs/.companion/tasks.json`
+
+## Documents
+
+No documents yet. Start a workflow to create your first document!
+
+### Concept
+- (empty)
+
+### Design
+- (empty)
+
+### Technical
+- (empty)
+
+### Production
+- (empty)
+
+## Current Focus
+
+Not set yet. Use a workflow to define your game's direction!
+
+## Task Board
+
+See `docs/.companion/tasks.json` for current tasks.
+
+---
+*Powered by Unreal Companion Studio*
+*For visual interface: {{WEB_UI_URL}}*

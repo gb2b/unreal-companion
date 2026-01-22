@@ -1,0 +1,23 @@
+[project]
+name = "unreal-companion"
+version = "0.1.0"
+description = "Unreal Companion: AI-powered MCP server for Unreal Engine integration via the Model Context Protocol."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp[cli]>=1.4.1",
+  "fastmcp>=0.2.0",
+  "uvicorn",
+  "fastapi",
+  "pydantic>=2.6.1",
+  "requests",
+  "httpx>=0.26.0"
+]
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# The main server script is a single-file module
+py-modules = ["unreal_mcp_server"] 

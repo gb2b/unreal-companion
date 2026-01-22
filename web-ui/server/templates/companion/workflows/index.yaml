@@ -1,0 +1,18 @@
+# Unreal Companion - Project Workflows Configuration
+# Workflows listed here are available in the Studio UI
+
+# Default workflows (from system templates)
+default:
+  - project-lite      # Quick 2-minute setup
+  - brainstorming     # Free-form discussion
+  - game-brief        # Vision document
+  - gdd               # Game Design Document
+  - game-architecture # Technical architecture
+
+# Custom workflows created for this project
+# Place workflow folders in ./custom/
+custom: []
+
+# Active workflow sessions
+# Managed automatically by the system
+sessions: []
