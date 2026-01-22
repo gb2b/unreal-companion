@@ -125,7 +125,43 @@ unreal-companion/
 ### Prerequisites
 - Unreal Engine 5.7+
 - Python 3.12+
+- Node.js 18+ (for CLI and Web UI)
 - MCP Client (e.g., Claude Desktop, Cursor, Windsurf)
+
+### Setup
+
+> **Note**: Cloning is required because Unreal Companion includes a C++ Plugin, Python MCP server, and Web UI that need to be available locally.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-org/unreal-companion.git
+cd unreal-companion
+
+# 2. Install dependencies and configure
+npm install
+npx unreal-companion install
+
+# 3. Follow the interactive setup
+#    - Choose language and theme
+#    - Discover Unreal projects
+#    - Get guided next steps
+```
+
+The setup wizard will:
+- Ask your preferences (language, theme)
+- Install your virtual team (7 AI agents)
+- Install workflow templates
+- Search for existing Unreal projects
+
+### CLI Commands
+
+```bash
+npx unreal-companion install     # First-time setup
+npx unreal-companion upgrade     # Update to latest version
+npx unreal-companion start       # Start Web UI server
+npx unreal-companion init        # Initialize in an Unreal project
+npx unreal-companion status      # Show installation status
+```
 
 ### 1. Install the Plugin
 

@@ -7,7 +7,7 @@ import uvicorn
 
 from config import settings
 from core.database import init_db
-from api import projects, chat, context, agents, websocket_routes, llm, status, viewport, meshy, usage, studio, workflows
+from api import projects, chat, context, agents, websocket_routes, llm, status, viewport, meshy, usage, studio, workflows, system
 from services.llm import llm_service
 
 app = FastAPI(
@@ -36,6 +36,7 @@ app.include_router(meshy.router)
 app.include_router(usage.router)
 app.include_router(studio.router)
 app.include_router(workflows.router)
+app.include_router(system.router)
 app.include_router(websocket_routes.router)
 
 # Static files - serve built frontend

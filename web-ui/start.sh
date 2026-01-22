@@ -6,6 +6,18 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Check installation
+GLOBAL_DIR="$HOME/.unreal-companion"
+INSTALLED_FILE="$GLOBAL_DIR/.installed"
+
+if [ ! -f "$INSTALLED_FILE" ]; then
+    echo ""
+    echo "⚠️  Unreal Companion not set up yet."
+    echo "   Run ./setup.sh first to configure your virtual game dev studio."
+    echo ""
+    exit 1
+fi
+
 echo "🚀 Starting Unreal Companion..."
 echo ""
 

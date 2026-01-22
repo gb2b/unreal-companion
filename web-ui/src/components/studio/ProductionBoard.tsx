@@ -32,18 +32,31 @@ import {
   Image,
   Music,
   FolderOpen,
+  Target,
+  Map,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useStudioStore, Task } from '@/stores/studioStore'
+import { useStudioStore, Task, TaskPriority } from '@/stores/studioStore'
 import { cn } from '@/lib/utils'
 
 // Icon mapping
-const SECTOR_ICONS: Record<string, React.ElementType> = {
+const QUEUE_ICONS: Record<string, React.ElementType> = {
   Code,
   Palette,
   Image,
   Music,
   FolderOpen,
+  Target,
+  Map,
+}
+
+// Priority order for sorting
+const PRIORITY_ORDER: Record<TaskPriority, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
 }
 
 interface ProductionBoardProps {
@@ -51,10 +64,10 @@ interface ProductionBoardProps {
 }
 
 export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
-  const { sectors, tasks, startTask, completeTask, reopenTask, reorderQueue } = useStudioStore()
+  const { queues, tasks, startTask, completeTask, reopenTask, reorderQueue } = useStudioStore()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>(
-    Object.fromEntries(sectors.map(s => [s.id, true]))
+  const [expandedQueues, setExpandedQueues] = useState<Record<string, boolean>>(
+    Object.fromEntries(queues.map(q => [q.id, true]))
   )
 
   const sensors = useSensors(
@@ -79,17 +92,17 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
       const activeTask = tasks.find(t => t.id === active.id)
       const overTask = tasks.find(t => t.id === over.id)
 
-      if (activeTask && overTask && activeTask.sector_id === overTask.sector_id) {
-        const sectorTasks = tasks
-          .filter(t => t.sector_id === activeTask.sector_id && t.status === 'queued')
-          .sort((a, b) => a.priority - b.priority)
+      if (activeTask && overTask && activeTask.sector === overTask.sector) {
+        const queueTasks = tasks
+          .filter(t => t.sector === activeTask.sector && t.status === 'ready')
+          .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
 
-        const oldIndex = sectorTasks.findIndex(t => t.id === active.id)
-        const newIndex = sectorTasks.findIndex(t => t.id === over.id)
+        const oldIndex = queueTasks.findIndex(t => t.id === active.id)
+        const newIndex = queueTasks.findIndex(t => t.id === over.id)
 
         if (oldIndex !== -1 && newIndex !== -1) {
-          const newOrder = arrayMove(sectorTasks, oldIndex, newIndex)
-          reorderQueue(activeTask.sector_id, newOrder.map(t => t.id))
+          const newOrder = arrayMove(queueTasks, oldIndex, newIndex)
+          reorderQueue(activeTask.sector, newOrder.map(t => t.id))
         }
       }
     }
@@ -97,10 +110,10 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
     setActiveId(null)
   }
 
-  const toggleSector = (sectorId: string) => {
-    setExpandedSectors(prev => ({
+  const toggleQueue = (queueId: string) => {
+    setExpandedQueues(prev => ({
       ...prev,
-      [sectorId]: !prev[sectorId]
+      [queueId]: !prev[queueId]
     }))
   }
 
@@ -114,37 +127,42 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {sectors.map(sector => {
-          const sectorTasks = tasks.filter(t => t.sector_id === sector.id)
-          const activeTasks = sectorTasks.filter(t => t.status === 'in_progress')
-          const queuedTasks = sectorTasks.filter(t => t.status === 'queued').sort((a, b) => a.priority - b.priority)
-          const doneTasks = sectorTasks.filter(t => t.status === 'done')
-          const isExpanded = expandedSectors[sector.id]
+        {queues.map(queue => {
+          const queueTasks = tasks.filter(t => t.sector === queue.id && !t.parent_id)
+          const activeTasks = queueTasks.filter(t => t.status === 'in_progress')
+          const readyTasks = queueTasks
+            .filter(t => t.status === 'ready')
+            .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+          const lockedTasks = queueTasks.filter(t => t.status === 'locked')
+          const doneTasks = queueTasks.filter(t => t.status === 'done')
+          const isExpanded = expandedQueues[queue.id]
 
-          const SectorIcon = SECTOR_ICONS[sector.icon] || FolderOpen
+          const QueueIcon = QUEUE_ICONS[queue.icon] || FolderOpen
 
           return (
             <div
-              key={sector.id}
+              key={queue.id}
               className="rounded-xl border border-border bg-card overflow-hidden"
             >
-              {/* Sector Header */}
+              {/* Queue Header */}
               <button
-                onClick={() => toggleSector(sector.id)}
+                onClick={() => toggleQueue(queue.id)}
                 className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "p-2 rounded-lg",
-                    `bg-${sector.color}-500/20 text-${sector.color}-400`
+                    `bg-${queue.color}-500/20 text-${queue.color}-400`
                   )}>
-                    <SectorIcon className="h-4 w-4" />
+                    <QueueIcon className="h-4 w-4" />
                   </div>
                   <div className="text-left">
-                    <h3 className="font-medium">{sector.name}</h3>
+                    <h3 className="font-medium">{queue.name}</h3>
                     <p className="text-xs text-muted-foreground">
                       {activeTasks.length > 0 && `${activeTasks.length} active, `}
-                      {queuedTasks.length} queued, {doneTasks.length} done
+                      {readyTasks.length} ready
+                      {lockedTasks.length > 0 && `, ${lockedTasks.length} locked`}
+                      , {doneTasks.length} done
                     </p>
                   </div>
                 </div>
@@ -155,7 +173,7 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                 )}
               </button>
 
-              {/* Sector Content */}
+              {/* Queue Content */}
               {isExpanded && (
                 <div className="border-t border-border p-4 space-y-4">
                   {/* Active Task */}
@@ -176,20 +194,20 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                     </div>
                   )}
 
-                  {/* Queue */}
+                  {/* Ready Queue */}
                   <div>
-                    <p className="text-xs text-muted-foreground mb-2">Queue</p>
+                    <p className="text-xs text-muted-foreground mb-2">Ready</p>
                     <SortableContext
-                      items={queuedTasks.map(t => t.id)}
+                      items={readyTasks.map(t => t.id)}
                       strategy={verticalListSortingStrategy}
                     >
                       <div className="space-y-2">
-                        {queuedTasks.length === 0 ? (
+                        {readyTasks.length === 0 ? (
                           <p className="text-sm text-muted-foreground italic py-4 text-center">
-                            No tasks in queue
+                            No tasks ready
                           </p>
                         ) : (
-                          queuedTasks.map(task => (
+                          readyTasks.map(task => (
                             <SortableTaskCard
                               key={task.id}
                               task={task}
@@ -201,6 +219,25 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                       </div>
                     </SortableContext>
                   </div>
+
+                  {/* Locked Tasks */}
+                  {lockedTasks.length > 0 && (
+                    <details className="group">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
+                        <Lock className="h-3 w-3" /> {lockedTasks.length} waiting on dependencies
+                      </summary>
+                      <div className="mt-2 space-y-2 opacity-60">
+                        {lockedTasks.map(task => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            onClick={() => onTaskClick?.(task)}
+                            isLocked
+                          />
+                        ))}
+                      </div>
+                    </details>
+                  )}
 
                   {/* Done (collapsed by default) */}
                   {doneTasks.length > 0 && (
@@ -285,6 +322,7 @@ function TaskCard({
   isDragging,
   isActive,
   isDone,
+  isLocked,
 }: {
   task: Task
   onStart?: () => void
@@ -295,6 +333,7 @@ function TaskCard({
   isDragging?: boolean
   isActive?: boolean
   isDone?: boolean
+  isLocked?: boolean
 }) {
   return (
     <div
@@ -303,7 +342,8 @@ function TaskCard({
         isDragging && "opacity-50 shadow-lg scale-105",
         isActive && "border-cyan-500 bg-cyan-500/10",
         isDone && "border-border bg-muted/30",
-        !isActive && !isDone && "border-border bg-card hover:border-cyan-500/30"
+        isLocked && "border-amber-500/30 bg-amber-500/5",
+        !isActive && !isDone && !isLocked && "border-border bg-card hover:border-cyan-500/30"
       )}
     >
       {/* Drag Handle */}
@@ -314,6 +354,11 @@ function TaskCard({
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </button>
+      )}
+
+      {/* Locked Icon */}
+      {isLocked && (
+        <Lock className="h-4 w-4 text-amber-500" />
       )}
 
       {/* Task Info */}
@@ -327,17 +372,34 @@ function TaskCard({
         {task.description && (
           <p className="text-xs text-muted-foreground truncate">{task.description}</p>
         )}
-        {task.agent_id && (
+        {task.agent && (
           <p className="text-xs text-cyan-400 mt-1">
             <Sparkles className="h-3 w-3 inline mr-1" />
-            {task.agent_id}
+            {task.agent}
+          </p>
+        )}
+        {task.requires && task.requires.length > 0 && isLocked && (
+          <p className="text-xs text-amber-400 mt-1">
+            Waiting on {task.requires.length} task{task.requires.length > 1 ? 's' : ''}
           </p>
         )}
       </div>
 
+      {/* Priority Badge */}
+      {task.priority !== 'medium' && (
+        <span className={cn(
+          "text-xs px-2 py-0.5 rounded-full",
+          task.priority === 'critical' && "bg-red-500/20 text-red-400",
+          task.priority === 'high' && "bg-orange-500/20 text-orange-400",
+          task.priority === 'low' && "bg-slate-500/20 text-slate-400",
+        )}>
+          {task.priority}
+        </span>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-1">
-        {onStart && (
+        {onStart && !isLocked && (
           <Button
             size="sm"
             variant="ghost"

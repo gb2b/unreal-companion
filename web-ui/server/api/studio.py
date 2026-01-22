@@ -42,6 +42,64 @@ class WorkflowStateRequest(BaseModel):
     step: int
     responses: Dict[str, Any]
 
+
+# ============ TASK MODELS ============
+
+class HistoryEntry(BaseModel):
+    """Task history entry"""
+    date: str
+    action: str  # 'created', 'started', 'done', 'reopened', 'moved', 'updated', 'dependency_added', 'dependency_removed', 'subtask_added'
+    by: str  # 'user', 'workflow', 'editor'
+    notes: Optional[str] = None
+    session: Optional[str] = None
+    reason: Optional[str] = None
+    from_sector: Optional[str] = None
+    to_sector: Optional[str] = None
+
+
+class TaskCreate(BaseModel):
+    """Request to create a task"""
+    title: str
+    description: Optional[str] = ""
+    sector: str
+    agent: Optional[str] = None
+    priority: str = "medium"  # 'low', 'medium', 'high', 'critical'
+    parent_id: Optional[str] = None
+    requires: Optional[List[str]] = []
+    created_by: str = "user"  # 'user', 'workflow', 'editor'
+
+
+class TaskUpdate(BaseModel):
+    """Request to update a task"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    sector: Optional[str] = None
+    agent: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    requires: Optional[List[str]] = None
+
+
+class TaskAction(BaseModel):
+    """Request for task actions (start, complete, reopen, move)"""
+    action: str  # 'start', 'complete', 'reopen', 'move'
+    agent: Optional[str] = None  # For 'start' action
+    to_sector: Optional[str] = None  # For 'move' action
+    reason: Optional[str] = None  # For 'move' action
+    by: str = "user"
+
+
+class QueueModel(BaseModel):
+    """Queue (sector) model"""
+    id: str
+    name: str
+    icon: str
+    color: str
+    description: Optional[str] = ""
+    default_agent: Optional[str] = None
+    order: int
+    is_default: Optional[bool] = False
+
 # ============ HELPERS ============
 
 def get_docs_path(uproject_path: Optional[str]) -> Optional[Path]:
@@ -114,15 +172,51 @@ See `docs/.companion/tasks.json` for current tasks.
             "version": "1.0"
         }, indent=2))
     
-    # Create default tasks.json
+    # Create default tasks.json with new queue-based format
     tasks_file = config_path / "tasks.json"
     if not tasks_file.exists():
         tasks_file.write_text(json.dumps({
-            "sectors": [
-                {"id": "dev", "name": "Development", "icon": "Code", "color": "blue"},
-                {"id": "design", "name": "Design", "icon": "Palette", "color": "purple"},
-                {"id": "art", "name": "Art & Assets", "icon": "Image", "color": "pink"},
-                {"id": "audio", "name": "Audio", "icon": "Music", "color": "amber"}
+            "queues": [
+                {
+                    "id": "concept",
+                    "name": "Concept",
+                    "icon": "Target",
+                    "color": "blue",
+                    "description": "Game design, mechanics, vision",
+                    "default_agent": "game-designer",
+                    "order": 0,
+                    "is_default": True
+                },
+                {
+                    "id": "dev",
+                    "name": "Development",
+                    "icon": "Code",
+                    "color": "green",
+                    "description": "Blueprints, systems, code",
+                    "default_agent": "game-architect",
+                    "order": 1,
+                    "is_default": True
+                },
+                {
+                    "id": "art",
+                    "name": "Art",
+                    "icon": "Palette",
+                    "color": "pink",
+                    "description": "Materials, textures, 3D assets",
+                    "default_agent": "3d-artist",
+                    "order": 2,
+                    "is_default": True
+                },
+                {
+                    "id": "levels",
+                    "name": "Level Design",
+                    "icon": "Map",
+                    "color": "amber",
+                    "description": "Levels, lighting, world building",
+                    "default_agent": "level-designer",
+                    "order": 3,
+                    "is_default": True
+                }
             ],
             "tasks": [],
             "updated_at": datetime.now().isoformat()
@@ -542,47 +636,382 @@ async def analyze_brief(request: BriefAnalyzeRequest):
 async def get_tasks(uproject_path: str):
     """Get tasks from the tasks.json file"""
     docs_path = get_docs_path(uproject_path)
-    
+
     if not docs_path:
-        return {"tasks": [], "sectors": []}
-    
+        return {"tasks": [], "queues": []}
+
     tasks_file = docs_path / ".companion" / "tasks.json"
-    
+
     if not tasks_file.exists():
-        return {"tasks": [], "sectors": []}
-    
+        return {"tasks": [], "queues": []}
+
     try:
         data = json.loads(tasks_file.read_text())
+        # Handle legacy format (sectors -> queues)
+        if "sectors" in data and "queues" not in data:
+            data["queues"] = data.pop("sectors")
         return data
     except:
-        return {"tasks": [], "sectors": []}
+        return {"tasks": [], "queues": []}
 
 @router.post("/tasks/sync")
 async def sync_tasks(
     tasks: List[Dict[str, Any]] = Body(...),
-    sectors: List[Dict[str, Any]] = Body(...),
+    queues: List[Dict[str, Any]] = Body(default=None),
+    sectors: List[Dict[str, Any]] = Body(default=None),  # Legacy support
     uproject_path: str = Body(...)
 ):
     """Sync tasks to the tasks.json file"""
     docs_path = get_docs_path(uproject_path)
-    
+
     if not docs_path:
         raise HTTPException(status_code=400, detail="Invalid uproject path")
-    
+
     config_path = docs_path / ".companion"
     config_path.mkdir(parents=True, exist_ok=True)
-    
+
     tasks_file = config_path / "tasks.json"
-    
+
+    # Use queues if provided, otherwise fall back to sectors for legacy support
+    final_queues = queues if queues is not None else (sectors if sectors is not None else [])
+
     data = {
-        "sectors": sectors,
+        "queues": final_queues,
         "tasks": tasks,
         "updated_at": datetime.now().isoformat()
     }
-    
+
     tasks_file.write_text(json.dumps(data, indent=2))
-    
+
     return {"success": True}
+
+
+# ============ TASK CRUD HELPERS ============
+
+def load_tasks_data(docs_path: Path) -> Dict[str, Any]:
+    """Load tasks data from file"""
+    tasks_file = docs_path / ".companion" / "tasks.json"
+    if not tasks_file.exists():
+        return {"queues": [], "tasks": [], "updated_at": datetime.now().isoformat()}
+    try:
+        data = json.loads(tasks_file.read_text())
+        # Handle legacy format
+        if "sectors" in data and "queues" not in data:
+            data["queues"] = data.pop("sectors")
+        return data
+    except:
+        return {"queues": [], "tasks": [], "updated_at": datetime.now().isoformat()}
+
+
+def save_tasks_data(docs_path: Path, data: Dict[str, Any]):
+    """Save tasks data to file"""
+    config_path = docs_path / ".companion"
+    config_path.mkdir(parents=True, exist_ok=True)
+    tasks_file = config_path / "tasks.json"
+    data["updated_at"] = datetime.now().isoformat()
+    tasks_file.write_text(json.dumps(data, indent=2))
+
+
+def compute_task_status(task: Dict[str, Any], all_tasks: List[Dict[str, Any]]) -> str:
+    """Compute task status based on dependencies"""
+    current_status = task.get("status", "ready")
+
+    # Keep active statuses
+    if current_status in ("in_progress", "done"):
+        return current_status
+
+    requires = task.get("requires", [])
+    if not requires:
+        return "ready"
+
+    # Check all dependencies
+    for dep_id in requires:
+        dep = next((t for t in all_tasks if t.get("id") == dep_id), None)
+        if not dep or dep.get("status") != "done":
+            return "locked"
+
+    return "ready"
+
+
+def recompute_all_statuses(tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Recompute locked/ready statuses for all tasks"""
+    for task in tasks:
+        if task.get("status") not in ("in_progress", "done"):
+            task["status"] = compute_task_status(task, tasks)
+    return tasks
+
+
+def generate_task_id() -> str:
+    """Generate a unique task ID"""
+    import uuid
+    return str(uuid.uuid4())[:8]
+
+
+def create_history_entry(action: str, by: str, **kwargs) -> Dict[str, Any]:
+    """Create a history entry"""
+    entry = {
+        "date": datetime.now().isoformat(),
+        "action": action,
+        "by": by
+    }
+    entry.update({k: v for k, v in kwargs.items() if v is not None})
+    return entry
+
+
+# ============ TASK CRUD ENDPOINTS ============
+
+@router.post("/tasks/create")
+async def create_task(task: TaskCreate, uproject_path: str):
+    """Create a new task"""
+    docs_path = get_docs_path(uproject_path)
+    if not docs_path:
+        raise HTTPException(status_code=400, detail="Invalid uproject path")
+
+    data = load_tasks_data(docs_path)
+
+    # Find default agent for the queue if not specified
+    queue = next((q for q in data.get("queues", []) if q.get("id") == task.sector), None)
+    agent = task.agent or (queue.get("default_agent") if queue else None) or ""
+
+    # Compute initial status
+    initial_status = "ready" if not task.requires else "locked"
+
+    now = datetime.now().isoformat()
+    new_task = {
+        "id": generate_task_id(),
+        "title": task.title,
+        "description": task.description or "",
+        "sector": task.sector,
+        "agent": agent,
+        "priority": task.priority,
+        "status": initial_status,
+        "parent_id": task.parent_id,
+        "requires": task.requires or [],
+        "history": [create_history_entry("created", task.created_by)],
+        "iteration": 1,
+        "created_at": now,
+        "updated_at": now,
+        "created_by": task.created_by
+    }
+
+    data["tasks"].append(new_task)
+    data["tasks"] = recompute_all_statuses(data["tasks"])
+
+    # If this is a subtask, mark parent as is_parent
+    if task.parent_id:
+        for t in data["tasks"]:
+            if t.get("id") == task.parent_id:
+                t["is_parent"] = True
+                t["history"].append(create_history_entry("subtask_added", task.created_by))
+                break
+
+    save_tasks_data(docs_path, data)
+
+    return {"success": True, "task": new_task}
+
+
+@router.put("/tasks/{task_id}")
+async def update_task(task_id: str, updates: TaskUpdate, uproject_path: str):
+    """Update a task"""
+    docs_path = get_docs_path(uproject_path)
+    if not docs_path:
+        raise HTTPException(status_code=400, detail="Invalid uproject path")
+
+    data = load_tasks_data(docs_path)
+
+    task_index = next((i for i, t in enumerate(data["tasks"]) if t.get("id") == task_id), None)
+    if task_index is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = data["tasks"][task_index]
+
+    # Apply updates
+    update_dict = updates.dict(exclude_none=True)
+    for key, value in update_dict.items():
+        task[key] = value
+
+    task["updated_at"] = datetime.now().isoformat()
+    task["history"].append(create_history_entry("updated", "user"))
+
+    # Recompute statuses if dependencies changed
+    if "requires" in update_dict:
+        data["tasks"] = recompute_all_statuses(data["tasks"])
+
+    save_tasks_data(docs_path, data)
+
+    return {"success": True, "task": task}
+
+
+@router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, uproject_path: str):
+    """Delete a task"""
+    docs_path = get_docs_path(uproject_path)
+    if not docs_path:
+        raise HTTPException(status_code=400, detail="Invalid uproject path")
+
+    data = load_tasks_data(docs_path)
+
+    # Remove task
+    data["tasks"] = [t for t in data["tasks"] if t.get("id") != task_id]
+
+    # Remove from other tasks' dependencies
+    for task in data["tasks"]:
+        if task_id in task.get("requires", []):
+            task["requires"] = [r for r in task["requires"] if r != task_id]
+
+    data["tasks"] = recompute_all_statuses(data["tasks"])
+    save_tasks_data(docs_path, data)
+
+    return {"success": True}
+
+
+@router.post("/tasks/{task_id}/action")
+async def task_action(task_id: str, action: TaskAction, uproject_path: str):
+    """Perform an action on a task (start, complete, reopen, move)"""
+    docs_path = get_docs_path(uproject_path)
+    if not docs_path:
+        raise HTTPException(status_code=400, detail="Invalid uproject path")
+
+    data = load_tasks_data(docs_path)
+
+    task_index = next((i for i, t in enumerate(data["tasks"]) if t.get("id") == task_id), None)
+    if task_index is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = data["tasks"][task_index]
+    now = datetime.now().isoformat()
+
+    if action.action == "start":
+        # Check if task can be started
+        status = compute_task_status(task, data["tasks"])
+        if status != "ready":
+            raise HTTPException(status_code=400, detail=f"Task cannot be started - status is {status}")
+
+        task["status"] = "in_progress"
+        task["started_at"] = now
+        task["updated_at"] = now
+        if action.agent:
+            task["agent"] = action.agent
+        task["history"].append(create_history_entry("started", action.by))
+
+    elif action.action == "complete":
+        task["status"] = "done"
+        task["completed_at"] = now
+        task["updated_at"] = now
+        task["history"].append(create_history_entry("done", action.by))
+        # Recompute - dependents might become ready
+        data["tasks"] = recompute_all_statuses(data["tasks"])
+
+    elif action.action == "reopen":
+        if task.get("status") != "done":
+            raise HTTPException(status_code=400, detail="Can only reopen completed tasks")
+        task["status"] = "ready"
+        task["started_at"] = None
+        task["completed_at"] = None
+        task["updated_at"] = now
+        task["iteration"] = task.get("iteration", 1) + 1
+        task["history"].append(create_history_entry("reopened", action.by))
+        # Recompute - dependents might become locked
+        data["tasks"] = recompute_all_statuses(data["tasks"])
+
+    elif action.action == "move":
+        if not action.to_sector:
+            raise HTTPException(status_code=400, detail="to_sector is required for move action")
+        from_sector = task.get("sector")
+        task["sector"] = action.to_sector
+        task["updated_at"] = now
+        # Update agent to queue default if available
+        queue = next((q for q in data.get("queues", []) if q.get("id") == action.to_sector), None)
+        if queue and queue.get("default_agent"):
+            task["agent"] = queue["default_agent"]
+        task["history"].append(create_history_entry(
+            "moved", action.by,
+            from_sector=from_sector, to_sector=action.to_sector, reason=action.reason
+        ))
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {action.action}")
+
+    save_tasks_data(docs_path, data)
+
+    return {"success": True, "task": task}
+
+
+@router.post("/tasks/{task_id}/dependency")
+async def add_dependency(task_id: str, depends_on_id: str = Body(..., embed=True), uproject_path: str = ""):
+    """Add a dependency to a task"""
+    docs_path = get_docs_path(uproject_path)
+    if not docs_path:
+        raise HTTPException(status_code=400, detail="Invalid uproject path")
+
+    data = load_tasks_data(docs_path)
+
+    task = next((t for t in data["tasks"] if t.get("id") == task_id), None)
+    depends_on = next((t for t in data["tasks"] if t.get("id") == depends_on_id), None)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if not depends_on:
+        raise HTTPException(status_code=404, detail="Dependency task not found")
+
+    if depends_on_id in task.get("requires", []):
+        return {"success": True, "message": "Dependency already exists"}
+
+    # Check for circular dependency (simple check)
+    def would_create_cycle(target_id: str, visited: set) -> bool:
+        if target_id in visited:
+            return True
+        visited.add(target_id)
+        target = next((t for t in data["tasks"] if t.get("id") == target_id), None)
+        if not target:
+            return False
+        return any(would_create_cycle(dep_id, visited.copy()) for dep_id in target.get("requires", []))
+
+    if would_create_cycle(depends_on_id, {task_id}):
+        raise HTTPException(status_code=400, detail="Would create circular dependency")
+
+    task.setdefault("requires", []).append(depends_on_id)
+    task["updated_at"] = datetime.now().isoformat()
+    task["history"].append(create_history_entry(
+        "dependency_added", "user",
+        notes=f"Added dependency on {depends_on.get('title', depends_on_id)}"
+    ))
+
+    data["tasks"] = recompute_all_statuses(data["tasks"])
+    save_tasks_data(docs_path, data)
+
+    return {"success": True, "task": task}
+
+
+@router.delete("/tasks/{task_id}/dependency/{depends_on_id}")
+async def remove_dependency(task_id: str, depends_on_id: str, uproject_path: str):
+    """Remove a dependency from a task"""
+    docs_path = get_docs_path(uproject_path)
+    if not docs_path:
+        raise HTTPException(status_code=400, detail="Invalid uproject path")
+
+    data = load_tasks_data(docs_path)
+
+    task = next((t for t in data["tasks"] if t.get("id") == task_id), None)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if depends_on_id not in task.get("requires", []):
+        return {"success": True, "message": "Dependency does not exist"}
+
+    depends_on = next((t for t in data["tasks"] if t.get("id") == depends_on_id), None)
+
+    task["requires"] = [r for r in task.get("requires", []) if r != depends_on_id]
+    task["updated_at"] = datetime.now().isoformat()
+    task["history"].append(create_history_entry(
+        "dependency_removed", "user",
+        notes=f"Removed dependency on {depends_on.get('title', depends_on_id) if depends_on else depends_on_id}"
+    ))
+
+    data["tasks"] = recompute_all_statuses(data["tasks"])
+    save_tasks_data(docs_path, data)
+
+    return {"success": True, "task": task}
 
 
 # ============ DYNAMIC WORKFLOW GENERATION ============

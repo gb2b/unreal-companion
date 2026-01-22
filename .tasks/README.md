@@ -14,15 +14,21 @@ L'utilisateur configure ses propres LLM providers.
 
 | Phase | Nom | Tasks | Description |
 |-------|-----|-------|-------------|
-| 1 | Fondations | 3 | Structure globale, project init, système de tasks |
-| 2 | Studio Core | 6 | Production board, boards visuels, workflows, expérience ludique |
+| 1 | Fondations | 4 | Structure globale, project init, système de tasks, **CLI setup** |
+| 2 | Studio Core | 9 | Refactoring web-ui, production board, boards visuels, workflows, expérience ludique, contexte LLM, document desk |
 | 3 | Editor Core | 3 | Home page, Unreal Agent, contexte Studio→Editor |
 | 4 | CLI | 3 | Workflows CLI-ready, docs MCP, CLAUDE.md template |
 | 5 | Studio Avancé | 5 | Suggestions IA, workflow dynamique, Document Live, avatars |
 | 6 | Assets | 4 | Génération images, Meshy 3D, services externes |
-| 7 | Polish | 6 | Party Mode complet, voice, multimodal, i18n |
+| 7 | Polish | 5 | Party Mode complet, voice, multimodal, i18n, polish final |
 
-**Total : 30 tasks**
+**Total : 33 tasks**
+
+### Tasks Complétées
+
+| Task | Description                             | Date       |
+|------|-----------------------------------------|------------|
+| P1.4 | CLI Setup & Open Source Infrastructure | 2024-01-22 |
 
 ## Ordre d'Implémentation
 

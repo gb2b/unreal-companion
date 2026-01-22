@@ -3,24 +3,325 @@ Project Initialization Service
 
 Handles creating new Companion projects from templates.
 Creates the "Virtual Desktop" structure for each project.
+
+Also manages the global ~/.unreal-companion/ structure for user-wide
+defaults, agents, workflows, and project registry.
 """
 
 import os
 import json
 import shutil
 import yaml
+import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import uuid
 
+logger = logging.getLogger(__name__)
 
 # Paths
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 SERVER_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
-GLOBAL_REGISTRY_DIR = Path.home() / ".unreal-companion"
-GLOBAL_REGISTRY_FILE = GLOBAL_REGISTRY_DIR / "projects.json"
+GLOBAL_COMPANION_DIR = Path.home() / ".unreal-companion"
+GLOBAL_REGISTRY_DIR = GLOBAL_COMPANION_DIR  # Alias for compatibility
+GLOBAL_REGISTRY_FILE = GLOBAL_COMPANION_DIR / "projects.json"
+GLOBAL_CONFIG_FILE = GLOBAL_COMPANION_DIR / "config.yaml"
+GLOBAL_AGENTS_DIR = GLOBAL_COMPANION_DIR / "agents"
+GLOBAL_WORKFLOWS_DIR = GLOBAL_COMPANION_DIR / "workflows"
+INSTALLED_MARKER = GLOBAL_COMPANION_DIR / ".installed"
 
+
+def is_installed() -> bool:
+    """
+    Check if Unreal Companion has been installed.
+
+    Installation is done via:
+    - Running ./install.sh
+    - Or calling POST /api/system/install
+
+    Returns:
+        True if installed (has .installed marker file)
+    """
+    return INSTALLED_MARKER.exists()
+
+
+def require_installation():
+    """
+    Raise an error if not installed.
+
+    Use this in functions that require the global structure to exist.
+    """
+    if not is_installed():
+        raise RuntimeError(
+            "Unreal Companion is not installed. "
+            "Run ./install.sh or call POST /api/system/install first."
+        )
+
+
+# =============================================================================
+# Global Structure Management
+# =============================================================================
+
+# Default global config template
+DEFAULT_GLOBAL_CONFIG = """version: "2.0"
+
+preferences:
+  interface_language: en  # en | fr
+  theme: dark             # dark | light
+
+  documents:
+    default_language: en
+    overrides:
+      technical: en
+      code_comments: en
+      briefs: en
+      gdd: en
+
+llm:
+  default_provider: anthropic  # anthropic | openai | google
+  # API keys are stored in environment variables or project .env
+
+multimodal:
+  voice:
+    enabled: false
+    provider: whisper
+  vision:
+    enabled: true
+    max_size_mb: 10
+
+# Ludic experience settings
+ludic:
+  tips:
+    enabled: true
+    frequency: daily  # daily | per_session | on_milestone
+    categories:
+      - game_design
+      - technical
+      - inspiration
+      - warnings
+  quick_interactions:
+    timer_enabled: true
+    default_timer: 15  # seconds
+  celebrations:
+    confetti: true
+    sounds: false
+"""
+
+
+def ensure_global_structure() -> Dict[str, Any]:
+    """
+    Ensure the global ~/.unreal-companion/ structure exists.
+
+    Creates:
+    - config.yaml (global user preferences)
+    - agents/defaults/ (default agents with gaming personas)
+    - agents/custom/ (user-created agents)
+    - workflows/defaults/ (default workflows)
+    - workflows/custom/ (user-created workflows)
+    - projects.json (project registry)
+
+    Returns:
+        Dict with paths and status info
+    """
+    logger.info(f"Ensuring global structure at {GLOBAL_COMPANION_DIR}")
+
+    created_dirs = []
+    created_files = []
+
+    # Create main directories
+    directories = [
+        GLOBAL_COMPANION_DIR,
+        GLOBAL_AGENTS_DIR / "defaults",
+        GLOBAL_AGENTS_DIR / "custom",
+        GLOBAL_WORKFLOWS_DIR / "defaults",
+        GLOBAL_WORKFLOWS_DIR / "custom",
+    ]
+
+    for d in directories:
+        if not d.exists():
+            d.mkdir(parents=True, exist_ok=True)
+            created_dirs.append(str(d))
+            logger.debug(f"Created directory: {d}")
+
+    # Create global config.yaml if it doesn't exist
+    if not GLOBAL_CONFIG_FILE.exists():
+        GLOBAL_CONFIG_FILE.write_text(DEFAULT_GLOBAL_CONFIG)
+        created_files.append(str(GLOBAL_CONFIG_FILE))
+        logger.info(f"Created global config: {GLOBAL_CONFIG_FILE}")
+
+    # Copy default agents from server templates
+    _copy_default_agents()
+
+    # Copy default workflows from server templates
+    _copy_default_workflows()
+
+    # Ensure projects.json exists
+    ensure_global_registry()
+
+    # Create .gitkeep files
+    for folder in ["custom"]:
+        gitkeep = GLOBAL_AGENTS_DIR / folder / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.touch()
+        gitkeep = GLOBAL_WORKFLOWS_DIR / folder / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.touch()
+
+    return {
+        "path": str(GLOBAL_COMPANION_DIR),
+        "created_dirs": created_dirs,
+        "created_files": created_files,
+        "config_path": str(GLOBAL_CONFIG_FILE),
+        "agents_path": str(GLOBAL_AGENTS_DIR),
+        "workflows_path": str(GLOBAL_WORKFLOWS_DIR),
+        "registry_path": str(GLOBAL_REGISTRY_FILE),
+    }
+
+
+def _copy_default_agents():
+    """Copy default agents from server templates to global defaults."""
+    source_dir = SERVER_TEMPLATES_DIR / "agents"
+    dest_dir = GLOBAL_AGENTS_DIR / "defaults"
+
+    if not source_dir.exists():
+        logger.warning(f"Agent templates not found at {source_dir}")
+        return
+
+    for agent_file in source_dir.glob("*.yaml"):
+        dest_file = dest_dir / agent_file.name
+        if not dest_file.exists():
+            shutil.copy(agent_file, dest_file)
+            logger.debug(f"Copied agent: {agent_file.name}")
+
+
+def _copy_default_workflows():
+    """Copy default workflows from server templates to global defaults."""
+    source_dir = SERVER_TEMPLATES_DIR / "workflows"
+    dest_dir = GLOBAL_WORKFLOWS_DIR / "defaults"
+
+    if not source_dir.exists():
+        logger.warning(f"Workflow templates not found at {source_dir}")
+        return
+
+    # Copy workflow directories (each workflow has its own folder)
+    for workflow_dir in source_dir.iterdir():
+        if workflow_dir.is_dir():
+            dest_workflow_dir = dest_dir / workflow_dir.name
+            if not dest_workflow_dir.exists():
+                shutil.copytree(workflow_dir, dest_workflow_dir)
+                logger.debug(f"Copied workflow: {workflow_dir.name}")
+
+
+def get_global_config() -> Dict[str, Any]:
+    """
+    Load the global config.yaml.
+
+    Returns:
+        Config dict or empty dict if not found/not installed
+    """
+    if not is_installed():
+        logger.warning("Unreal Companion not installed, returning empty config")
+        return {}
+
+    if GLOBAL_CONFIG_FILE.exists():
+        try:
+            with open(GLOBAL_CONFIG_FILE, 'r') as f:
+                return yaml.safe_load(f) or {}
+        except Exception as e:
+            logger.error(f"Error loading global config: {e}")
+
+    return {}
+
+
+def update_global_config(updates: Dict[str, Any]) -> bool:
+    """
+    Update the global config.yaml.
+
+    Args:
+        updates: Dict of values to update (deep merged)
+
+    Returns:
+        True if successful, False if not installed or error
+    """
+    if not is_installed():
+        logger.warning("Unreal Companion not installed, cannot update config")
+        return False
+
+    try:
+        config = get_global_config()
+        _deep_merge(config, updates)
+
+        with open(GLOBAL_CONFIG_FILE, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+
+        return True
+    except Exception as e:
+        logger.error(f"Error updating global config: {e}")
+        return False
+
+
+def get_default_agents() -> List[Dict[str, Any]]:
+    """
+    Load all default agents from global structure.
+
+    Returns:
+        List of agent dicts (empty if not installed)
+    """
+    if not is_installed():
+        logger.warning("Unreal Companion not installed, returning empty agents list")
+        return []
+
+    agents = []
+
+    defaults_dir = GLOBAL_AGENTS_DIR / "defaults"
+    if defaults_dir.exists():
+        for agent_file in defaults_dir.glob("*.yaml"):
+            try:
+                with open(agent_file, 'r') as f:
+                    agent = yaml.safe_load(f)
+                    if agent:
+                        agents.append(agent)
+            except Exception as e:
+                logger.error(f"Error loading agent {agent_file}: {e}")
+
+    return agents
+
+
+def get_default_workflows() -> List[Dict[str, Any]]:
+    """
+    Load all default workflows from global structure.
+
+    Returns:
+        List of workflow dicts with metadata (empty if not installed)
+    """
+    if not is_installed():
+        logger.warning("Unreal Companion not installed, returning empty workflows list")
+        return []
+
+    workflows = []
+
+    defaults_dir = GLOBAL_WORKFLOWS_DIR / "defaults"
+    if defaults_dir.exists():
+        for workflow_dir in defaults_dir.iterdir():
+            if workflow_dir.is_dir():
+                workflow_file = workflow_dir / "workflow.yaml"
+                if workflow_file.exists():
+                    try:
+                        with open(workflow_file, 'r') as f:
+                            workflow = yaml.safe_load(f)
+                            if workflow:
+                                workflow['_path'] = str(workflow_dir)
+                                workflows.append(workflow)
+                    except Exception as e:
+                        logger.error(f"Error loading workflow {workflow_dir}: {e}")
+
+    return workflows
+
+
+# =============================================================================
+# Project-Specific Functions
+# =============================================================================
 
 def get_project_name_from_uproject(uproject_path: Path) -> str:
     """Extract project name from .uproject file"""

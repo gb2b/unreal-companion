@@ -133,6 +133,108 @@ agent_context_injection: |
   [Hybrid]
 ```
 
+#### Types de Réponses Interactives
+
+Au-delà du texte libre et des suggestions cliquables, l'interface propose des modes de réponse variés :
+
+| Type | Usage | Exemple |
+| ---- | ----- | ------- |
+| **Spectrum/Jauge** | Préférences entre deux extrêmes | "Linéaire ←●→ Non-linéaire" |
+| **Échelle émotionnelle** | Capturer une intention | 😰 😐 🤔 😮 🤩 |
+| **Choix A/B visuel** | Décision rapide avec références | "⚔️ Dark Souls" vs "🧠 XCOM" |
+| **Jauge d'appréciation** | Feedback sur propositions | 👎 😐 👍 ❤️ 🔥 |
+
+```
+Exemple Jauge de Préférence :
+┌────────────────────────────────────────────┐
+│  Entre ces deux extrêmes ?                 │
+│                                            │
+│  Linéaire ●━━━━━━━●━━━━━━○ Non-linéaire   │
+│                                            │
+│  "Un peu d'exploration libre,              │
+│   mais avec une trame"                     │
+└────────────────────────────────────────────┘
+```
+
+#### Exemples Dynamiques du LLM
+
+Le LLM ne pose pas que des questions — il propose des **exemples concrets** basés sur sa compréhension :
+
+```
+┌────────────────────────────────────────────┐
+│ 💡 Voici comment je vois ton système :     │
+│                                            │
+│ "Le joueur commence dans le village.       │
+│  Il apprend le mot 'OUVRIR' en observant   │
+│  un marchand. Plus tard, il l'utilise      │
+│  sur une porte scellée..."                 │
+│                                            │
+│ Cet exemple te parle ?                     │
+│                                            │
+│ [👍 Exactement !] [🔄 Pas mal...] [❌ Non] │
+│                                            │
+│ [Ou décris ta propre vision...]            │
+└────────────────────────────────────────────┘
+```
+
+L'utilisateur peut noter l'exemple, et le LLM **adapte** ses propositions suivantes.
+
+#### Discussions Réflexives
+
+Les workflows ne sont pas des interrogatoires — ce sont des **conversations créatives** :
+
+```yaml
+# Le LLM adopte un mode discussion
+agent_behavior:
+  - RÉFLÉCHIR à voix haute ("Je me demande si...")
+  - PROPOSER des pistes ("Et si on faisait...")
+  - CHALLENGER gentiment ("Mais du coup, comment...")
+  - CONNECTER les idées ("Ça rejoint ce que tu disais...")
+```
+
+#### Gestion du Contexte LLM (Optimisation Tokens)
+
+> **Problème :** Sans stratégie, chaque appel envoie tout (GDD, historique, etc.) = ~12000+ tokens par appel, coût élevé et risque d'hallucination.
+
+##### Contexte Hiérarchique
+
+| Niveau | Contenu | Tokens | Quand |
+| ------ | ------- | ------ | ----- |
+| **CORE** | Projet (nom, pitch), agent, état actuel | ~500 | Toujours |
+| **RELEVANT** | Facts extraits, décisions clés, réponses liées | ~1000 | Selon l'étape |
+| **DÉTAILS** | GDD section, historique résumé | ~variable | À la demande |
+
+Résultat : ~2000-3000 tokens par appel (vs 12000+)
+
+##### Techniques clés
+
+```yaml
+# 1. Extraction de Facts (pas le texte brut)
+facts:
+  vision.pitch: "Explorer un monde figé..."    # 50 chars
+  genre.primary: "exploration"                  # vs 500+ chars de texte
+  mechanics.core_loop: "Observer → Déduire"
+
+# 2. Injection sélective par étape
+steps:
+  - id: mechanics
+    context_needs:
+      facts: [vision.pitch, genre.primary]  # Seulement ce qu'il faut
+      documents: [gdd.mechanics]            # Pas tout le GDD
+
+# 3. Résumé progressif (après 10+ messages)
+# 4. Prompt caching (parties stables)
+```
+
+**Config utilisateur :**
+
+```yaml
+context:
+  max_tokens: 4000          # Budget par appel
+  auto_extract_facts: true  # Extraction auto
+  summarize_threshold: 10   # Résumer après N messages
+```
+
 #### Sauvegarde et Reprise
 
 ```yaml
@@ -426,6 +528,130 @@ persona:
 | Celebrating | Confettis + expression 🎉 + sound effect |
 | Concerned | Légère secousse + expression 😬 |
 
+#### Réflexions Visibles des Agents
+
+> **Concept :** Pendant que l'agent "réfléchit" (attente LLM), afficher de petites phrases qui reflètent sa personnalité ET son rôle. Pas un simple "..." mais une vraie fenêtre sur sa façon de penser.
+
+**Exemples par agent :**
+
+| Agent | Réflexions (apparaissent aléatoirement pendant le loading) |
+| ----- | ---------------------------------------------------------- |
+| 🎲 Maya (Game Designer) | "Hmm, comment rendre ça fun..." / "Outer Wilds faisait un truc cool pour ça..." / "Et si on inversait la perspective ?" |
+| 🏛️ Alex (Architect) | "Ça sent le pattern Observer..." / "Blueprint ou C++ pour ça..." / "Faut penser à la scalabilité..." |
+| 🎨 Sam (3D Artist) | "Je vois bien un style cell-shading..." / "Le contraste est important ici..." / "Ça me rappelle Ghibli..." |
+| 🗺️ Jordan (Level Designer) | "Comment guider le joueur sans marker..." / "Le pacing serait mieux si..." / "Flow first, details later..." |
+| 🤖 Unreal Agent | "Checking available tools..." / "BP_Player... got it..." / "Let me compile that..." |
+
+**Dans l'UI :**
+
+```
+┌─────────────────────────────────────┐
+│     ╭───────╮                       │
+│     │ 🤔   │  Maya                 │
+│     ╰───────╯                       │
+│                                     │
+│  💭 "Et si on inversait la          │
+│      perspective du joueur ?"       │
+│     ●●●                             │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Configuration dans le persona :**
+
+```yaml
+persona:
+  thinking_phrases:
+    # Réflexions liées au RÔLE
+    role_specific:
+      - "Hmm, côté game design..."
+      - "Le joueur va se demander..."
+      - "C'est une question de feedback loop..."
+
+    # Réflexions liées à la PERSONNALITÉ
+    personality:
+      - "Ça me rappelle un jeu que j'adorais..."
+      - "Oh, idée folle mais..."
+      - "Attends, je réfléchis..."
+
+    # Réflexions CONTEXTUELLES (injectées par le LLM)
+    contextual: true  # Le LLM génère des pensées basées sur le contexte
+```
+
+**Règles :**
+
+- Phrases courtes (< 50 caractères)
+- Changent toutes les 2-3 secondes pendant l'attente
+- Mix de phrases pré-définies + générées par LLM
+- Toujours cohérentes avec le contexte de la conversation
+- Optionnel : désactivable dans les settings pour les users pressés
+
+#### Quick Interactions (Mini-Jeux Créatifs)
+
+> Des exercices rapides pour débloquer les idées ou accélérer les décisions.
+
+| Type | Description | Usage |
+| ---- | ----------- | ----- |
+| **Speed Round** | 5 mots en temps limité (15s) | Capturer l'essence rapidement |
+| **This or That** | Série de choix binaires rapides | Définir des préférences |
+| **Word Association** | L'agent dit un mot, user répond | Révéler des connexions inconscientes |
+| **Wild Card** | Question créative random | Déclencher des associations inattendues |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ⚡ SPEED ROUND — 5 mots pour décrire ton jeu, GO !        │
+│                                                             │
+│  [mystère] [exploration] [langage] [_______] [_______]     │
+│                                                             │
+│  ⏱️ 0:08                                    [Terminé !]    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Configuration :**
+
+```yaml
+quick_interactions:
+  timer_enabled: true   # Désactivable pour users stressés
+  default_timer: 15     # Secondes
+```
+
+#### Tips & Conseils du Jour
+
+> L'agent partage des tips contextuels basés sur le projet et l'avancement.
+
+| Type | Déclencheur | Exemple |
+| ---- | ----------- | ------- |
+| **Contextuel** | Basé sur le projet | "Pour un jeu d'exploration, pense à la Règle des 3 Curiosités..." |
+| **Technique** | Basé sur la plateforme | "Dans Unreal, tu peux utiliser les Data Assets pour..." |
+| **Inspiration** | Random/Daily | "Outer Wilds a innové en rendant la mort utile..." |
+| **Warning** | Détection de pattern | "Attention au scope creep ! Tu as déjà 15 mécaniques..." |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  💡 TIP DU JOUR — par Maya                                  │
+│                                                             │
+│  "Tu travailles sur un jeu d'exploration ?                 │
+│   Pense à la 'Règle des 3 Curiosités' :                    │
+│   À chaque endroit, le joueur devrait voir                 │
+│   au moins 3 choses qui l'intriguent."                     │
+│                                                             │
+│  📚 En savoir plus   [👍 Utile]   [👎 Pas pour moi]        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Configuration :**
+
+```yaml
+tips:
+  enabled: true
+  frequency: daily        # daily | per_session | on_milestone
+  categories:
+    - game_design
+    - technical
+    - inspiration
+    - warnings
+```
+
 #### UI de Personnalisation (pas de YAML brut)
 
 > Éditeur visuel convivial pour créer/modifier agents et workflows.
@@ -644,21 +870,39 @@ Agent: "Pas de problème ! Je crée BP_Player.
 | **Tasks** | Langue de l'interface | ✅ Oui |
 
 **Configuration utilisateur :**
+
 ```yaml
 # ~/.unreal-companion/config.yaml
 preferences:
   interface_language: fr
 
   documents:
-    # Langue par défaut pour les nouveaux documents
     default_language: fr
-
-    # Override par type
     overrides:
-      technical: en      # Architecture, specs en anglais
-      code_comments: en  # Commentaires code en anglais
-      briefs: fr         # Briefs en français
-      gdd: fr            # GDD en français
+      technical: en
+      code_comments: en
+      briefs: fr
+      gdd: fr
+
+# Expérience ludique
+ludic:
+  tips:
+    enabled: true
+    frequency: daily  # daily | per_session | on_milestone
+    categories: [game_design, technical, inspiration, warnings]
+  quick_interactions:
+    timer_enabled: true
+    default_timer: 15
+  celebrations:
+    confetti: true
+    sounds: false
+
+# Gestion du contexte LLM
+context:
+  max_tokens: 4000
+  auto_extract_facts: true
+  summarize_threshold: 10
+  use_prompt_caching: true
 ```
 
 **UI Settings :**
@@ -1097,6 +1341,88 @@ agent_actions:
 
 ---
 
+### 1.6 Web-UI Existant (À Réutiliser)
+
+> **IMPORTANT :** Ces fonctionnalités existent déjà et ne doivent PAS être recréées !
+
+#### Lancement unifié
+
+**Script :** `web-ui/start.sh` (ou `npm run start`)
+
+```bash
+# Lance tout sur le port 3179 :
+# - Backend FastAPI (/api/*)
+# - Frontend React (/)
+# - MCP Bridge intégré
+./start.sh
+```
+
+#### Onboarding (À étendre - 7 étapes)
+
+**Fichier existant :** `src/components/onboarding/OnboardingFlow.tsx`
+
+**Étapes actuelles (5) + nouvelles (2) :**
+
+| Étape | Contenu | Status |
+|-------|---------|--------|
+| 1. Welcome | "Bienvenue dans ton studio virtuel !" | À améliorer |
+| 2. Project | Création/liaison projet Unreal (auto-discovery) | ✅ Existe |
+| 3. Providers | Config API keys (Anthropic/OpenAI/Google) | ✅ Existe |
+| 4. **Team** | "Rencontre ton équipe" - présentation 3 agents clés | 🆕 À créer |
+| 5. Theme | Choix du thème UI | ✅ Existe |
+| 6. **Quick Start** | Lancer quick-start workflow ou explorer | 🆕 À créer |
+| 7. Ready | "Ton studio est prêt !" + rappel BMGD | À améliorer |
+
+**Nouvelle étape "Team" :**
+```
+┌────────────────────────────────────────────────────────┐
+│ 👥 Ton équipe virtuelle                               │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│ Tu n'es plus seul ! Voici ton équipe de studio :      │
+│                                                        │
+│ 🎮 Zelda - Game Designer                              │
+│    "Je t'aide à définir ta vision et tes mécaniques"  │
+│                                                        │
+│ 🏗️ Solid - Architecte                                 │
+│    "Je structure tes systèmes et Blueprints"          │
+│                                                        │
+│ 🗺️ Lara - Level Designer                              │
+│    "Je conçois tes niveaux et le flow joueur"         │
+│                                                        │
+│ ... et d'autres spécialistes disponibles !            │
+│                                                        │
+│ 💡 Notre méthode s'inspire de BMGD                    │
+│    (Breakthrough Method for Game Development)         │
+│                                                        │
+│                              [Suivant →]              │
+└────────────────────────────────────────────────────────┘
+```
+
+Déclenché si : `!hasAnyApiKey && projects.length === 0`
+
+#### MCP Bridge
+
+**Fichier :** `server/services/mcp_bridge.py`
+
+- Import auto des tools depuis `Python/tools/`
+- Singleton avec `list_tools()` et `call_tool()`
+- Utilisé dans `chat.py` pour l'exécution des tools
+
+#### Stores Zustand (9 existants)
+
+| Store | Rôle |
+|-------|------|
+| chatStore | Messages, conversation |
+| projectStore | Projets, persistence |
+| workflowStore | Sessions workflow, WebSocket |
+| llmStore | Config LLM, providers |
+| connectionStore | Status Unreal/MCP |
+| studioStore | Tasks, sectors |
+| + 3 autres | Theme, logs, toasts |
+
+---
+
 ## 2. Architecture des Agents
 
 ### 2.1 Agents vs Skills
@@ -1106,16 +1432,59 @@ agent_actions:
 | **Agent** | Personnalité, point de vue, style de communication | *"Qui me parle ?"* |
 | **Skill** | Procédure réutilisable, savoir-faire | *"Comment faire X ?"* |
 
-### 2.2 Agents disponibles
+### 2.2 Méthodologie BMGD/BMAD
 
-| Agent | STUDIO | EDITOR | Spécialité |
-|-------|--------|--------|------------|
-| **Game Designer** | ✅ | ❌ | Mécaniques, GDD, gameplay |
-| **Game Architect** | ✅ | ✅ | Systèmes, Blueprints, architecture |
-| **Level Designer** | ✅ | ✅ | Niveaux, lighting, flow |
-| **3D Artist** | ✅ | ✅ | Matériaux, assets, direction artistique |
-| **Game Dev** | ✅ | ❌ | Implémentation générale |
-| **Unreal Agent** | ❌ | ✅ (défaut) | Généraliste EDITOR, tous les tools |
+> **Crédit :** Notre approche s'inspire de la méthodologie **BMGD** (Breakthrough Method for Game Development).
+> Repo officiel : [bmad-code-org/bmad-module-game-dev-studio](https://github.com/bmad-code-org/bmad-module-game-dev-studio)
+>
+> Nous adaptons leurs patterns (step-file, agents personas, workflows structurés) avec notre vision ludique et interactive.
+
+### 2.3 Agents disponibles
+
+Les agents ont des **personas distinctes** inspirées de la culture vidéoludique.
+
+| Agent | Persona | Référence | Style | STUDIO | EDITOR |
+|-------|---------|-----------|-------|--------|--------|
+| **Game Designer** | "Zelda" | Nintendo | Enthousiaste, "Let's explore!" | ✅ | ❌ |
+| **Game Architect** | "Solid" | Metal Gear | Stratège calme, pense systèmes | ✅ | ✅ |
+| **Level Designer** | "Lara" | Tomb Raider | Exploratrice, pense en "flow" | ✅ | ✅ |
+| **3D Artist** | "Navi" | Zelda | Créatif, guide visuel | ✅ | ✅ |
+| **Game Dev** | "Ada" | RE4 + Lovelace | Direct, code-focused | ✅ | ❌ |
+| **Solo Dev** | "Indie" | Culture indie | Pragmatique, "ship it!" | ✅ | ❌ |
+| **Unreal Agent** | "Epic" | Unreal Engine | Technique, tous les MCP tools | ❌ | ✅ (défaut) |
+
+#### Structure Agent YAML
+
+```yaml
+# ~/.unreal-companion/agents/defaults/game-designer.agent.yaml
+id: game-designer
+name: "Zelda"
+title: "Lead Game Designer"
+icon: "🎮"
+reference: "Nintendo - exploratrice de game design"
+
+persona: |
+  Lead Game Designer passionnée par les systèmes interconnectés.
+  Croit que chaque mécanique doit servir l'expérience joueur.
+  "Un bon design, c'est quand enlever quelque chose casserait tout."
+
+communication_style: |
+  Enthousiaste mais structurée. Utilise des références de jeux.
+  Célèbre les idées ("Oh, comme dans Breath of the Wild!")
+  Challenge avec bienveillance ("Et si on poussait plus loin?")
+
+core_principles:
+  - Le fun first, la technique après
+  - Prototyper avant de documenter
+  - Une mécanique = une émotion
+  - Itérer jusqu'à ce que ça "click"
+
+workflows:
+  - game-brief
+  - gdd
+  - brainstorm
+  - narrative-design
+```
 
 ### 2.3 Unreal Agent (EDITOR)
 
@@ -1476,15 +1845,135 @@ steps:
   # ... more steps
 ```
 
-### 6.3 Compatibilité CLI
+### 6.3 Architecture Step-File (BMGD)
 
-Les workflows YAML sont lisibles par tout client :
+> Pattern crucial pour guider le LLM dans les workflows complexes.
+> Source : [bmad-module-game-dev-studio](https://github.com/bmad-code-org/bmad-module-game-dev-studio)
+
+#### Structure dossier workflow
+
+```
+workflows/defaults/game-brief/
+├── workflow.yaml              # Config principale
+├── instructions.md            # Guidance LLM
+├── checklist.md               # Critères de validation
+├── steps/
+│   ├── step-01-init.md        # Détection état + init
+│   ├── step-01b-continue.md   # Reprise session existante
+│   ├── step-02-vision.md      # Étape vision
+│   ├── step-03-genre.md       # Étape genre
+│   └── step-NN-complete.md    # Finalisation
+└── templates/
+    └── game-brief-template.md  # Template avec {{variables}}
+```
+
+#### Règles LLM obligatoires (en haut de chaque step)
+
+```markdown
+## MANDATORY EXECUTION RULES
+- Ne pas skip, ne pas optimiser la séquence
+- JAMAIS générer de contenu sans input utilisateur
+- TOUJOURS lire le fichier step ENTIER avant exécution
+- JAMAIS charger plusieurs step files en même temps
+```
+
+#### Menu-driven progression
+
+```markdown
+## OPTIONS UTILISATEUR
+[A] Accepter l'output actuel
+[P] Donner du feedback / Party Mode
+[C] Continuer vers l'étape suivante
+[AE] Advanced Elicitation (questions approfondies)
+
+SEUL [C] Continue sauvegarde l'état et avance
+```
+
+#### Frontmatter pour state tracking
+
+```yaml
+---
+workflowId: game-brief
+workflowName: Game Brief
+stepsCompleted: [1, 2, 3]    # Étapes terminées
+currentStep: 4
+workflowStatus: in-progress   # in-progress | paused | complete
+inputDocuments:
+  - type: brainstorming
+    name: Ideas.md
+lastUpdated: 2024-01-22T14:32:00Z
+---
+```
+
+### 6.4 Approche Hybride : Menu + Ludique
+
+> L'objectif est de combiner la **structure BMGD** (fiable, CLI-compatible) avec notre **vision ludique** (engageante, fun).
+
+#### Menu-driven avec personnalité
+
+```
+# CLI (structure préservée, ton adapté)
+┌────────────────────────────────────────────────────────┐
+│ 🎮 Zelda (Game Designer)                              │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│ "Oh, un jeu d'exploration ! Ça me rappelle mes        │
+│ aventures dans Hyrule. J'adore ce pitch !"            │
+│                                                        │
+│ Que veux-tu faire ?                                   │
+│                                                        │
+│   [A] ✓ Parfait, on continue                          │
+│   [P] 🔄 Je veux modifier quelque chose               │
+│   [C] → Passer à l'étape suivante                     │
+│   [Q] 🎲 Quick interaction (5 mots en 30s!)           │
+│                                                        │
+│ 💡 Tip: Tu peux aussi taper directement ta réponse    │
+└────────────────────────────────────────────────────────┘
+```
+
+#### Éléments ludiques intégrés
+
+| Élément | CLI | Web UI |
+|---------|-----|--------|
+| **Réactions agent** | Texte émotif + émoji | Avatar animé + particules |
+| **Célébrations** | ASCII art + message | Confettis + animation |
+| **Quick interactions** | `[Q]` option | Bouton dédié |
+| **Suggestions** | Liste numérotée | Cards visuelles |
+| **Progression** | `[██████░░░░] 60%` | Barre animée |
+
+#### Quick interactions en CLI
+
+```
+# Speed Round (compatible CLI)
+┌────────────────────────────────────────────────────────┐
+│ 🎲 SPEED ROUND - 5 mots en 30 secondes !              │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│ Décris ton jeu avec 5 mots :                          │
+│                                                        │
+│ > mystère exploration puzzle langage découverte_      │
+│                                                        │
+│ ⏱️  [████████░░] 12s restantes                        │
+│                                                        │
+│ (Entrée pour valider, ou attends la fin du timer)     │
+└────────────────────────────────────────────────────────┘
+```
+
+### 6.5 Compatibilité CLI Complète
+
+Les workflows fonctionnent identiquement en CLI et Web UI :
 
 **Claude Code / Cursor :**
-1. Lit le workflow YAML
-2. Pose les questions séquentiellement
-3. Écrit les réponses dans l'artifact
-4. Peut créer des tasks
+1. Lit le workflow YAML + step file courant
+2. Applique les mandatory rules (même rigueur)
+3. Affiche le menu avec personnalité agent
+4. Supporte les quick interactions `[Q]`
+5. Sauvegarde via frontmatter
+6. Célébrations en ASCII/émoji
+
+**Principe : CLI-first, Web-enhanced**
+- Tout ce qui marche en CLI marche en Web UI
+- Web UI ajoute du visuel, pas de la logique
 
 ---
 
@@ -1603,7 +2092,26 @@ User: "Génère un concept art du Temple principal"
   - Index avec dépendances
   - API CRUD tasks
 
+- [x] **P1.4** CLI Setup & Open Source Infrastructure ✅
+  - CLI npm-style (`npx unreal-companion install/upgrade/start/init/status/doctor`)
+  - Installation interactive (langue, thème, détection projets)
+  - Système de migrations pour les upgrades
+  - Doctor command pour diagnostiquer les problèmes
+  - Tips aléatoires des agents au lancement
+  - Fichiers open-source (CODE_OF_CONDUCT, CHANGELOG, FUNDING)
+  - CI/CD pour CLI, Web UI lint/build
+  - Documentation GitHub setup (branch protection, labels)
+
 ### Phase 2 : STUDIO Mode
+
+- [ ] **P2.0** Refactoring Structurel Web-UI
+  - Documenter modifications backend/frontend pour nouvelles features
+  - Nouveaux services : context_manager, fact_extractor, tips_service
+  - Nouveaux composants input (Spectrum, Emoji, ChoiceCards, Appreciation)
+  - Nouveaux composants quick interactions (SpeedRound, ThisOrThat, etc.)
+  - Nouveaux stores Zustand (context, tips)
+  - Extension QuestionRenderer pour nouveaux types
+  - Migration progressive sans casser l'existant
 
 - [ ] **P2.1** Refonte Production Board
   - Vue queues (pas Kanban)
@@ -1641,11 +2149,12 @@ User: "Génère un concept art du Temple principal"
   - UI résumé au retour ("On en était à...")
   - Historique des sessions terminées
 
-- [ ] **P2.7** Moteur de Workflow Dynamique
-  - Questions générées par LLM (pas juste scriptées)
-  - Injection du contexte (réponses précédentes) dans chaque prompt
-  - Réactions de l'agent générées dynamiquement
-  - Suggestions adaptatives (genre → références pertinentes)
+- [ ] **P2.7** Gestion du Contexte LLM (Optimisation Tokens)
+  - Contexte hiérarchique (CORE / RELEVANT / DÉTAILS)
+  - Extraction automatique de facts (pas texte brut)
+  - Injection sélective par étape workflow
+  - Résumé progressif des longues conversations
+  - Prompt caching pour les parties stables
 
 - [ ] **P2.8** Party Mode (Multi-Agents)
   - Orchestration multi-agents sur un sujet
@@ -1654,12 +2163,13 @@ User: "Génère un concept art du Temple principal"
   - Synthèse des décisions prises
   - Auto-update des artifacts concernés
 
-- [ ] **P2.9** Document Live (Remplissage Progressif)
-  - Split view : chat + document en construction
-  - Mise à jour en temps réel pendant la conversation
-  - Versioning automatique (changelog)
-  - Historique consultable
-  - Possibilité de "reprendre" un doc pour en rediscuter
+- [ ] **P2.9** Document Desk (Bureau Virtuel)
+  - Navigation par dossiers (briefs/, design/, narrative/, etc.)
+  - Visualisation documents avec chat contextuel à côté
+  - Sélection de texte pour ajouter au contexte chat
+  - Édition WYSIWYG → sauvegarde en .md
+  - Suggestions LLM (workflows, party mode) pour approfondir
+  - Types: briefs, design, narrative, art, audio, sessions, boards, reports, references
 
 - [ ] **P2.10** Avatars et Personnalités Agents
   - Système d'avatars (emoji, image, pixel-art)
@@ -1868,6 +2378,31 @@ Tasks Parent + Sous-tasks qui progressent entre secteurs :
 - Pas de jargon BMAD
 - Philosophie "studio de dev virtuel"
 
+### Cohérence Architecturale (Post-Revue)
+
+> **Principe : ÉTENDRE, ne pas RECRÉER**
+
+**Stores existants à réutiliser :**
+- `studioStore.ts` — Tasks, sectors (pas créer tasksStore)
+- `workflowStore.ts` — Sessions workflow (pas créer sessionStore)
+
+**Services existants à étendre :**
+- `context_discovery.py` → ajouter contexte hiérarchique
+- `workflow/state_manager.py` → ajouter détection reprise
+- `workflow/prompt_builder.py` → ajouter injection sélective
+
+**Pattern routes : toujours `server/api/`** (pas `server/routes/`)
+
+**Secteurs (10 par défaut, personnalisables) :**
+
+| Catégorie | Secteurs |
+|-----------|----------|
+| **Core** | `concept`, `dev`, `art`, `levels` |
+| **Creative** | `narrative`, `audio`, `animation` |
+| **Production** | `ui`, `qa`, `marketing` |
+
+L'utilisateur peut désactiver/réordonner. Le LLM peut suggérer d'autres secteurs.
+
 ---
 
 ## 11. Questions Ouvertes
@@ -1890,21 +2425,101 @@ Les tâches détaillées sont dans le dossier `.tasks/` :
 .tasks/
 ├── README.md                      # Vue d'ensemble
 ├── phase-1-foundations/           # 3 tasks
-├── phase-2-studio-core/           # 6 tasks
+├── phase-2-studio-core/           # 9 tasks
 ├── phase-3-editor-core/           # 3 tasks
 ├── phase-4-cli/                   # 3 tasks (priorité haute)
 ├── phase-5-studio-advanced/       # 5 tasks
 ├── phase-6-assets/                # 4 tasks
-└── phase-7-polish/                # 6 tasks
+└── phase-7-polish/                # 5 tasks
 ```
 
-**Total : 30 tasks**
+**Total : 32 tasks**
 
 Chaque fichier contient : Objectif, Prérequis, Spécifications, Critères d'acceptation, Tests à écrire.
 
 ---
 
 ## Changelog
+
+- **2024-01-22** — Approche Hybride & Personas Gaming
+  - **Crédit BMGD/BMAD** : Ajout mention méthodologie + lien repo (section 2.2)
+  - **Personas gaming** : Noms courts inspirés de la culture vidéoludique
+    - Zelda (Designer), Solid (Architect), Lara (Level), Navi (Artist), Ada (Dev), Indie (Solo), Epic (Unreal)
+  - **Approche hybride Menu + Ludique** (section 6.4) :
+    - Structure BMGD préservée pour fiabilité CLI
+    - Personnalité agent dans les menus
+    - Quick interactions accessibles via `[Q]`
+    - Célébrations en ASCII/émoji pour CLI
+    - Principe "CLI-first, Web-enhanced"
+  - **Onboarding amélioré** (section 1.6) :
+    - 7 étapes (vs 5 avant)
+    - Nouvelle étape "Team" : présentation équipe virtuelle
+    - Nouvelle étape "Quick Start" : lancer un workflow ou explorer
+    - Mention de la méthodologie BMGD
+
+- **2024-01-22** — Intégration BMGD & Web-UI Existant
+  - Documentation des features web-ui existantes (section 1.6) :
+    - `start.sh` : lance backend + frontend sur port 3179
+    - Onboarding 5 étapes (OnboardingFlow.tsx)
+    - MCP Bridge intégré (mcp_bridge.py)
+    - 9 stores Zustand existants
+  - Agents avec personas BMGD (section 2.2) :
+    - Structure YAML avec persona, communication_style, core_principles
+    - 7 agents : Game Designer, Architect, Level Designer, 3D Artist, Dev, Solo Dev, Unreal Agent
+  - Architecture Step-File pour workflows (section 6.3) :
+    - Mandatory rules pour guider le LLM
+    - Menu-driven progression ([A]ccept [P]rovide [C]ontinue)
+    - Frontmatter state tracking pour resume sessions
+    - Structure dossier avec steps/, templates/, checklist.md
+
+- **2024-01-22** — Document Desk (Bureau Virtuel)
+  - Nouvelle task P2.9 : espace de gestion et visualisation des documents
+  - Navigation par dossiers/catégories (briefs, design, narrative, art, audio, sessions, boards, reports)
+  - Visualisation avec chat contextuel à côté
+  - Édition WYSIWYG (TipTap recommandé) → sauvegarde .md
+  - Suggestions LLM pour workflows/party mode pertinents
+  - Sélection de texte pour enrichir le contexte chat
+  - Total tasks : 32
+
+- **2024-01-22** — Revue Architecturale & Cohérence
+  - Audit complet de l'existant web-ui vs tasks proposées
+  - Corrections P1.3, P2.0, P2.6, P2.7 : référencer l'existant, étendre au lieu de recréer
+  - Harmonisation secteurs : `concept → dev → art → levels` (remplace anciens)
+  - Pattern unifié : routes dans `server/api/`, pas `server/routes/`
+  - Ajout section "Cohérence Architecturale" dans PLAN.md
+
+- **2024-01-22** — Refactoring Structurel Web-UI
+  - Nouvelle task P2.0 : documentation des modifications backend/frontend
+  - Analyse de l'existant (SQLite sessions, WebSocket streaming, multi-provider LLM, Zustand stores)
+  - Nouveaux services backend : context_manager, fact_extractor, tips_service
+  - Nouvelles routes API : /context/hierarchy, /context/facts, /tips
+  - Nouveaux modèles DB : Fact, Tip, TipDismissal
+  - Nouveaux composants frontend : input interactifs, quick interactions, tips, agent thinking
+  - Nouveaux stores Zustand : contextStore, tipsStore
+  - Stratégie migration progressive (ajouter sans casser)
+
+- **2024-01-22** — Gestion du Contexte LLM
+  - Nouvelle task P2.7 : optimisation tokens pour réduire coûts et hallucinations
+  - Contexte hiérarchique en 3 niveaux (CORE / RELEVANT / DÉTAILS)
+  - Extraction automatique de facts (données structurées vs texte brut)
+  - Résumé progressif des longues conversations
+  - Prompt caching pour les parties stables
+  - Budget ~2000-3000 tokens par appel (vs 12000+ sans optimisation)
+
+- **2024-01-22** — Quick Interactions & Tips
+  - Speed Round (5 mots en temps limité)
+  - This or That (choix binaires rapides)
+  - Word Association (associations libres)
+  - Wild Card (questions créatives random)
+  - Tips du jour contextuels par agent
+  - Analyse structure BMAD/BMGD
+
+- **2024-01-22** — Enrichissement expérience ludique
+  - Types de réponses interactives (jauges, échelles émotionnelles, choix A/B)
+  - Exemples dynamiques du LLM avec feedback utilisateur
+  - Discussions réflexives (pas un interrogatoire)
+  - Réflexions visibles des agents (pensées pendant le loading)
+  - Mise à jour P2.5-ludic-experience.md avec specs détaillées
 
 - **2024-01-22** — Revue architecturale et création tasks
   - Décisions post-review documentées

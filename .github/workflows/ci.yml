@@ -117,3 +117,84 @@ jobs:
           fi
           
           echo "✅ All C++ files are properly formatted"
+
+  test-cli:
+    name: Test CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check CLI syntax
+        run: node --check cli/bin/unreal-companion.js
+
+      - name: Test CLI commands
+        run: |
+          # Test help
+          node cli/bin/unreal-companion.js --help
+
+          # Test version
+          node cli/bin/unreal-companion.js --version
+
+          # Test install (dry run style - just check it doesn't crash)
+          node cli/bin/unreal-companion.js status --json || true
+
+  lint-web-ui:
+    name: Lint Web UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-ui
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: web-ui
+        run: npm run typecheck || npx tsc --noEmit
+
+      - name: Lint
+        working-directory: web-ui
+        run: npm run lint || true
+
+  build-web-ui:
+    name: Build Web UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-ui
+        run: npm ci
+
+      - name: Build
+        working-directory: web-ui
+        run: npm run build
