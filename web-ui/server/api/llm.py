@@ -1,10 +1,14 @@
 """
 LLM Configuration API endpoints
 """
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.llm import llm_service, LLMProvider, AVAILABLE_MODELS, CustomEndpoint
 from services.auto_router import auto_router
+from core.env_manager import save_api_key
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
@@ -38,10 +42,24 @@ def get_llm_config():
 @router.post("/config")
 def update_llm_config(request: LLMConfigRequest):
     """Update LLM configuration."""
+    logger.info(f"Updating LLM config: provider={request.provider}, model={request.model}")
+
+    # Persist API keys to .env file for restart resilience
+    if request.anthropic_key:
+        logger.info(f"Anthropic key provided: {request.anthropic_key[:10]}...")
+        save_api_key("anthropic", request.anthropic_key)
+    if request.openai_key:
+        logger.info(f"OpenAI key provided: {request.openai_key[:10]}...")
+        save_api_key("openai", request.openai_key)
+    if request.google_key:
+        logger.info(f"Google key provided: {request.google_key[:10]}...")
+        save_api_key("google", request.google_key)
+
     # Handle custom endpoint selection
     if request.custom_endpoint_id:
         llm_service.set_custom_endpoint(request.custom_endpoint_id)
-    
+        logger.info(f"Custom endpoint selected: {request.custom_endpoint_id}")
+
     llm_service.configure(
         provider=request.provider,
         model=request.model,
@@ -51,7 +69,10 @@ def update_llm_config(request: LLMConfigRequest):
         google_key=request.google_key,
         ollama_url=request.ollama_url,
     )
-    return llm_service.get_config()
+
+    config = llm_service.get_config()
+    logger.info(f"LLM config updated: {config}")
+    return config
 
 
 @router.post("/test")
@@ -110,7 +131,7 @@ def get_available_providers():
             "name": "Anthropic",
             "icon": "🧠",
             "configured": config["has_anthropic_key"],
-            "default_model": "claude-opus-4-5-20260115",
+            "default_model": "claude-sonnet-4-20250514",
             "description": "Claude Opus 4.5, Sonnet 4, Haiku",
         },
         {

@@ -1,0 +1,59 @@
+---
+description: Unreal Companion Workflow - Game Brainstorming
+globs:
+alwaysApply: false
+---
+
+# Brainstorming Workflow
+
+Facilitate creative game ideation sessions with game-specific techniques.
+
+<steps CRITICAL="TRUE">
+1. LOAD the workflow engine: `~/.unreal-companion/core/workflow-engine.md`
+2. READ and PROCESS the workflow config: `{project-root}/.unreal-companion/workflows/brainstorming/workflow.yaml`
+   - If not found, use: `~/.unreal-companion/workflows/defaults/brainstorming/workflow.yaml`
+3. RESOLVE all variables from config files
+4. FOLLOW workflow-engine.md instructions EXACTLY to execute the workflow
+5. SAVE outputs after EACH section when generating content
+6. UPDATE workflow-status.yaml after completion
+</steps>
+
+## About This Workflow
+
+Brainstorming is **repeatable** - you can run multiple sessions.
+Each session creates a new document with timestamp.
+
+## Quick Summary
+
+This workflow guides you through:
+1. **Initialize** - Set brainstorming mindset and rules
+2. **Context** - Load game-specific techniques
+3. **Ideation** - Execute brainstorming with chosen methods
+4. **Complete** - Save results and summarize
+
+## Brainstorming Techniques
+
+Available game-focused techniques:
+- **MDA Framework** - Mechanics → Dynamics → Aesthetics
+- **Core Loop Design** - Define the heartbeat of gameplay
+- **Player Fantasy Mining** - Identify power fantasies
+- **Genre Mashup** - Combine unexpected genres
+- **Verbs Before Nouns** - Focus on actions first
+- **Failure State Design** - Design interesting failures
+
+Standard techniques:
+- **SCAMPER** - Substitute, Combine, Adapt, Modify, Put to other uses, Eliminate, Reverse
+- **What If Scenarios** - Explore radical possibilities
+- **First Principles** - Rebuild from fundamentals
+
+## Output
+
+Document saved to: `{output_folder}/brainstorming-session-{date}.md`
+
+## Brainstorming Rules
+
+- There are no bad ideas
+- Quantity over quality initially
+- Build on ideas rather than criticize
+- Wild ideas are welcome
+- Defer judgment until later

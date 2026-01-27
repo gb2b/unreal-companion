@@ -11,6 +11,7 @@ import { PlanningInline } from '@/components/chat/PlanningView'
 import { ModelSelector } from '@/components/chat/ModelSelector'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n/useI18n'
 
 const AGENTS = [
   { id: 'game-dev', name: 'Game Developer', color: 'text-blue-400', description: 'Implementation & coding' },
@@ -31,6 +32,7 @@ interface ChatPageProps {
 }
 
 export function ChatPage({ hideHeader = false }: ChatPageProps) {
+  const { t } = useTranslation()
   const { messages, isLoading, currentAgent, setAgent, sendMessage, clearMessages } = useChatStore()
   const { currentModel } = useLLMStore()
   const { unrealConnected } = useConnectionStore()
@@ -318,7 +320,7 @@ export function ChatPage({ hideHeader = false }: ChatPageProps) {
                   <span></span>
                   <span></span>
                 </div>
-                <span className="text-sm text-muted-foreground">Thinking...</span>
+                <span className="text-sm text-muted-foreground">{t('streaming.thinking')}</span>
               </div>
             </div>
           </div>

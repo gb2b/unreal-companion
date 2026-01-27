@@ -26,6 +26,9 @@ class WorkflowSession:
     responses: dict = field(default_factory=dict)  # step_id -> responses
     document_content: str = ""
     messages: list = field(default_factory=list)  # Chat history
+    language: str = "en"  # UI language for responses
+    output_path: str = ""  # Path to output document (BMAD: created at start)
+    steps_completed: list = field(default_factory=list)  # List of completed step IDs
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
     
@@ -72,10 +75,28 @@ class StateManager:
                 responses TEXT DEFAULT '{}',
                 document_content TEXT DEFAULT '',
                 messages TEXT DEFAULT '[]',
+                language TEXT DEFAULT 'en',
+                output_path TEXT DEFAULT '',
+                steps_completed TEXT DEFAULT '[]',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
         """)
+
+        # Migration: Add columns if not exists (for existing DBs)
+        migrations = [
+            ("language", "TEXT DEFAULT 'en'"),
+            ("output_path", "TEXT DEFAULT ''"),
+            ("steps_completed", "TEXT DEFAULT '[]'"),
+        ]
+        
+        for col_name, col_def in migrations:
+            try:
+                cursor.execute(f"ALTER TABLE workflow_sessions ADD COLUMN {col_name} {col_def}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
         
         # Index for quick project lookups
         cursor.execute("""
@@ -112,8 +133,9 @@ class StateManager:
                 INSERT OR REPLACE INTO workflow_sessions (
                     id, workflow_id, project_id, project_path, agent_id,
                     current_step, total_steps, status, responses,
-                    document_content, messages, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    document_content, messages, language, output_path,
+                    steps_completed, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 session.id,
                 session.workflow_id,
@@ -126,6 +148,9 @@ class StateManager:
                 json.dumps(session.responses),
                 session.document_content,
                 json.dumps(session.messages),
+                session.language,
+                session.output_path,
+                json.dumps(session.steps_completed),
                 session.created_at,
                 session.updated_at,
             ))
@@ -137,6 +162,28 @@ class StateManager:
             return False
         finally:
             conn.close()
+    
+    def _row_to_session(self, row) -> WorkflowSession:
+        """Convert a database row to a WorkflowSession."""
+        keys = row.keys()
+        return WorkflowSession(
+            id=row["id"],
+            workflow_id=row["workflow_id"],
+            project_id=row["project_id"],
+            project_path=row["project_path"],
+            agent_id=row["agent_id"],
+            current_step=row["current_step"],
+            total_steps=row["total_steps"],
+            status=row["status"],
+            responses=json.loads(row["responses"]),
+            document_content=row["document_content"],
+            messages=json.loads(row["messages"]),
+            language=row["language"] if "language" in keys else "en",
+            output_path=row["output_path"] if "output_path" in keys else "",
+            steps_completed=json.loads(row["steps_completed"]) if "steps_completed" in keys and row["steps_completed"] else [],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
     
     def get(self, session_id: str) -> Optional[WorkflowSession]:
         """
@@ -162,24 +209,10 @@ class StateManager:
             if not row:
                 return None
             
-            return WorkflowSession(
-                id=row["id"],
-                workflow_id=row["workflow_id"],
-                project_id=row["project_id"],
-                project_path=row["project_path"],
-                agent_id=row["agent_id"],
-                current_step=row["current_step"],
-                total_steps=row["total_steps"],
-                status=row["status"],
-                responses=json.loads(row["responses"]),
-                document_content=row["document_content"],
-                messages=json.loads(row["messages"]),
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-            )
+            return self._row_to_session(row)
         finally:
             conn.close()
-    
+
     def list_by_project(self, project_id: str, status: str = None) -> list[WorkflowSession]:
         """
         List all sessions for a project.
@@ -209,26 +242,12 @@ class StateManager:
             
             sessions = []
             for row in cursor.fetchall():
-                sessions.append(WorkflowSession(
-                    id=row["id"],
-                    workflow_id=row["workflow_id"],
-                    project_id=row["project_id"],
-                    project_path=row["project_path"],
-                    agent_id=row["agent_id"],
-                    current_step=row["current_step"],
-                    total_steps=row["total_steps"],
-                    status=row["status"],
-                    responses=json.loads(row["responses"]),
-                    document_content=row["document_content"],
-                    messages=json.loads(row["messages"]),
-                    created_at=row["created_at"],
-                    updated_at=row["updated_at"],
-                ))
-            
+                sessions.append(self._row_to_session(row))
+
             return sessions
         finally:
             conn.close()
-    
+
     def get_active_session(self, project_id: str, workflow_id: str) -> Optional[WorkflowSession]:
         """
         Get an active session for a project/workflow combination.
@@ -256,24 +275,10 @@ class StateManager:
             if not row:
                 return None
             
-            return WorkflowSession(
-                id=row["id"],
-                workflow_id=row["workflow_id"],
-                project_id=row["project_id"],
-                project_path=row["project_path"],
-                agent_id=row["agent_id"],
-                current_step=row["current_step"],
-                total_steps=row["total_steps"],
-                status=row["status"],
-                responses=json.loads(row["responses"]),
-                document_content=row["document_content"],
-                messages=json.loads(row["messages"]),
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-            )
+            return self._row_to_session(row)
         finally:
             conn.close()
-    
+
     def delete(self, session_id: str) -> bool:
         """
         Delete a session.

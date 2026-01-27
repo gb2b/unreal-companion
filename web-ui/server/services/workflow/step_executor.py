@@ -57,10 +57,11 @@ class StepExecutor:
         user_message: str = "",
         choices: list[str] = None,
         mode: str = "normal",  # normal, elicit, yolo
+        language: str = None,  # UI language for responses
     ) -> AsyncIterator[str]:
         """
         Execute a workflow step with streaming.
-        
+
         Args:
             step: Step definition from workflow
             session: Current session
@@ -69,10 +70,14 @@ class StepExecutor:
             user_message: User's input
             choices: Selected suggestion IDs
             mode: Execution mode
-            
+            language: Language code (en, fr, es) for responses
+
         Yields:
             Chunks of the agent's response
         """
+        # Use session language if not provided
+        lang = language or getattr(session, 'language', 'en')
+
         # Build prompts
         built_prompt = self.prompt_builder.build(
             step=step,
@@ -81,6 +86,7 @@ class StepExecutor:
             choices=choices,
             agent=agent,
             loaded_context=context,
+            language=lang,
         )
         
         # Add mode-specific instructions
@@ -123,13 +129,14 @@ Be confident and specific, as if an experienced game designer answered.
         user_message: str = "",
         choices: list[str] = None,
         mode: str = "normal",
+        language: str = None,
     ) -> StepResult:
         """
         Execute a step and return complete result (non-streaming).
-        
+
         Args:
             Same as execute()
-            
+
         Returns:
             StepResult with full response
         """
@@ -143,6 +150,7 @@ Be confident and specific, as if an experienced game designer answered.
             user_message=user_message,
             choices=choices,
             mode=mode,
+            language=language,
         ):
             full_response += chunk
         
@@ -176,25 +184,47 @@ Be confident and specific, as if an experienced game designer answered.
     def _extract_suggestions(self, response: str, step: dict) -> list[dict]:
         """
         Extract suggestions from agent response.
-        
+
         Looks for:
+        - JSON code blocks with {"suggestions": [...]}
         - JSON arrays in the response
-        - Numbered options
         - Menu-style options like [C] Continue
         """
         suggestions = []
-        
-        # Try to find JSON array
-        json_match = re.search(r'\[\s*\{.*?\}\s*\]', response, re.DOTALL)
-        if json_match:
+
+        # First, try to find JSON in code block (preferred format)
+        json_block_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
+        if json_block_match:
             try:
-                parsed = json.loads(json_match.group())
+                parsed = json.loads(json_block_match.group(1))
+                if isinstance(parsed, dict) and "suggestions" in parsed:
+                    suggestions.extend(parsed["suggestions"])
+                    return suggestions
+            except json.JSONDecodeError:
+                pass
+
+        # Try to find JSON object with suggestions key
+        json_obj_match = re.search(r'\{\s*"suggestions"\s*:\s*\[.*?\]\s*\}', response, re.DOTALL)
+        if json_obj_match:
+            try:
+                parsed = json.loads(json_obj_match.group())
+                if isinstance(parsed, dict) and "suggestions" in parsed:
+                    suggestions.extend(parsed["suggestions"])
+                    return suggestions
+            except json.JSONDecodeError:
+                pass
+
+        # Try to find JSON array directly
+        json_array_match = re.search(r'\[\s*\{.*?"type".*?\}\s*\]', response, re.DOTALL)
+        if json_array_match:
+            try:
+                parsed = json.loads(json_array_match.group())
                 if isinstance(parsed, list):
                     suggestions.extend(parsed)
                     return suggestions
             except json.JSONDecodeError:
                 pass
-        
+
         # Look for menu options like [C] Continue
         menu_matches = re.findall(r'\[([A-Z])\]\s*(.+?)(?:\n|$)', response)
         for key, label in menu_matches:
@@ -204,26 +234,22 @@ Be confident and specific, as if an experienced game designer answered.
                 "label": f"[{key}] {label.strip()}",
                 "key": key,
             })
-        
-        # Look for numbered options
-        numbered_matches = re.findall(r'^(\d+)\.\s*(.+?)$', response, re.MULTILINE)
-        if numbered_matches and not suggestions:
-            for num, label in numbered_matches[:5]:  # Max 5
-                suggestions.append({
-                    "id": f"option-{num}",
-                    "type": "choice",
-                    "label": label.strip(),
-                })
-        
-        # Add default continue if step questions are answered
-        if not suggestions and step.get("questions"):
+
+        # Add default continue if no suggestions found
+        if not suggestions:
             suggestions.append({
                 "id": "continue",
                 "type": "choice",
-                "label": "[C] Continue to next step",
+                "label": "[C] Continuer",
                 "key": "C",
             })
-        
+            suggestions.append({
+                "id": "other",
+                "type": "choice",
+                "label": "[P] Préciser",
+                "key": "P",
+            })
+
         return suggestions
     
     def _extract_document_section(self, response: str, step: dict) -> str:

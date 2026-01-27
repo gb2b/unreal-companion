@@ -1,0 +1,521 @@
+"""
+Unified Workflow/Agent Loader
+
+Single source of truth for loading workflows across Web UI, CLI, and AI agents.
+
+Framework Structure (BMGD):
+- /frameworks/workflows/   - Source of truth for workflows
+- /frameworks/agents/      - Source of truth for agents
+- /frameworks/global/      - Files for ~/.unreal-companion/
+- /frameworks/project/     - Files for {project}/.unreal-companion/
+
+Loading Priority:
+1. Project-specific: {project}/.unreal-companion/workflows/
+2. Global custom: ~/.unreal-companion/workflows/custom/
+3. Global defaults: ~/.unreal-companion/workflows/defaults/
+4. Fallback: /frameworks/workflows/ (development only)
+"""
+
+import os
+import yaml
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass, field
+from datetime import datetime
+
+
+# =============================================================================
+# Path Configuration
+# =============================================================================
+
+GLOBAL_ROOT = Path.home() / ".unreal-companion"
+WORKFLOWS_DEFAULTS = GLOBAL_ROOT / "workflows" / "defaults"
+WORKFLOWS_CUSTOM = GLOBAL_ROOT / "workflows" / "custom"
+AGENTS_DEFAULTS = GLOBAL_ROOT / "agents" / "defaults"
+AGENTS_CUSTOM = GLOBAL_ROOT / "agents" / "custom"
+CORE_DIR = GLOBAL_ROOT / "core"
+RULES_DIR = GLOBAL_ROOT / "rules"
+
+# Development fallback (frameworks directory at project root)
+DEV_TEMPLATES = Path(__file__).parent.parent.parent.parent / "frameworks" / "workflows"
+DEV_AGENTS = Path(__file__).parent.parent.parent.parent / "frameworks" / "agents"
+
+
+@dataclass
+class ProjectPaths:
+    """Paths for a project's companion directory"""
+    root: Path
+    workflows: Path
+    config: Path
+    workflow_status: Path
+    project_context: Path
+    docs: Path
+    output: Path
+    
+    @classmethod
+    def from_project_path(cls, project_path: str) -> "ProjectPaths":
+        root = Path(project_path) / ".unreal-companion"
+        return cls(
+            root=root,
+            workflows=root / "workflows",
+            config=root / "config.yaml",
+            workflow_status=root / "workflow-status.yaml",
+            project_context=root / "project-context.md",
+            docs=root / "docs",
+            output=root / "output",
+        )
+
+
+# =============================================================================
+# Workflow Loading
+# =============================================================================
+
+def get_workflow_search_paths(project_path: str = None) -> List[Path]:
+    """Get ordered list of paths to search for workflows"""
+    paths = []
+    
+    # Priority 1: Project-specific
+    if project_path:
+        project_paths = ProjectPaths.from_project_path(project_path)
+        paths.append(project_paths.workflows)
+    
+    # Priority 2: Global custom
+    paths.append(WORKFLOWS_CUSTOM)
+    
+    # Priority 3: Global defaults
+    paths.append(WORKFLOWS_DEFAULTS)
+    
+    # Priority 4: Development fallback
+    if DEV_TEMPLATES.exists():
+        paths.append(DEV_TEMPLATES)
+    
+    return paths
+
+
+def load_workflow(workflow_id: str, project_path: str = None) -> Optional[Dict[str, Any]]:
+    """
+    Load a workflow by ID with hierarchical priority
+    
+    Args:
+        workflow_id: The workflow ID (e.g., 'game-brief')
+        project_path: Optional project path for project-specific workflows
+        
+    Returns:
+        The loaded workflow configuration or None
+    """
+    search_paths = get_workflow_search_paths(project_path)
+    
+    for base_path in search_paths:
+        workflow_path = base_path / workflow_id
+        yaml_path = workflow_path / "workflow.yaml"
+        
+        if yaml_path.exists():
+            try:
+                with open(yaml_path, 'r', encoding='utf-8') as f:
+                    workflow = yaml.safe_load(f)
+                
+                # Add metadata about where it was loaded from
+                workflow['_loaded_from'] = str(workflow_path)
+                workflow['_source'] = _determine_source(workflow_path)
+                
+                return workflow
+            except Exception as e:
+                print(f"Error loading workflow {workflow_id}: {e}")
+                continue
+    
+    return None
+
+
+def _determine_source(path: Path) -> str:
+    """Determine the source type of a workflow path"""
+    path_str = str(path)
+    
+    if ".unreal-companion/workflows" in path_str and "defaults" not in path_str and "custom" not in path_str:
+        return "project"
+    elif "custom" in path_str:
+        return "custom"
+    elif "defaults" in path_str:
+        return "default"
+    else:
+        return "dev"  # Development fallback
+
+
+def list_all_workflows(project_path: str = None) -> List[Dict[str, Any]]:
+    """
+    List all available workflows with their source information
+    
+    Args:
+        project_path: Optional project path
+        
+    Returns:
+        List of workflows with metadata
+    """
+    workflows = {}
+    search_paths = get_workflow_search_paths(project_path)
+    
+    # Load in reverse priority order (so higher priority overwrites)
+    for base_path in reversed(search_paths):
+        if not base_path.exists():
+            continue
+        
+        source = _determine_source(base_path)
+        
+        try:
+            for entry in base_path.iterdir():
+                if not entry.is_dir():
+                    continue
+                
+                yaml_path = entry / "workflow.yaml"
+                if not yaml_path.exists():
+                    continue
+                
+                try:
+                    with open(yaml_path, 'r', encoding='utf-8') as f:
+                        workflow = yaml.safe_load(f)
+                    
+                    workflow_id = workflow.get('id', entry.name)
+                    
+                    workflows[workflow_id] = {
+                        'id': workflow_id,
+                        'name': workflow.get('name', entry.name),
+                        'description': workflow.get('description', ''),
+                        'category': workflow.get('category', 'other'),
+                        'behavior': workflow.get('behavior', 'one-shot'),
+                        'source': source,
+                        'path': str(entry),
+                        'ui_visible': workflow.get('ui_visible', True),
+                        'icon': workflow.get('icon', 'file-text'),
+                        'suggested_after': workflow.get('suggested_after', []),
+                        'steps': len(workflow.get('steps', [])),
+                    }
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    
+    return list(workflows.values())
+
+
+def load_workflow_step(workflow_id: str, step_file: str, project_path: str = None) -> Optional[str]:
+    """
+    Load a step file for a workflow
+    
+    Args:
+        workflow_id: The workflow ID
+        step_file: The step file path (relative)
+        project_path: Optional project path
+        
+    Returns:
+        The step content or None
+    """
+    workflow = load_workflow(workflow_id, project_path)
+    if not workflow or '_loaded_from' not in workflow:
+        return None
+    
+    step_path = Path(workflow['_loaded_from']) / step_file
+    if step_path.exists():
+        return step_path.read_text(encoding='utf-8')
+    
+    return None
+
+
+# =============================================================================
+# Agent Loading
+# =============================================================================
+
+def get_agent_search_paths(project_path: str = None) -> List[Path]:
+    """Get ordered list of paths to search for agents"""
+    paths = []
+    
+    if project_path:
+        project_paths = ProjectPaths.from_project_path(project_path)
+        paths.append(project_paths.root / "agents")
+    
+    paths.append(AGENTS_CUSTOM)
+    paths.append(AGENTS_DEFAULTS)
+    
+    if DEV_AGENTS.exists():
+        paths.append(DEV_AGENTS)
+    
+    return paths
+
+
+def load_agent(agent_id: str, project_path: str = None) -> Optional[Dict[str, Any]]:
+    """Load an agent configuration"""
+    search_paths = get_agent_search_paths(project_path)
+    
+    for base_path in search_paths:
+        agent_path = base_path / agent_id
+        
+        # Try YAML first
+        for ext in ['yaml', 'yml']:
+            yaml_path = agent_path / f"agent.{ext}"
+            if yaml_path.exists():
+                try:
+                    with open(yaml_path, 'r', encoding='utf-8') as f:
+                        agent = yaml.safe_load(f)
+                    agent['_loaded_from'] = str(agent_path)
+                    return agent
+                except Exception:
+                    continue
+        
+        # Try direct YAML file
+        direct_yaml = base_path / f"{agent_id}.yaml"
+        if direct_yaml.exists():
+            try:
+                with open(direct_yaml, 'r', encoding='utf-8') as f:
+                    agent = yaml.safe_load(f)
+                agent['_loaded_from'] = str(base_path)
+                return agent
+            except Exception:
+                continue
+    
+    return None
+
+
+def list_all_agents(project_path: str = None) -> List[Dict[str, Any]]:
+    """List all available agents"""
+    agents = {}
+    search_paths = get_agent_search_paths(project_path)
+    
+    for base_path in reversed(search_paths):
+        if not base_path.exists():
+            continue
+        
+        source = "custom" if "custom" in str(base_path) else "default"
+        if project_path and str(project_path) in str(base_path):
+            source = "project"
+        
+        try:
+            # Check for directory-based agents
+            for entry in base_path.iterdir():
+                if entry.is_dir():
+                    agent = load_agent(entry.name, project_path)
+                    if agent:
+                        agents[agent.get('id', entry.name)] = {
+                            'id': agent.get('id', entry.name),
+                            'name': agent.get('name', entry.name),
+                            'description': agent.get('description', ''),
+                            'role': agent.get('role', ''),
+                            'source': source,
+                            'path': str(entry),
+                        }
+                elif entry.suffix in ['.yaml', '.yml']:
+                    # Direct YAML file
+                    try:
+                        with open(entry, 'r', encoding='utf-8') as f:
+                            agent = yaml.safe_load(f)
+                        agent_id = agent.get('id', entry.stem)
+                        agents[agent_id] = {
+                            'id': agent_id,
+                            'name': agent.get('name', entry.stem),
+                            'description': agent.get('description', ''),
+                            'role': agent.get('role', ''),
+                            'source': source,
+                            'path': str(entry),
+                        }
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+    
+    return list(agents.values())
+
+
+# =============================================================================
+# Configuration
+# =============================================================================
+
+DEFAULT_CONFIG = {
+    'output_folder': 'output',
+    'user_name': 'Developer',
+    'communication_language': 'en',
+    'document_output_language': 'en',
+    'llm_provider': 'anthropic',
+    'llm_model': 'claude-sonnet-4-20250514',
+    'auto_save': True,
+    'update_context': True,
+}
+
+
+def load_project_config(project_path: str) -> Dict[str, Any]:
+    """Load project configuration with defaults"""
+    project_paths = ProjectPaths.from_project_path(project_path)
+    config = DEFAULT_CONFIG.copy()
+    
+    if project_paths.config.exists():
+        try:
+            with open(project_paths.config, 'r', encoding='utf-8') as f:
+                loaded = yaml.safe_load(f)
+            if loaded:
+                config.update(loaded)
+        except Exception as e:
+            print(f"Error loading config: {e}")
+    
+    return config
+
+
+# =============================================================================
+# Variable Resolution
+# =============================================================================
+
+def resolve_workflow_variables(workflow: Dict[str, Any], project_path: str) -> Dict[str, Any]:
+    """Resolve workflow variables from config"""
+    import copy
+    
+    config = load_project_config(project_path)
+    project_paths = ProjectPaths.from_project_path(project_path)
+    now = datetime.now()
+    
+    variables = {
+        'project-root': project_path,
+        'output_folder': str(Path(project_path) / config['output_folder']),
+        'user_name': config['user_name'],
+        'communication_language': config['communication_language'],
+        'document_output_language': config['document_output_language'],
+        'date': now.strftime('%Y-%m-%d'),
+        'datetime': now.isoformat(),
+        'timestamp': str(int(now.timestamp())),
+    }
+    
+    def resolve_value(value):
+        if not isinstance(value, str):
+            return value
+        
+        result = value
+        for key, val in variables.items():
+            result = result.replace(f'{{{key}}}', str(val))
+        return result
+    
+    def resolve_object(obj):
+        if isinstance(obj, list):
+            return [resolve_object(item) for item in obj]
+        if isinstance(obj, dict):
+            return {k: resolve_object(v) for k, v in obj.items()}
+        return resolve_value(obj)
+    
+    return resolve_object(copy.deepcopy(workflow))
+
+
+# =============================================================================
+# Workflow Status (File-first architecture)
+# =============================================================================
+
+def load_workflow_status(project_path: str) -> Dict[str, Any]:
+    """Load workflow status from file"""
+    project_paths = ProjectPaths.from_project_path(project_path)
+    
+    defaults = {
+        'version': '1.0',
+        'last_updated': None,
+        'active_sessions': [],
+        'recent_completed': [],
+        'recent_documents': [],
+    }
+    
+    if project_paths.workflow_status.exists():
+        try:
+            with open(project_paths.workflow_status, 'r', encoding='utf-8') as f:
+                loaded = yaml.safe_load(f)
+            if loaded:
+                defaults.update(loaded)
+        except Exception as e:
+            print(f"Error loading workflow status: {e}")
+    
+    return defaults
+
+
+def save_workflow_status(project_path: str, status: Dict[str, Any]):
+    """Save workflow status to file"""
+    project_paths = ProjectPaths.from_project_path(project_path)
+    
+    status['last_updated'] = datetime.now().isoformat()
+    
+    # Ensure directory exists
+    project_paths.root.mkdir(parents=True, exist_ok=True)
+    
+    header = "# Workflow Status - Auto-generated, do not edit manually\n"
+    yaml_content = yaml.dump(status, default_flow_style=False, allow_unicode=True)
+    
+    with open(project_paths.workflow_status, 'w', encoding='utf-8') as f:
+        f.write(header + yaml_content)
+
+
+# =============================================================================
+# Status & Health
+# =============================================================================
+
+def is_global_installed() -> bool:
+    """Check if global installation exists"""
+    return WORKFLOWS_DEFAULTS.exists() and any(WORKFLOWS_DEFAULTS.iterdir())
+
+
+def is_project_setup(project_path: str) -> bool:
+    """Check if project has companion setup"""
+    project_paths = ProjectPaths.from_project_path(project_path)
+    return project_paths.root.exists()
+
+
+def get_workflow_counts(project_path: str = None) -> Dict[str, int]:
+    """Get workflow counts by source"""
+    workflows = list_all_workflows(project_path)
+    return {
+        'total': len(workflows),
+        'default': len([w for w in workflows if w['source'] == 'default']),
+        'custom': len([w for w in workflows if w['source'] == 'custom']),
+        'project': len([w for w in workflows if w['source'] == 'project']),
+        'dev': len([w for w in workflows if w['source'] == 'dev']),
+    }
+
+
+def get_agent_counts(project_path: str = None) -> Dict[str, int]:
+    """Get agent counts by source"""
+    agents = list_all_agents(project_path)
+    return {
+        'total': len(agents),
+        'default': len([a for a in agents if a['source'] == 'default']),
+        'custom': len([a for a in agents if a['source'] == 'custom']),
+        'project': len([a for a in agents if a['source'] == 'project']),
+    }
+
+
+# =============================================================================
+# Convenience Exports
+# =============================================================================
+
+__all__ = [
+    # Paths
+    'GLOBAL_ROOT',
+    'WORKFLOWS_DEFAULTS',
+    'WORKFLOWS_CUSTOM',
+    'AGENTS_DEFAULTS', 
+    'AGENTS_CUSTOM',
+    'CORE_DIR',
+    'RULES_DIR',
+    'ProjectPaths',
+    
+    # Workflow functions
+    'load_workflow',
+    'list_all_workflows',
+    'load_workflow_step',
+    'get_workflow_search_paths',
+    
+    # Agent functions
+    'load_agent',
+    'list_all_agents',
+    'get_agent_search_paths',
+    
+    # Config
+    'load_project_config',
+    'resolve_workflow_variables',
+    
+    # Status
+    'load_workflow_status',
+    'save_workflow_status',
+    
+    # Health
+    'is_global_installed',
+    'is_project_setup',
+    'get_workflow_counts',
+    'get_agent_counts',
+]

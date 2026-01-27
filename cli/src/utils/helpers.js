@@ -6,6 +6,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync, cpSync, readdirSync
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import chalk from 'chalk';
 import yaml from 'yaml';
 
@@ -277,6 +278,320 @@ export function getProjectInfo(projectPath) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Get project status (documents, workflows, etc.)
+ * Reads from workflow-status.yaml (preferred) or SQLite (fallback)
+ */
+export function getProjectStatus(projectPath) {
+  const companionDir = join(projectPath, '.unreal-companion');
+  
+  if (!existsSync(companionDir)) {
+    return { initialized: false, documents: 0, workflows: 0, sessions: [], recentCompleted: [] };
+  }
+
+  // Count documents
+  const docsDir = join(companionDir, 'docs');
+  let documents = 0;
+  if (existsSync(docsDir)) {
+    try {
+      documents = readdirSync(docsDir).filter(f => f.endsWith('.md')).length;
+    } catch {}
+  }
+
+  let sessions = [];
+  let recentCompleted = [];
+  
+  // === Priority 1: Read from workflow-status.yaml (no server needed) ===
+  const statusYamlPath = join(companionDir, 'workflow-status.yaml');
+  if (existsSync(statusYamlPath)) {
+    try {
+      const content = readFileSync(statusYamlPath, 'utf-8');
+      const data = yaml.parse(content);
+      
+      if (data && data.active_sessions) {
+        sessions = data.active_sessions.map(s => ({
+          id: s.id,
+          workflow: s.workflow,
+          step: s.step || 0,
+          total_steps: s.total_steps || 0,
+          name: s.name || s.workflow,
+          status: s.status || 'active',
+          lastActivity: s.last_activity,
+        }));
+      }
+      
+      if (data && data.recent_completed) {
+        recentCompleted = data.recent_completed;
+      }
+      
+      return {
+        initialized: true,
+        documents,
+        workflows: sessions.length,
+        sessions,
+        recentCompleted,
+        source: 'yaml',
+      };
+    } catch {}
+  }
+  
+  // === Priority 2: Fallback to SQLite database ===
+  const dbPath = join(companionDir, 'sessions', 'workflows.db');
+  
+  if (existsSync(dbPath)) {
+    try {
+      // Use sqlite3 CLI to read sessions (cross-platform)
+      const result = execSync(
+        `sqlite3 "${dbPath}" "SELECT id, workflow_id, status, current_step, total_steps FROM workflow_sessions WHERE status = 'active' OR status = 'in_progress';"`,
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+      );
+      
+      const lines = result.trim().split('\n').filter(l => l);
+      for (const line of lines) {
+        const [id, workflow_id, status, current_step, total_steps] = line.split('|');
+        sessions.push({
+          id,
+          workflow: workflow_id,
+          step: parseInt(current_step) || 0,
+          total_steps: parseInt(total_steps) || 0,
+          name: workflow_id,
+          status,
+        });
+      }
+      
+      return {
+        initialized: true,
+        documents,
+        workflows: sessions.length,
+        sessions,
+        recentCompleted: [],
+        source: 'sqlite',
+      };
+    } catch {}
+  }
+
+  return {
+    initialized: true,
+    documents,
+    workflows: 0,
+    sessions: [],
+    recentCompleted: [],
+    source: 'none',
+  };
+}
+
+/**
+ * Get active project from config
+ */
+export function getActiveProject() {
+  const config = getConfig();
+  const projects = getProjects();
+  
+  if (config.active_project) {
+    const project = projects.find(p => p.id === config.active_project || p.name === config.active_project);
+    if (project) return project;
+  }
+  
+  // Return first project if none active
+  return projects[0] || null;
+}
+
+/**
+ * Set active project
+ */
+export function setActiveProject(projectId) {
+  const config = getConfig();
+  config.active_project = projectId;
+  saveConfig(config);
+}
+
+/**
+ * Count agents (defaults + custom)
+ * 
+ * Structure:
+ * - ~/.unreal-companion/agents/defaults/ (built-in defaults)
+ * - ~/.unreal-companion/agents/custom/ (global custom)
+ */
+export function countAgents() {
+  const defaultsDir = join(GLOBAL_DIR, 'agents', 'defaults');
+  const customDir = join(GLOBAL_DIR, 'agents', 'custom');
+  
+  let defaults = 0;
+  let custom = 0;
+  
+  if (existsSync(defaultsDir)) {
+    defaults = listYamlFiles(defaultsDir).length;
+  }
+  if (existsSync(customDir)) {
+    custom = listYamlFiles(customDir).length;
+  }
+  
+  return { defaults, custom, total: defaults + custom };
+}
+
+/**
+ * Count workflows (defaults + custom)
+ * 
+ * Structure:
+ * - ~/.unreal-companion/workflows/defaults/ (built-in defaults)
+ * - ~/.unreal-companion/workflows/custom/ (global custom)
+ */
+export function countWorkflows() {
+  const defaultsDir = join(GLOBAL_DIR, 'workflows', 'defaults');
+  const customDir = join(GLOBAL_DIR, 'workflows', 'custom');
+  
+  let defaults = 0;
+  let custom = 0;
+  
+  if (existsSync(defaultsDir)) {
+    defaults = listDirs(defaultsDir).length;
+  }
+  if (existsSync(customDir)) {
+    custom = listDirs(customDir).length;
+  }
+  
+  return { defaults, custom, total: defaults + custom };
+}
+
+/**
+ * List all agents with details
+ * 
+ * Searches in order (later overrides earlier):
+ * 1. ~/.unreal-companion/agents/defaults/ (built-in defaults)
+ * 2. ~/.unreal-companion/agents/custom/ (global custom)
+ * 3. {project}/.unreal-companion/agents/ (project custom)
+ */
+export function listAgents(projectPath = null) {
+  const agents = [];
+  
+  const addAgent = (content, file, type) => {
+    const id = content.id || file.replace('.yaml', '');
+    const existingIdx = agents.findIndex(a => a.id === id);
+    if (existingIdx >= 0) {
+      agents.splice(existingIdx, 1);
+    }
+    agents.push({
+      id,
+      name: content.name || 'Unknown',
+      title: content.title || 'AI Agent',
+      type,
+    });
+  };
+  
+  // 1. Load defaults
+  const defaultsDir = join(GLOBAL_DIR, 'agents', 'defaults');
+  if (existsSync(defaultsDir)) {
+    for (const file of listYamlFiles(defaultsDir)) {
+      try {
+        const content = yaml.parse(readFileSync(join(defaultsDir, file), 'utf-8'));
+        addAgent(content, file, 'default');
+      } catch {}
+    }
+  }
+  
+  // 2. Load global custom
+  const globalCustomDir = join(GLOBAL_DIR, 'agents', 'custom');
+  if (existsSync(globalCustomDir)) {
+    for (const file of listYamlFiles(globalCustomDir)) {
+      try {
+        const content = yaml.parse(readFileSync(join(globalCustomDir, file), 'utf-8'));
+        addAgent(content, file, 'custom');
+      } catch {}
+    }
+  }
+  
+  // 3. Load project custom
+  if (projectPath) {
+    const projectCustomDir = join(projectPath, '.unreal-companion', 'agents');
+    if (existsSync(projectCustomDir)) {
+      for (const file of listYamlFiles(projectCustomDir)) {
+        try {
+          const content = yaml.parse(readFileSync(join(projectCustomDir, file), 'utf-8'));
+          addAgent(content, file, 'project');
+        } catch {}
+      }
+    }
+  }
+  
+  return agents;
+}
+
+/**
+ * List all workflows with details
+ * 
+ * Searches in order (later overrides earlier):
+ * 1. ~/.unreal-companion/workflows/defaults/ (built-in defaults)
+ * 2. ~/.unreal-companion/workflows/custom/ (global custom)
+ * 3. {project}/.unreal-companion/workflows/ (project custom)
+ */
+export function listWorkflows(projectPath = null) {
+  const workflows = [];
+  
+  // Helper to add workflow without duplicates (later entries override)
+  const addWorkflow = (content, dir, type) => {
+    const id = content.id || dir;
+    // Remove existing if present (to allow override)
+    const existingIdx = workflows.findIndex(w => w.id === id);
+    if (existingIdx >= 0) {
+      workflows.splice(existingIdx, 1);
+    }
+    workflows.push({
+      id,
+      name: content.name || dir,
+      description: content.description || '',
+      type,
+      category: content.category,
+      behavior: content.behavior,
+    });
+  };
+  
+  // 1. Load defaults
+  const defaultsDir = join(GLOBAL_DIR, 'workflows', 'defaults');
+  if (existsSync(defaultsDir)) {
+    for (const dir of listDirs(defaultsDir)) {
+      const workflowFile = join(defaultsDir, dir, 'workflow.yaml');
+      if (existsSync(workflowFile)) {
+        try {
+          const content = yaml.parse(readFileSync(workflowFile, 'utf-8'));
+          addWorkflow(content, dir, 'default');
+        } catch {}
+      }
+    }
+  }
+  
+  // 2. Load global custom (overrides defaults)
+  const globalCustomDir = join(GLOBAL_DIR, 'workflows', 'custom');
+  if (existsSync(globalCustomDir)) {
+    for (const dir of listDirs(globalCustomDir)) {
+      const workflowFile = join(globalCustomDir, dir, 'workflow.yaml');
+      if (existsSync(workflowFile)) {
+        try {
+          const content = yaml.parse(readFileSync(workflowFile, 'utf-8'));
+          addWorkflow(content, dir, 'custom');
+        } catch {}
+      }
+    }
+  }
+  
+  // 3. Load project custom (overrides all)
+  if (projectPath) {
+    const projectCustomDir = join(projectPath, '.unreal-companion', 'workflows');
+    if (existsSync(projectCustomDir)) {
+      for (const dir of listDirs(projectCustomDir)) {
+        const workflowFile = join(projectCustomDir, dir, 'workflow.yaml');
+        if (existsSync(workflowFile)) {
+          try {
+            const content = yaml.parse(readFileSync(workflowFile, 'utf-8'));
+            addWorkflow(content, dir, 'project');
+          } catch {}
+        }
+      }
+    }
+  }
+  
+  return workflows;
 }
 
 /**

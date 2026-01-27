@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { 
-  FolderOpen, 
-  Trash2, 
+import {
+  FolderOpen,
+  Trash2,
   Save,
   AlertTriangle,
   Check,
@@ -16,11 +16,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useProjectStore } from '@/stores/projectStore'
 import { useThemeStore, THEME_PRESETS, ThemePreset } from '@/stores/themeStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 export function ProjectSettingsTab() {
   const { currentProject, updateProject, deleteProject, fetchProjects } = useProjectStore()
   const { currentTheme, setTheme } = useThemeStore()
+  const { t } = useTranslation()
   
   // Local state - initialized from currentProject
   const [editedName, setEditedName] = useState('')
@@ -46,9 +48,9 @@ export function ProjectSettingsTab() {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium mb-2">No Project Selected</h3>
+        <h3 className="text-lg font-medium mb-2">{t('projectSettings.noProject')}</h3>
         <p className="text-muted-foreground mb-4">
-          Select a project from the header to configure it
+          {t('projectSettings.noProjectDesc')}
         </p>
       </div>
     )
@@ -56,7 +58,6 @@ export function ProjectSettingsTab() {
 
   // Capture project ID for async operations
   const projectId = currentProject.id
-  const projectName = currentProject.name
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -105,23 +106,23 @@ export function ProjectSettingsTab() {
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <FolderOpen className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Project Information</h2>
+          <h2 className="text-lg font-semibold">{t('projectSettings.info')}</h2>
         </div>
 
         <div className="space-y-4 p-4 rounded-xl border border-border bg-muted/30">
           {/* Project Name */}
           <div>
-            <label className="block text-sm font-medium mb-2">Project Name</label>
+            <label className="block text-sm font-medium mb-2">{t('projectSettings.name')}</label>
             <Input
               value={editedName}
               onChange={(e) => setEditedName(e.target.value)}
-              placeholder="My Game Project"
+              placeholder={t('projectSettings.namePlaceholder')}
             />
           </div>
 
           {/* Project ID (read-only) */}
           <div>
-            <label className="block text-sm font-medium mb-2">Project ID</label>
+            <label className="block text-sm font-medium mb-2">{t('projectSettings.id')}</label>
             <Input
               value={projectId}
               disabled
@@ -132,11 +133,11 @@ export function ProjectSettingsTab() {
           {/* Project Path */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-sm font-medium">Project Folder</label>
+              <label className="text-sm font-medium">{t('projectSettings.folder')}</label>
               <div className="group relative">
                 <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                 <div className="absolute bottom-full left-0 mb-2 w-64 p-2 bg-popover border border-border rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-xs">
-                  The folder containing your Unreal Engine project. The <code className="bg-muted px-1 rounded">.unreal-companion</code> folder is stored here.
+                  {t('projectSettings.folderDesc')}
                 </div>
               </div>
             </div>
@@ -144,12 +145,12 @@ export function ProjectSettingsTab() {
               <Input
                 value={editedPath}
                 onChange={(e) => setEditedPath(e.target.value)}
-                placeholder="/path/to/UnrealProject"
+                placeholder={t('projectSettings.folderPlaceholder')}
                 className="font-mono text-xs flex-1"
               />
               {currentProject.uproject_path && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="icon"
                   onClick={() => {
                     const path = currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || currentProject.uproject_path
@@ -158,7 +159,7 @@ export function ProjectSettingsTab() {
                       window.open(`file://${path}`)
                     }
                   }}
-                  title="Open in Finder"
+                  title={t('projectSettings.openFinder')}
                 >
                   <ExternalLink className="h-4 w-4" />
                 </Button>
@@ -169,10 +170,9 @@ export function ProjectSettingsTab() {
                 <div className="flex items-start gap-2">
                   <FolderSync className="h-4 w-4 text-amber-500 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-500">Path Change Detected</p>
+                    <p className="font-medium text-amber-500">{t('projectSettings.pathChanged')}</p>
                     <p className="text-muted-foreground text-xs mt-1">
-                      Changing the path will create a new <code className="bg-muted px-1 rounded">.unreal-companion</code> folder at the new location. 
-                      The old folder will remain at its current location.
+                      {t('projectSettings.pathChangedDesc')}
                     </p>
                   </div>
                 </div>
@@ -183,7 +183,7 @@ export function ProjectSettingsTab() {
           {/* Companion Path (read-only) */}
           {currentProject.companion_path && (
             <div>
-              <label className="block text-sm font-medium mb-2 text-muted-foreground">Companion Folder</label>
+              <label className="block text-sm font-medium mb-2 text-muted-foreground">{t('projectSettings.companionFolder')}</label>
               <Input
                 value={currentProject.companion_path}
                 disabled
@@ -198,25 +198,25 @@ export function ProjectSettingsTab() {
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Palette className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Project Appearance</h2>
+          <h2 className="text-lg font-semibold">{t('projectSettings.appearance')}</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Choose a theme that matches your game's genre
+          {t('projectSettings.chooseTheme')}
         </p>
 
         <div className="grid grid-cols-4 gap-2">
-          {Object.values(THEME_PRESETS).filter(t => t.id !== 'custom').map(theme => (
+          {Object.values(THEME_PRESETS).filter(themePreset => themePreset.id !== 'custom').map(theme => (
             <button
               key={theme.id}
               onClick={() => setProjectTheme(theme.id)}
               className={cn(
                 "p-3 rounded-xl border-2 text-center transition-all hover:scale-105",
-                projectTheme === theme.id 
-                  ? "border-primary shadow-lg" 
+                projectTheme === theme.id
+                  ? "border-primary shadow-lg"
                   : "border-transparent bg-muted/50 hover:bg-muted"
               )}
               style={{
-                background: projectTheme === theme.id 
+                background: projectTheme === theme.id
                   ? `linear-gradient(135deg, hsl(${theme.colors.gradientFrom}), hsl(${theme.colors.gradientTo}))`
                   : undefined
               }}
@@ -233,7 +233,7 @@ export function ProjectSettingsTab() {
         {/* Custom colors button */}
         <Button variant="outline" size="sm" className="w-full" disabled>
           <Palette className="h-4 w-4 mr-2" />
-          Custom Colors (coming soon)
+          {t('projectSettings.customColors')}
         </Button>
       </section>
 
@@ -241,21 +241,20 @@ export function ProjectSettingsTab() {
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Plug className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">MCP Connection</h2>
+          <h2 className="text-lg font-semibold">{t('projectSettings.mcpConnection')}</h2>
         </div>
-        
+
         <div className="p-4 rounded-xl border border-border bg-muted/30 space-y-3">
           <p className="text-sm text-muted-foreground">
-            The MCP (Model Context Protocol) server connects to your Unreal Engine editor to execute commands. 
-            These settings are configured automatically when you run the Unreal plugin.
+            {t('projectSettings.mcpDesc')}
           </p>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-muted-foreground">Host:</span>
+              <span className="text-muted-foreground">{t('projectSettings.host')}</span>
               <span className="ml-2 font-mono">{currentProject.unreal_host || '127.0.0.1'}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">Port:</span>
+              <span className="text-muted-foreground">{t('projectSettings.port')}</span>
               <span className="ml-2 font-mono">{currentProject.unreal_port || 55557}</span>
             </div>
           </div>
@@ -268,17 +267,17 @@ export function ProjectSettingsTab() {
           {saveStatus === 'saved' && (
             <span className="text-sm text-emerald-500 flex items-center gap-1">
               <Check className="h-4 w-4" />
-              Saved
+              {t('projectSettings.saved')}
             </span>
           )}
           {saveStatus === 'error' && (
             <span className="text-sm text-red-500 flex items-center gap-1">
               <AlertTriangle className="h-4 w-4" />
-              Error saving
+              {t('projectSettings.errorSaving')}
             </span>
           )}
         </div>
-        
+
         <Button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
@@ -289,21 +288,21 @@ export function ProjectSettingsTab() {
           ) : (
             <Save className="h-4 w-4" />
           )}
-          Save Changes
+          {t('projectSettings.saveChanges')}
         </Button>
       </div>
 
       {/* Danger Zone */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-red-500">Danger Zone</h2>
+        <h2 className="text-lg font-semibold text-red-500">{t('projectSettings.dangerZone')}</h2>
 
         <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/5">
           {!showDeleteConfirm ? (
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Delete Project</p>
+                <p className="font-medium">{t('projectSettings.deleteProject')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Remove this project from Companion (files are not deleted)
+                  {t('projectSettings.deleteProjectDesc')}
                 </p>
               </div>
               <Button
@@ -311,7 +310,7 @@ export function ProjectSettingsTab() {
                 onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {t('common.delete')}
               </Button>
             </div>
           ) : (
@@ -319,16 +318,15 @@ export function ProjectSettingsTab() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
                 <div>
-                  <p className="font-medium">Are you sure?</p>
+                  <p className="font-medium">{t('projectSettings.areYouSure')}</p>
                   <p className="text-sm text-muted-foreground">
-                    This will remove "{projectName}" from Companion.
-                    Your files will not be deleted.
+                    {t('projectSettings.deleteConfirmDesc')}
                   </p>
                 </div>
               </div>
               {deleteError && (
                 <p className="text-sm text-red-500 bg-red-500/10 p-2 rounded">
-                  Error: {deleteError}
+                  {t('common.error')}: {deleteError}
                 </p>
               )}
               <div className="flex gap-2 justify-end">
@@ -340,7 +338,7 @@ export function ProjectSettingsTab() {
                   }}
                   disabled={isDeleting}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant="destructive"
@@ -350,10 +348,10 @@ export function ProjectSettingsTab() {
                   {isDeleting ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Deleting...
+                      {t('common.deleting')}
                     </>
                   ) : (
-                    'Yes, Delete Project'
+                    t('projectSettings.yesDelete')
                   )}
                 </Button>
               </div>

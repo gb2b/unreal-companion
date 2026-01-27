@@ -1,0 +1,57 @@
+id: brainstorming
+version: "1.0"
+name: "Brainstorming"
+description: "Free-form idea exploration with AI assistance"
+agent: "game-designer"
+estimated_time: "Open-ended"
+category: "conversation"
+behavior: "infinite"
+ui_visible: true
+icon: "brain"
+color: "purple"
+output_pattern: "session-brainstorm-{subject}-{date}.md"
+quick_action: true
+
+# Load existing documents for context
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: false
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: false
+
+# Output configuration
+output:
+  path: "output/analysis/brainstorm-{{timestamp}}.md"
+  format: "md"
+  visual_format: "mindmap"
+
+# Steps (brainstorming is more free-form)
+steps:
+  - id: "start"
+    file: "steps/step-01-start.md"
+  - id: "explore"
+    file: "steps/step-02-explore.md"
+  - id: "synthesize"
+    file: "steps/step-03-synthesize.md"
+
+# Special modes
+modes:
+  - id: "wild"
+    name: "Wild Ideas"
+    description: "No constraints, pure creativity"
+  - id: "focused"
+    name: "Focused"
+    description: "Explore a specific topic deeply"
+  - id: "compare"
+    name: "Compare"
+    description: "Analyze multiple options"
+
+celebrations:
+  complete: |
+    ✨ Great brainstorming session! 
+    Your ideas have been captured in a mind map.
+    Ready to turn these into action?

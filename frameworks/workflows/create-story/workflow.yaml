@@ -1,0 +1,33 @@
+id: create-story
+version: "1.0"
+name: "Create User Story"
+description: "Define a user story with acceptance criteria"
+category: "agile"
+behavior: "repeatable"
+ui_visible: true
+icon: "file-plus"
+color: "teal"
+estimated_time: "5 min"
+quick_action: true
+
+context_required:
+  - brief
+  - gdd
+
+outputs:
+  - type: "story"
+    path: "stories/story-{{story_id}}.md"
+
+steps:
+  - id: "user-need"
+    file: "steps/step-01-user-need.md"
+    title: "User Need"
+  - id: "story-format"
+    file: "steps/step-02-story-format.md"
+    title: "Story Format"
+  - id: "acceptance"
+    file: "steps/step-03-acceptance.md"
+    title: "Acceptance Criteria"
+  - id: "priority"
+    file: "steps/step-04-priority.md"
+    title: "Priority & Effort"

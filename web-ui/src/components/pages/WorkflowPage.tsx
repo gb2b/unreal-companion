@@ -1,10 +1,9 @@
 /**
  * WorkflowPage - Dedicated page for AI-driven workflows
- * 
+ *
  * Integrates:
  * - WorkflowSelector for picking workflows
- * - WorkflowChatView for execution
- * - DocumentPreview for live document updates
+ * - WorkflowStepContainer for step-based execution
  */
 
 import { useState, useEffect } from 'react'
@@ -12,7 +11,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/projectStore'
 import { useWorkflowStore } from '@/stores/workflowStore'
-import { WorkflowChatView } from '@/components/workflow/WorkflowChatView'
+import { WorkflowStepContainer } from '@/components/workflow/WorkflowStepContainer'
 import { WorkflowSelector } from '@/components/workflow/WorkflowSelector'
 
 interface WorkflowPageProps {
@@ -24,6 +23,7 @@ export function WorkflowPage({ onBack }: WorkflowPageProps) {
   const {
     workflows,
     activeSession,
+    pendingWorkflow,
     isLoading,
     error,
     fetchWorkflows,
@@ -39,29 +39,39 @@ export function WorkflowPage({ onBack }: WorkflowPageProps) {
     fetchWorkflows()
   }, [fetchWorkflows])
   
-  // Switch to execute view when session is active
+  // Switch to execute view when session is active or pending
   useEffect(() => {
-    if (activeSession) {
+    if (activeSession || pendingWorkflow) {
       setView('execute')
     }
-  }, [activeSession])
+  }, [activeSession, pendingWorkflow])
   
   const handleSelectWorkflow = async (workflowId: string) => {
     if (!currentProject) return
-    
+
+    // Use companion_path if available, otherwise derive project folder from uproject_path
+    const projectPath = currentProject.companion_path
+      ? currentProject.companion_path.replace(/\/.unreal-companion$/, '')
+      : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || ''
+
     await startWorkflow(
       workflowId,
       currentProject.id,
-      currentProject.uproject_path || ''
+      projectPath
     )
   }
   
   const handleResumeSession = async (sessionId: string) => {
     if (!currentProject) return
-    
+
+    // Use companion_path if available, otherwise derive project folder from uproject_path
+    const projectPath = currentProject.companion_path
+      ? currentProject.companion_path.replace(/\/.unreal-companion$/, '')
+      : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || ''
+
     await resumeSession(
       sessionId,
-      currentProject.uproject_path || ''
+      projectPath
     )
   }
   
@@ -109,14 +119,18 @@ export function WorkflowPage({ onBack }: WorkflowPageProps) {
           {view === 'execute' ? 'Workflows' : 'Studio'}
         </Button>
         
-        {activeSession && (
+        {(activeSession || pendingWorkflow) && (
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">
-              {workflows.find(w => w.id === activeSession.workflow_id)?.name || 'Workflow'}
+              {pendingWorkflow?.name || workflows.find(w => w.id === activeSession?.workflow_id)?.name || 'Workflow'}
             </span>
-            <span className="text-sm text-muted-foreground">
-              Step {activeSession.current_step + 1} / {activeSession.total_steps}
-            </span>
+            {activeSession ? (
+              <span className="text-sm text-muted-foreground">
+                Step {activeSession.current_step + 1} / {activeSession.total_steps}
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">Starting...</span>
+            )}
           </div>
         )}
       </div>
@@ -139,7 +153,7 @@ export function WorkflowPage({ onBack }: WorkflowPageProps) {
             </div>
           </div>
         ) : (
-          <WorkflowChatView />
+          <WorkflowStepContainer className="h-full" />
         )}
       </div>
     </div>

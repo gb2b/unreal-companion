@@ -1,0 +1,29 @@
+id: quick-dev
+version: "1.0"
+name: "Quick Dev Task"
+description: "Rapid task definition for immediate development"
+category: "dev"
+behavior: "repeatable"
+ui_visible: true
+icon: "zap"
+color: "yellow"
+estimated_time: "2 min"
+quick_action: true
+
+context_required:
+  - architecture
+
+outputs:
+  - type: "task"
+    action: "create_task"
+
+steps:
+  - id: "what"
+    file: "steps/step-01-what.md"
+    title: "What to Build"
+  - id: "how"
+    file: "steps/step-02-how.md"
+    title: "Implementation Approach"
+  - id: "create"
+    file: "steps/step-03-create.md"
+    title: "Create Task"

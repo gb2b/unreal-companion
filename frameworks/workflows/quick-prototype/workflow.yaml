@@ -1,0 +1,34 @@
+id: quick-prototype
+version: "1.0"
+name: "Quick Prototype"
+description: "Rapid prototype definition to test an idea"
+category: "dev"
+behavior: "repeatable"
+ui_visible: true
+icon: "flask"
+color: "lime"
+estimated_time: "5 min"
+quick_action: true
+
+context_required:
+  - brief
+
+outputs:
+  - type: "prototype-spec"
+    path: "prototypes/proto-{{id}}.md"
+  - type: "tasks"
+    action: "create_tasks"
+
+steps:
+  - id: "hypothesis"
+    file: "steps/step-01-hypothesis.md"
+    title: "Hypothesis to Test"
+  - id: "scope"
+    file: "steps/step-02-scope.md"
+    title: "Minimal Scope"
+  - id: "success"
+    file: "steps/step-03-success.md"
+    title: "Success Criteria"
+  - id: "tasks"
+    file: "steps/step-04-tasks.md"
+    title: "Prototype Tasks"

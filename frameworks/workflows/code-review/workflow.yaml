@@ -1,0 +1,33 @@
+id: code-review
+version: "1.0"
+name: "Code Review"
+description: "Review Blueprint or code implementation"
+category: "dev"
+behavior: "repeatable"
+ui_visible: true
+icon: "search"
+color: "slate"
+estimated_time: "5 min"
+quick_action: true
+
+context_required:
+  - architecture
+  - code_context
+
+outputs:
+  - type: "review"
+    path: "reviews/review-{{date}}.md"
+
+steps:
+  - id: "overview"
+    file: "steps/step-01-overview.md"
+    title: "Code Overview"
+  - id: "patterns"
+    file: "steps/step-02-patterns.md"
+    title: "Pattern Check"
+  - id: "issues"
+    file: "steps/step-03-issues.md"
+    title: "Issues & Suggestions"
+  - id: "summary"
+    file: "steps/step-04-summary.md"
+    title: "Review Summary"

@@ -10,8 +10,16 @@ MCP server for Unreal Engine 5.7+. Enables AI assistants to control Unreal throu
 
 ## Architecture
 
+Two independent Python servers:
+
+| Server | Port | Purpose |
+|--------|------|---------|
+| `Python/` (MCP) | TCP 55557 | Unreal Engine tools |
+| `web-ui/server/` | HTTP 3179 | Studio web interface |
+
 ```
-Python (FastMCP) → TCP:55557 → C++ Plugin (Unreal Companion) → Unreal Engine
+MCP Server (Python) → TCP:55557 → C++ Plugin → Unreal Engine
+Web UI (FastAPI) → HTTP:3179 → Browser (React)
 ```
 
 ## Project Structure
@@ -78,11 +86,49 @@ Format: category_action (snake_case)
 - Units: cm, kg, degrees
 - Axes: X=Red (forward), Y=Green (right), Z=Blue (up)
 
+## CLI Commands
+
+```bash
+# Main entry point (does everything)
+npx unreal-companion          # Install if needed → health check → action menu
+npx unreal-companion --web    # Launch Web UI directly
+npx unreal-companion --status # Show detailed status
+
+# Upgrade
+npx unreal-companion upgrade  # Update to latest version
+```
+
+The CLI is intelligent:
+- First run: interactive installation
+- Subsequent runs: health check + contextual suggestions
+- Detects Unreal projects automatically
+
+## Web UI Development
+
+```bash
+cd web-ui
+
+# Start everything (recommended)
+npm run dev:all     # Frontend + Backend with auto-reload
+
+# Or separately
+npm run dev:api     # Backend only (auto-reload on file changes)
+npm run dev         # Frontend only
+```
+
+⚠️ **NEVER use `python main.py`** - Always use `npm run dev:api` or `npm run dev:all`
+- `uvicorn --reload` auto-reloads on Python file changes
+- Ctrl+C cleanly stops everything
+- No PID management needed
+
 ## Logs
 
 ```bash
-# Python logs
+# MCP Python logs
 tail -f ~/.unreal_mcp/unreal_mcp.log
+
+# Web UI backend logs
+tail -f web-ui/server/logs/server.log
 
 # Unreal logs
 # Output Log → Filter: LogMCPBridge

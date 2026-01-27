@@ -174,17 +174,39 @@ See `SECURITY.md` for full security policy.
 - **Direct Paths**: Using `BP_Name` instead of `/Game/Blueprints/BP_Name`
 - **Executing dangerous tools without confirmation** → Security violation
 
+## TWO PYTHON SERVERS
+
+| Server | Path | Port | Purpose |
+|--------|------|------|---------|
+| **MCP Server** | `Python/` | TCP 55557 | Unreal Engine tools (blueprint, world, etc.) |
+| **Web UI API** | `web-ui/server/` | HTTP 3179 | Studio interface (workflows, agents, LLM) |
+
+These are **independent** - you can run the Web UI without Unreal, or use MCP tools without the Web UI.
+
 ## COMMANDS
 
 ```bash
-# Python Server
+# === CLI (recommended entry point) ===
+npx unreal-companion          # Install if needed → health check → action menu
+npx unreal-companion --web    # Launch Web UI directly
+npx unreal-companion --status # Show detailed status
+npx unreal-companion upgrade  # Update to latest version
+
+# === MCP Server (Unreal Engine tools) ===
 cd Python && uv run unreal_mcp_server.py
+# Logs: ~/.unreal_mcp/unreal_mcp.log
 
-# View logs
-tail -f ~/.unreal_mcp/unreal_mcp.log
-grep "ERROR\|FAILED" ~/.unreal_mcp/unreal_mcp.log
+# === Web UI Development ===
+cd web-ui
+npm run dev:all     # Frontend + Backend (recommended)
+npm run dev:api     # Backend API only (auto-reload)
+npm run dev         # Frontend only
+# Logs: web-ui/server/logs/server.log
 
-# Unreal logs
+# ⚠️ NEVER use `python main.py` for Web UI - use npm scripts
+# uvicorn --reload handles auto-refresh on file changes
+
+# === Unreal Engine ===
 # Output Log → Filter: LogMCPBridge
 ```
 

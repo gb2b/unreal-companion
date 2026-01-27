@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Sparkles, AlertTriangle, X } from 'lucide-react'
 import { MainHeader, AppMode } from '@/components/layout/MainHeader'
 import { StudioPage } from '@/components/pages/StudioPage'
 import { EditorPage } from '@/components/pages/EditorPage'
@@ -24,7 +24,8 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [pageKey, setPageKey] = useState(0) // Used to reset pages to home
-  
+  const [llmWarningDismissed, setLlmWarningDismissed] = useState(false)
+
   const { currentProject, projects, fetchProjects } = useProjectStore()
   const { fetchConfig, hasAnthropicKey, hasOpenAIKey, hasGoogleKey } = useLLMStore()
   const { fetchStatus } = useConnectionStore()
@@ -60,12 +61,12 @@ function App() {
     return () => clearInterval(interval)
   }, [fetchProjects, fetchConfig, fetchStatus, applyTheme])
   
-  // Show onboarding if no API key and no projects
+  // Show onboarding if no projects (regardless of API key status)
   useEffect(() => {
-    if (isInitialized && !hasAnyApiKey && projects.length === 0) {
+    if (isInitialized && projects.length === 0) {
       setShowOnboarding(true)
     }
-  }, [isInitialized, hasAnyApiKey, projects.length])
+  }, [isInitialized, projects.length])
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -163,7 +164,31 @@ function App() {
           setPageKey(k => k + 1) // Increment key to reset page state
         }}
       />
-      
+
+      {/* LLM Provider Warning Banner */}
+      {!hasAnyApiKey && !llmWarningDismissed && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-amber-500">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-sm">
+              No AI provider configured. AI features won't work until you add an API key in{' '}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="underline hover:no-underline font-medium"
+              >
+                Settings
+              </button>.
+            </span>
+          </div>
+          <button
+            onClick={() => setLlmWarningDismissed(true)}
+            className="p-1 hover:bg-amber-500/20 rounded transition-colors"
+          >
+            <X className="h-4 w-4 text-amber-500" />
+          </button>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary>

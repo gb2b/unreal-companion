@@ -1,0 +1,32 @@
+id: retrospective
+version: "1.0"
+name: "Sprint Retrospective"
+description: "Reflect on sprint to identify improvements"
+category: "agile"
+behavior: "repeatable"
+ui_visible: true
+icon: "refresh-cw"
+color: "orange"
+estimated_time: "10 min"
+
+context_required:
+  - sprint
+  - tasks
+
+outputs:
+  - type: "retrospective"
+    path: "sprints/retro-{{sprint_id}}.md"
+
+steps:
+  - id: "what-went-well"
+    file: "steps/step-01-went-well.md"
+    title: "What Went Well"
+  - id: "challenges"
+    file: "steps/step-02-challenges.md"
+    title: "Challenges Faced"
+  - id: "learnings"
+    file: "steps/step-03-learnings.md"
+    title: "Key Learnings"
+  - id: "actions"
+    file: "steps/step-04-actions.md"
+    title: "Action Items"

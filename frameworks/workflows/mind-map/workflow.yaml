@@ -1,0 +1,35 @@
+id: mind-map
+version: "1.0"
+name: "Mind Map Generator"
+description: "Generate a visual mind map from ideas or concepts"
+category: "board"
+behavior: "repeatable"
+ui_visible: true
+icon: "network"
+color: "fuchsia"
+estimated_time: "5 min"
+
+context_required: []
+
+outputs:
+  - type: "mind-map"
+    path: "boards/mindmap-{{id}}.json"
+  - type: "summary"
+    path: "boards/mindmap-{{id}}.md"
+
+steps:
+  - id: "central"
+    file: "steps/step-01-central.md"
+    title: "Central Concept"
+  - id: "branches"
+    file: "steps/step-02-branches.md"
+    title: "Main Branches"
+  - id: "details"
+    file: "steps/step-03-details.md"
+    title: "Branch Details"
+  - id: "connections"
+    file: "steps/step-04-connections.md"
+    title: "Cross-Connections"
+  - id: "generate"
+    file: "steps/step-05-generate.md"
+    title: "Generate Map"

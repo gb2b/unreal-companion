@@ -15,20 +15,36 @@ L'utilisateur configure ses propres LLM providers.
 | Phase | Nom | Tasks | Description |
 |-------|-----|-------|-------------|
 | 1 | Fondations | 4 | Structure globale, project init, système de tasks, **CLI setup** |
-| 2 | Studio Core | 9 | Refactoring web-ui, production board, boards visuels, workflows, expérience ludique, contexte LLM, document desk |
+| 2 | Studio Core | 10 | Refactoring web-ui, production board, boards visuels, workflows, expérience ludique, contexte LLM, document desk, **LLM Performance** |
 | 3 | Editor Core | 3 | Home page, Unreal Agent, contexte Studio→Editor |
 | 4 | CLI | 3 | Workflows CLI-ready, docs MCP, CLAUDE.md template |
 | 5 | Studio Avancé | 5 | Suggestions IA, workflow dynamique, Document Live, avatars |
 | 6 | Assets | 4 | Génération images, Meshy 3D, services externes |
 | 7 | Polish | 5 | Party Mode complet, voice, multimodal, i18n, polish final |
 
-**Total : 33 tasks**
+**Total : 34 tasks**
 
 ### Tasks Complétées
 
 | Task | Description                             | Date       |
 |------|-----------------------------------------|------------|
 | P1.4 | CLI Setup & Open Source Infrastructure | 2024-01-22 |
+| P2.4 | Workflows YAML Definitions              | 2024-01-22 |
+| P2.1 | Production Board (Vue Queues)           | 2024-01-22 |
+
+### Tasks Partiellement Faites (Infrastructure Existante)
+
+| Task | Description               | Ce qui existe                                  |
+|------|---------------------------|------------------------------------------------|
+| P2.0 | Web-UI Refactor           | Stores Zustand, Services Backend, API routes   |
+| P2.5 | Ludic Experience          | SuggestionCards, QuickActions                  |
+| P2.6 | Session Management        | StateManager (SQLite), WorkflowEngine          |
+
+### Tasks Prioritaires (Review Architecturale)
+
+| Task  | Description                    | Priorité    | Sous-tasks         |
+|-------|--------------------------------|-------------|--------------------|
+| P2.10 | LLM Performance & Architecture | 🔴 Critical | 8 sous-tasks (A-H) |
 
 ## Ordre d'Implémentation
 

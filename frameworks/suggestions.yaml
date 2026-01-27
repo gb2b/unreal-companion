@@ -1,0 +1,322 @@
+# Suggestions System
+#
+# Suggestions are user-facing entry points that trigger workflows.
+# They are context-aware and adapt based on project state.
+#
+# All labels/descriptions are in English by default.
+# LLM translates based on user's interface language.
+#
+# Conditions use project state variables:
+#   - has_project: A project is loaded
+#   - has_brief: Game brief exists
+#   - has_gdd: GDD exists
+#   - has_architecture: Architecture doc exists
+#   - has_narrative: Narrative doc exists
+#   - has_art_direction: Art direction exists
+#   - has_tasks: Tasks exist in board
+#   - has_active_sprint: Sprint is active
+#   - is_onboarding: First time user / new project
+#
+# Priority determines order (higher = shown first)
+
+version: "1.0"
+
+# =============================================================================
+# ONBOARDING - First time or new project
+# =============================================================================
+onboarding:
+  - id: "welcome-start"
+    label: "Start my game"
+    description: "Define the core concept in 2 minutes"
+    icon: "Rocket"
+    color: "cyan"
+    priority: 100
+    triggers:
+      workflow: "get-started"
+      agent: "game-designer"
+
+  - id: "welcome-import"
+    label: "I have an existing project"
+    description: "Import an existing brief or GDD"
+    icon: "Upload"
+    color: "emerald"
+    priority: 90
+    action: "import_document"
+
+  - id: "welcome-explore"
+    label: "Just explore"
+    description: "Brainstorm ideas without commitment"
+    icon: "Sparkles"
+    color: "purple"
+    priority: 80
+    triggers:
+      workflow: "quick-brainstorming"
+      agent: "game-designer"
+
+# =============================================================================
+# CONTEXT-AWARE SUGGESTIONS
+# =============================================================================
+contextual:
+  # --- No Brief Yet ---
+  - id: "create-brief"
+    label: "Define the concept"
+    description: "Create a Game Brief to establish the foundation"
+    icon: "Target"
+    color: "blue"
+    priority: 95
+    conditions:
+      - "has_project"
+      - "!has_brief"
+    triggers:
+      workflow: "game-brief"
+      agent: "game-designer"
+
+  # --- Has Brief, No GDD ---
+  - id: "expand-to-gdd"
+    label: "Expand to full GDD"
+    description: "Turn the brief into a complete design document"
+    icon: "FileText"
+    color: "green"
+    priority: 90
+    conditions:
+      - "has_brief"
+      - "!has_gdd"
+    triggers:
+      workflow: "gdd"
+      agent: "game-designer"
+
+  # --- Has GDD, No Architecture ---
+  - id: "plan-architecture"
+    label: "Plan the architecture"
+    description: "Define the technical structure of the project"
+    icon: "Building2"
+    color: "orange"
+    priority: 85
+    conditions:
+      - "has_gdd"
+      - "!has_architecture"
+    triggers:
+      workflow: "game-architecture"
+      agent: "game-architect"
+
+  # --- Has Architecture, No Tasks ---
+  - id: "create-first-tasks"
+    label: "Create first tasks"
+    description: "Turn architecture into actionable tasks"
+    icon: "ListTodo"
+    color: "amber"
+    priority: 80
+    conditions:
+      - "has_architecture"
+      - "!has_tasks"
+    triggers:
+      workflow: "dev-story"
+      agent: "game-architect"
+
+  # --- Has Tasks, Ready to Work ---
+  - id: "start-sprint"
+    label: "Start a sprint"
+    description: "Organize tasks into a sprint"
+    icon: "Play"
+    color: "cyan"
+    priority: 75
+    conditions:
+      - "has_tasks"
+      - "!has_active_sprint"
+    triggers:
+      workflow: "sprint-planning"
+      agent: "game-architect"
+
+  # --- Active Sprint ---
+  - id: "sprint-check"
+    label: "Sprint check-in"
+    description: "Review progress and blockers"
+    icon: "Activity"
+    color: "blue"
+    priority: 70
+    conditions:
+      - "has_active_sprint"
+    triggers:
+      workflow: "sprint-status"
+      agent: "game-architect"
+
+  # --- Missing Narrative ---
+  - id: "define-narrative"
+    label: "Define the narrative"
+    description: "Create the story and characters"
+    icon: "BookOpen"
+    color: "purple"
+    priority: 65
+    conditions:
+      - "has_brief"
+      - "!has_narrative"
+    triggers:
+      workflow: "narrative"
+      agent: "game-designer"
+
+  # --- Missing Art Direction ---
+  - id: "define-art"
+    label: "Art direction"
+    description: "Define the visual style of the game"
+    icon: "Palette"
+    color: "pink"
+    priority: 60
+    conditions:
+      - "has_brief"
+      - "!has_art_direction"
+    triggers:
+      workflow: "art-direction"
+      agent: "game-designer"
+
+# =============================================================================
+# ALWAYS AVAILABLE
+# =============================================================================
+always:
+  - id: "quick-brainstorm"
+    label: "Brainstorm"
+    description: "Quickly explore ideas"
+    icon: "Lightbulb"
+    color: "yellow"
+    priority: 50
+    triggers:
+      workflow: "quick-brainstorming"
+      agent: "game-designer"
+
+  - id: "quick-task"
+    label: "Add a task"
+    description: "Quickly create a new task"
+    icon: "Plus"
+    color: "slate"
+    priority: 45
+    triggers:
+      workflow: "quick-dev"
+      agent: "game-architect"
+
+  - id: "prototype-idea"
+    label: "Prototype an idea"
+    description: "Define a quick prototype to test"
+    icon: "Zap"
+    color: "orange"
+    priority: 40
+    triggers:
+      workflow: "quick-prototype"
+      agent: "game-architect"
+
+  - id: "create-diagram"
+    label: "Create a diagram"
+    description: "Visualize a system or flow"
+    icon: "GitBranch"
+    color: "emerald"
+    priority: 35
+    triggers:
+      workflow: "diagram"
+      agent: "game-architect"
+
+  - id: "create-mindmap"
+    label: "Mind map"
+    description: "Visually organize ideas"
+    icon: "Brain"
+    color: "violet"
+    priority: 30
+    triggers:
+      workflow: "mind-map"
+      agent: "game-designer"
+
+  - id: "create-moodboard"
+    label: "Mood board"
+    description: "Collect visual references"
+    icon: "Image"
+    color: "rose"
+    priority: 25
+    conditions:
+      - "has_brief"  # Need some context for mood boards
+    triggers:
+      workflow: "mood-board"
+      agent: "game-designer"
+
+# =============================================================================
+# AGENT QUICK ACCESS
+# =============================================================================
+# These are suggestions that appear when user wants to talk to a specific agent
+
+agent_shortcuts:
+  game-designer:
+    - workflow: "game-brief"
+      label: "Game Brief"
+      shortcut: "GB"
+    - workflow: "gdd"
+      label: "Full GDD"
+      shortcut: "GDD"
+    - workflow: "quick-brainstorming"
+      label: "Brainstorm"
+      shortcut: "BS"
+    - workflow: "narrative"
+      label: "Narrative"
+      shortcut: "NAR"
+
+  game-architect:
+    - workflow: "game-architecture"
+      label: "Architecture"
+      shortcut: "ARCH"
+    - workflow: "dev-story"
+      label: "Dev Story"
+      shortcut: "DS"
+    - workflow: "quick-dev"
+      label: "Quick Task"
+      shortcut: "QT"
+    - workflow: "code-review"
+      label: "Code Review"
+      shortcut: "CR"
+
+  3d-artist:
+    - workflow: "art-direction"
+      label: "Art Direction"
+      shortcut: "ART"
+    - workflow: "mood-board"
+      label: "Mood Board"
+      shortcut: "MB"
+
+  level-designer:
+    - workflow: "level-design"
+      label: "Level Design"
+      shortcut: "LD"
+    - workflow: "diagram"
+      label: "Diagram"
+      shortcut: "DIA"
+
+# =============================================================================
+# SMART SUGGESTIONS (AI-computed based on context)
+# =============================================================================
+smart:
+  # These are computed dynamically based on:
+  # - Recent activity
+  # - Incomplete documents
+  # - Stalled workflows
+  # - Task priorities
+
+  templates:
+    - id: "continue-workflow"
+      label: "Continue: {{workflow_name}}"
+      description: "Pick up where you left off"
+      icon: "ArrowRight"
+      color: "blue"
+      condition: "has_incomplete_workflow"
+      action: "resume_workflow"
+
+    - id: "unblock-task"
+      label: "Unblock: {{task_title}}"
+      description: "A task needs your attention"
+      icon: "Unlock"
+      color: "amber"
+      condition: "has_blocked_task"
+      triggers:
+        workflow: "quick-dev"
+        context: "blocked_task"
+
+    - id: "review-ready"
+      label: "Review: {{document_name}}"
+      description: "A document is ready for review"
+      icon: "CheckCircle"
+      color: "green"
+      condition: "has_review_pending"
+      action: "open_document"

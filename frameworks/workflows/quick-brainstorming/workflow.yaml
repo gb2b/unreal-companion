@@ -1,0 +1,35 @@
+id: quick-brainstorming
+version: "1.0"
+name: "Quick Brainstorm"
+description: "Rapid idea exploration in 5 minutes"
+category: "conversation"
+behavior: "infinite"
+ui_visible: true
+icon: "lightbulb"
+color: "amber"
+estimated_time: "5 min"
+output_pattern: "session-quick-{subject}-{date}.md"
+quick_action: true
+
+context_required: []
+
+outputs:
+  - type: "ideas"
+    path: "brainstorms/quick-{{date}}.md"
+  - type: "mind-map"
+    path: "boards/mindmap-{{date}}.json"
+    optional: true
+
+steps:
+  - id: "seed"
+    file: "steps/step-01-seed.md"
+    title: "Seed Idea"
+  - id: "expand"
+    file: "steps/step-02-expand.md"
+    title: "Rapid Expansion"
+  - id: "filter"
+    file: "steps/step-03-filter.md"
+    title: "Quick Filter"
+  - id: "capture"
+    file: "steps/step-04-capture.md"
+    title: "Capture Results"

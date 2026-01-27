@@ -30,7 +30,12 @@ interface WorkflowInfo {
   estimated_time: string;
   icon?: string;
   color?: string;
-  category?: 'quick' | 'design' | 'technical';
+  category?: string;
+  behavior?: string;
+  ui_visible?: boolean;
+  quick_action?: boolean;
+  document_order?: number;
+  suggested_after?: string[];
 }
 
 interface SessionInfo {

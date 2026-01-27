@@ -1,0 +1,38 @@
+id: dev-story
+version: "1.0"
+name: "Development Story"
+description: "Break down a feature into implementable dev tasks"
+category: "agile"
+behavior: "repeatable"
+ui_visible: true
+icon: "git-branch"
+color: "indigo"
+estimated_time: "8 min"
+quick_action: true
+
+context_required:
+  - gdd
+  - architecture
+
+outputs:
+  - type: "story"
+    path: "stories/dev-{{story_id}}.md"
+  - type: "tasks"
+    action: "create_tasks"
+
+steps:
+  - id: "feature"
+    file: "steps/step-01-feature.md"
+    title: "Feature Definition"
+  - id: "breakdown"
+    file: "steps/step-02-breakdown.md"
+    title: "Technical Breakdown"
+  - id: "dependencies"
+    file: "steps/step-03-dependencies.md"
+    title: "Dependencies"
+  - id: "tasks"
+    file: "steps/step-04-tasks.md"
+    title: "Task Generation"
+  - id: "acceptance"
+    file: "steps/step-05-acceptance.md"
+    title: "Acceptance Criteria"

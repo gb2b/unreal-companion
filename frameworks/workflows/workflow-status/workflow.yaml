@@ -1,0 +1,29 @@
+id: workflow-status
+version: "1.0"
+name: "Workflow Status"
+description: "Check status of ongoing workflows and sessions"
+category: "technical"
+behavior: "system"
+ui_visible: false
+estimated_time: "2 min"
+auto_trigger: true
+agent_use: true
+
+context_required:
+  - sessions
+  - workflows
+
+outputs:
+  - type: "status"
+    format: "inline"
+
+steps:
+  - id: "active"
+    file: "steps/step-01-active.md"
+    title: "Active Workflows"
+  - id: "pending"
+    file: "steps/step-02-pending.md"
+    title: "Pending Items"
+  - id: "recommendations"
+    file: "steps/step-03-recommendations.md"
+    title: "Recommendations"

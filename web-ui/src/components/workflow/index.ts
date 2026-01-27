@@ -5,6 +5,8 @@
  */
 
 export { WorkflowChatView } from './WorkflowChatView';
+export { WorkflowStepView } from './WorkflowStepView';
+export { WorkflowStepContainer } from './WorkflowStepContainer';
 export { QuickActions, useQuickActionShortcuts } from './QuickActions';
 export type { QuickActionType } from './QuickActions';
 export { SuggestionCards, ReferenceGameCard, MenuSuggestion } from './SuggestionCards';

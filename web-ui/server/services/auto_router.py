@@ -36,14 +36,14 @@ DEFAULT_RULES: list[RoutingRule] = [
     RoutingRule(
         task_type=TaskType.CREATIVE,
         preferred_model="gemini-3-pro",
-        fallback_model="claude-opus-4-5-20260115",
+        fallback_model="claude-sonnet-4-20250514",
         keywords=["brainstorm", "imagine", "create", "idea", "story", "design", 
                   "invent", "conceive", "dream", "fantasy", "creative", "innovative"],
     ),
     RoutingRule(
         task_type=TaskType.CODE,
         preferred_model="codex-5.2",
-        fallback_model="claude-opus-4-5-20260115",
+        fallback_model="claude-sonnet-4-20250514",
         keywords=["code", "debug", "function", "bug", "error", "implement", "fix",
                   "compile", "syntax", "algorithm", "programming", "developer",
                   "script", "class", "method", "variable", "refactor", "test"],
@@ -65,8 +65,8 @@ DEFAULT_RULES: list[RoutingRule] = [
     ),
     RoutingRule(
         task_type=TaskType.COMPLEX,
-        preferred_model="claude-opus-4-5-20260115",
-        fallback_model="gpt-5-turbo",
+        preferred_model="claude-sonnet-4-20250514",
+        fallback_model="gpt-4o",
         keywords=["analyze", "explain", "complex", "understand", "detailed",
                   "comprehensive", "in-depth", "thorough", "evaluate", "compare"],
         min_complexity=60,
@@ -218,10 +218,10 @@ class AutoRouter:
         
         # Default fallback chain
         fallback_chain = [
-            "claude-opus-4-5-20260115",
-            "gpt-5-turbo",
-            "gemini-3-pro",
-            "llama4",
+            "claude-sonnet-4-20250514",
+            "gpt-4o",
+            "gemini-2.0-flash",
+            "llama3.2",
         ]
         
         if available_models:

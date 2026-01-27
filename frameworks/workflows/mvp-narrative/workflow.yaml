@@ -1,0 +1,37 @@
+id: mvp-narrative
+version: "1.0"
+name: "MVP Narrative"
+description: "Define the minimal viable narrative for your game"
+category: "document"
+behavior: "one-shot"
+ui_visible: true
+icon: "scroll"
+color: "amber"
+suggested_after: ["game-brief"]
+document_order: 7
+estimated_time: "15 min"
+
+context_required:
+  - brief
+  - gdd
+
+outputs:
+  - type: "narrative"
+    path: "narrative/mvp-narrative.md"
+
+steps:
+  - id: "core-conflict"
+    file: "steps/step-01-core-conflict.md"
+    title: "Core Conflict"
+  - id: "protagonist"
+    file: "steps/step-02-protagonist.md"
+    title: "Protagonist Essence"
+  - id: "journey"
+    file: "steps/step-03-journey.md"
+    title: "Minimal Journey"
+  - id: "hooks"
+    file: "steps/step-04-hooks.md"
+    title: "Narrative Hooks"
+  - id: "integration"
+    file: "steps/step-05-integration.md"
+    title: "Gameplay Integration"

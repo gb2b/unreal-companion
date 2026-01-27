@@ -1,0 +1,33 @@
+id: project-context
+version: "1.0"
+name: "Project Context"
+description: "Build comprehensive project context for AI agents"
+category: "technical"
+behavior: "system"
+ui_visible: false
+estimated_time: "10 min"
+auto_trigger: true
+agent_use: true
+
+context_required: []
+
+outputs:
+  - type: "context"
+    path: "context/project-context.md"
+
+steps:
+  - id: "overview"
+    file: "steps/step-01-overview.md"
+    title: "Project Overview"
+  - id: "goals"
+    file: "steps/step-02-goals.md"
+    title: "Goals & Constraints"
+  - id: "architecture"
+    file: "steps/step-03-architecture.md"
+    title: "Technical Architecture"
+  - id: "conventions"
+    file: "steps/step-04-conventions.md"
+    title: "Conventions & Standards"
+  - id: "current-state"
+    file: "steps/step-05-current-state.md"
+    title: "Current State"

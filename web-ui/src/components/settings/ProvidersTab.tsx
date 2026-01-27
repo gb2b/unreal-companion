@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { 
-  Brain, 
-  Server, 
-  Eye, 
+import {
+  Brain,
+  Server,
+  Eye,
   EyeOff,
   RefreshCw,
   Sparkles,
@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useLLMStore, LLMProvider } from '@/stores/llmStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 const PROVIDERS: { id: LLMProvider; name: string; icon: string; reactIcon: React.ElementType; description: string }[] = [
@@ -46,19 +47,20 @@ const PROVIDERS: { id: LLMProvider; name: string; icon: string; reactIcon: React
 ]
 
 export function ProvidersTab() {
-  const { 
-    currentProvider, 
+  const {
+    currentProvider,
     ollamaUrl,
     hasAnthropicKey,
     hasOpenAIKey,
     hasGoogleKey,
     isLoading,
-    setProvider, 
+    setProvider,
     setApiKey,
     setOllamaUrl,
     fetchModels,
     testConnection
   } = useLLMStore()
+  const { t } = useTranslation()
 
   const [showKey, setShowKey] = useState(false)
   const [keyInput, setKeyInput] = useState('')
@@ -92,7 +94,7 @@ export function ProvidersTab() {
     <div className="space-y-6">
       {/* Provider Selection */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Select Provider</h2>
+        <h2 className="text-lg font-semibold">{t('providersTab.selectProvider')}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {PROVIDERS.map(provider => {
             const isActive = currentProvider === provider.id
@@ -139,36 +141,36 @@ export function ProvidersTab() {
       {/* API Key or Ollama URL */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">
-          {currentProvider === 'ollama' ? 'Ollama Configuration' : 'API Key'}
+          {currentProvider === 'ollama' ? t('providersTab.ollamaConfig') : t('providers.apiKey')}
         </h2>
-        
+
         {currentProvider === 'ollama' ? (
           <div className="space-y-2">
-            <label className="text-sm text-muted-foreground">Ollama URL</label>
+            <label className="text-sm text-muted-foreground">{t('providersTab.ollamaUrl')}</label>
             <div className="flex gap-2">
               <Input
                 value={ollamaUrl}
                 onChange={(e) => setOllamaUrl(e.target.value)}
-                placeholder="http://localhost:11434"
+                placeholder={t('providersTab.ollamaUrlPlaceholder')}
               />
               <Button variant="outline" onClick={() => fetchModels('ollama')}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Make sure Ollama is running locally. Models will be fetched automatically.
+              {t('providersTab.ollamaDesc')}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <label className="text-sm text-muted-foreground">
-                {currentProvider === 'anthropic' ? 'Anthropic' : 
-                 currentProvider === 'google' ? 'Google AI' : 'OpenAI'} API Key
+                {currentProvider === 'anthropic' ? 'Anthropic' :
+                 currentProvider === 'google' ? 'Google AI' : 'OpenAI'} {t('providers.apiKey')}
               </label>
               {hasKey && (
                 <span className="text-xs text-green-500 flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> Configured
+                  <CheckCircle2 className="h-3 w-3" /> {t('providersTab.configured')}
                 </span>
               )}
             </div>
@@ -178,8 +180,8 @@ export function ProvidersTab() {
                   type={showKey ? 'text' : 'password'}
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder={hasKey ? '••••••••••••••••' : 
-                    currentProvider === 'anthropic' ? 'sk-ant-...' : 
+                  placeholder={hasKey ? '••••••••••••••••' :
+                    currentProvider === 'anthropic' ? 'sk-ant-...' :
                     currentProvider === 'google' ? 'AIza...' : 'sk-...'}
                 />
                 <button
@@ -191,11 +193,11 @@ export function ProvidersTab() {
                 </button>
               </div>
               <Button onClick={handleSaveKey} disabled={!keyInput.trim() || isLoading}>
-                Save
+                {t('common.save')}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {hasKey ? 'Enter a new key to replace the existing one' : 'Your API key is stored locally and sent to your backend only'}
+              {hasKey ? t('providersTab.enterNewKey') : t('providersTab.keyStoredLocally')}
             </p>
           </div>
         )}
@@ -204,14 +206,14 @@ export function ProvidersTab() {
       {/* Test Connection */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Test Connection</h2>
-          <Button 
-            onClick={handleTest} 
-            disabled={testing || (!hasKey && currentProvider !== 'ollama')} 
+          <h2 className="text-lg font-semibold">{t('providersTab.testConnection')}</h2>
+          <Button
+            onClick={handleTest}
+            disabled={testing || (!hasKey && currentProvider !== 'ollama')}
             variant="outline"
           >
             {testing ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
-            Test
+            {t('providers.test')}
           </Button>
         </div>
         

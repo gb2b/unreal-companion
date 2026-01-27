@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useStudioStore, Task, TaskPriority } from '@/stores/studioStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 // Icon mapping
@@ -65,6 +66,7 @@ interface ProductionBoardProps {
 
 export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
   const { queues, tasks, startTask, completeTask, reopenTask, reorderQueue } = useStudioStore()
+  const { t } = useTranslation()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [expandedQueues, setExpandedQueues] = useState<Record<string, boolean>>(
     Object.fromEntries(queues.map(q => [q.id, true]))
@@ -159,10 +161,10 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                   <div className="text-left">
                     <h3 className="font-medium">{queue.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {activeTasks.length > 0 && `${activeTasks.length} active, `}
-                      {readyTasks.length} ready
-                      {lockedTasks.length > 0 && `, ${lockedTasks.length} locked`}
-                      , {doneTasks.length} done
+                      {activeTasks.length > 0 && `${activeTasks.length} ${t('studio.board.active')}, `}
+                      {readyTasks.length} {t('studio.board.ready')}
+                      {lockedTasks.length > 0 && `, ${lockedTasks.length} ${t('studio.board.locked')}`}
+                      , {doneTasks.length} {t('studio.board.done')}
                     </p>
                   </div>
                 </div>
@@ -180,7 +182,7 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                   {activeTasks.length > 0 && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                        <Play className="h-3 w-3" /> In Progress
+                        <Play className="h-3 w-3" /> {t('task.status.inProgress')}
                       </p>
                       {activeTasks.map(task => (
                         <TaskCard
@@ -196,7 +198,7 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
 
                   {/* Ready Queue */}
                   <div>
-                    <p className="text-xs text-muted-foreground mb-2">Ready</p>
+                    <p className="text-xs text-muted-foreground mb-2">{t('task.status.ready')}</p>
                     <SortableContext
                       items={readyTasks.map(t => t.id)}
                       strategy={verticalListSortingStrategy}
@@ -204,7 +206,7 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                       <div className="space-y-2">
                         {readyTasks.length === 0 ? (
                           <p className="text-sm text-muted-foreground italic py-4 text-center">
-                            No tasks ready
+                            {t('studio.board.noTasksReady')}
                           </p>
                         ) : (
                           readyTasks.map(task => (
@@ -224,7 +226,7 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                   {lockedTasks.length > 0 && (
                     <details className="group">
                       <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
-                        <Lock className="h-3 w-3" /> {lockedTasks.length} waiting on dependencies
+                        <Lock className="h-3 w-3" /> {lockedTasks.length} {t('studio.board.waitingOnDependencies')}
                       </summary>
                       <div className="mt-2 space-y-2 opacity-60">
                         {lockedTasks.map(task => (
@@ -243,7 +245,7 @@ export function ProductionBoard({ onTaskClick }: ProductionBoardProps) {
                   {doneTasks.length > 0 && (
                     <details className="group">
                       <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
-                        <Check className="h-3 w-3" /> {doneTasks.length} completed
+                        <Check className="h-3 w-3" /> {doneTasks.length} {t('studio.board.completed')}
                       </summary>
                       <div className="mt-2 space-y-2 opacity-60">
                         {doneTasks.slice(0, 5).map(task => (
@@ -335,6 +337,15 @@ function TaskCard({
   isDone?: boolean
   isLocked?: boolean
 }) {
+  const { t } = useTranslation()
+
+  const priorityLabels: Record<string, string> = {
+    critical: t('priority.critical'),
+    high: t('priority.high'),
+    medium: t('priority.medium'),
+    low: t('priority.low'),
+  }
+
   return (
     <div
       className={cn(
@@ -380,7 +391,7 @@ function TaskCard({
         )}
         {task.requires && task.requires.length > 0 && isLocked && (
           <p className="text-xs text-amber-400 mt-1">
-            Waiting on {task.requires.length} task{task.requires.length > 1 ? 's' : ''}
+            {t('task.waitingOn')} {task.requires.length} {task.requires.length > 1 ? t('studio.board.tasks') : t('studio.board.task')}
           </p>
         )}
       </div>
@@ -393,7 +404,7 @@ function TaskCard({
           task.priority === 'high' && "bg-orange-500/20 text-orange-400",
           task.priority === 'low' && "bg-slate-500/20 text-slate-400",
         )}>
-          {task.priority}
+          {priorityLabels[task.priority]}
         </span>
       )}
 
@@ -436,13 +447,14 @@ function TaskCard({
 
 // Add Task Button
 export function AddTaskButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation()
   return (
     <button
       onClick={onClick}
       className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed border-border hover:border-cyan-500/50 hover:bg-muted/50 transition-all text-muted-foreground hover:text-foreground"
     >
       <Plus className="h-4 w-4" />
-      Add Task
+      {t('studio.board.addTask')}
     </button>
   )
 }

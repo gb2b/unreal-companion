@@ -21,8 +21,7 @@ import uuid
 logger = logging.getLogger(__name__)
 
 # Paths
-TEMPLATES_DIR = Path(__file__).parent / "templates"
-SERVER_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+FRAMEWORKS_DIR = Path(__file__).parent.parent.parent.parent / "frameworks"
 GLOBAL_COMPANION_DIR = Path.home() / ".unreal-companion"
 GLOBAL_REGISTRY_DIR = GLOBAL_COMPANION_DIR  # Alias for compatibility
 GLOBAL_REGISTRY_FILE = GLOBAL_COMPANION_DIR / "projects.json"
@@ -150,10 +149,10 @@ def ensure_global_structure() -> Dict[str, Any]:
         created_files.append(str(GLOBAL_CONFIG_FILE))
         logger.info(f"Created global config: {GLOBAL_CONFIG_FILE}")
 
-    # Copy default agents from server templates
+    # Copy default agents from frameworks
     _copy_default_agents()
 
-    # Copy default workflows from server templates
+    # Copy default workflows from frameworks
     _copy_default_workflows()
 
     # Ensure projects.json exists
@@ -180,12 +179,12 @@ def ensure_global_structure() -> Dict[str, Any]:
 
 
 def _copy_default_agents():
-    """Copy default agents from server templates to global defaults."""
-    source_dir = SERVER_TEMPLATES_DIR / "agents"
+    """Copy default agents from frameworks to global defaults."""
+    source_dir = FRAMEWORKS_DIR / "agents"
     dest_dir = GLOBAL_AGENTS_DIR / "defaults"
 
     if not source_dir.exists():
-        logger.warning(f"Agent templates not found at {source_dir}")
+        logger.warning(f"Agent frameworks not found at {source_dir}")
         return
 
     for agent_file in source_dir.glob("*.yaml"):
@@ -196,12 +195,12 @@ def _copy_default_agents():
 
 
 def _copy_default_workflows():
-    """Copy default workflows from server templates to global defaults."""
-    source_dir = SERVER_TEMPLATES_DIR / "workflows"
+    """Copy default workflows from frameworks to global defaults."""
+    source_dir = FRAMEWORKS_DIR / "workflows"
     dest_dir = GLOBAL_WORKFLOWS_DIR / "defaults"
 
     if not source_dir.exists():
-        logger.warning(f"Workflow templates not found at {source_dir}")
+        logger.warning(f"Workflow frameworks not found at {source_dir}")
         return
 
     # Copy workflow directories (each workflow has its own folder)
@@ -499,35 +498,28 @@ def init_companion_folder(
     for d in directories:
         d.mkdir(parents=True, exist_ok=True)
     
-    # Copy and process templates from server/templates/companion/
-    companion_template_dir = SERVER_TEMPLATES_DIR / "companion"
+    # Copy and process project templates from frameworks/project/
+    project_template_dir = FRAMEWORKS_DIR / "project"
     
-    if companion_template_dir.exists():
+    if project_template_dir.exists():
         # Copy config.yaml
         _copy_and_process_template(
-            companion_template_dir / "config.yaml",
+            project_template_dir / "config.yaml",
             companion_dir / "config.yaml",
             variables
         )
         
         # Copy project-context.md
         _copy_and_process_template(
-            companion_template_dir / "project-context.md",
+            project_template_dir / "project-context.md",
             companion_dir / "project-context.md",
             variables
         )
         
-        # Copy agents/index.yaml
+        # Copy workflow-status.yaml
         _copy_and_process_template(
-            companion_template_dir / "agents" / "index.yaml",
-            companion_dir / "agents" / "index.yaml",
-            variables
-        )
-        
-        # Copy workflows/index.yaml
-        _copy_and_process_template(
-            companion_template_dir / "workflows" / "index.yaml",
-            companion_dir / "workflows" / "index.yaml",
+            project_template_dir / "workflow-status.yaml",
+            companion_dir / "workflow-status.yaml",
             variables
         )
     

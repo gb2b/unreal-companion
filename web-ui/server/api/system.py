@@ -104,21 +104,24 @@ def run_installation(source_dir: Path, force: bool = False) -> Dict[str, Any]:
     agents_installed = []
     workflows_installed = []
 
-    # Copy agents
-    agents_source = source_dir / "templates" / "agents"
+    # Copy agents from frameworks/
+    agents_source = source_dir / "frameworks" / "agents"
     if agents_source.exists():
         for agent_file in agents_source.glob("*.yaml"):
             dest = GLOBAL_DIR / "agents" / "defaults" / agent_file.name
             shutil.copy(str(agent_file), str(dest))
             agents_installed.append(agent_file.stem)
 
-    # Copy workflows
-    workflows_source = source_dir / "templates" / "workflows"
+    # Copy workflows from frameworks/
+    workflows_source = source_dir / "frameworks" / "workflows"
     if workflows_source.exists():
-        for workflow_file in workflows_source.glob("*.yaml"):
-            dest = GLOBAL_DIR / "workflows" / "defaults" / workflow_file.name
-            shutil.copy(str(workflow_file), str(dest))
-            workflows_installed.append(workflow_file.stem)
+        for workflow_dir in workflows_source.iterdir():
+            if workflow_dir.is_dir() and (workflow_dir / "workflow.yaml").exists():
+                dest_dir = GLOBAL_DIR / "workflows" / "defaults" / workflow_dir.name
+                if dest_dir.exists():
+                    shutil.rmtree(str(dest_dir))
+                shutil.copytree(str(workflow_dir), str(dest_dir))
+                workflows_installed.append(workflow_dir.name)
 
     # Create config.yaml
     config = {
@@ -183,17 +186,17 @@ async def install(request: InstallRequest):
     This is the API equivalent of running install.sh.
     Useful for first-time setup from the Web UI.
     """
-    # Determine source directory (where templates are)
+    # Determine source directory (where frameworks are)
     if request.source_dir:
         source_dir = Path(request.source_dir)
     else:
-        # Default: assume we're running from web-ui/server/
-        source_dir = Path(__file__).parent.parent
+        # Default: assume we're running from project root (go up from web-ui/server/api/)
+        source_dir = Path(__file__).parent.parent.parent.parent
 
-    if not (source_dir / "templates" / "agents").exists():
+    if not (source_dir / "frameworks" / "agents").exists():
         raise HTTPException(
             status_code=400,
-            detail=f"Templates not found at {source_dir}/templates/agents"
+            detail=f"Frameworks not found at {source_dir}/frameworks/agents"
         )
 
     return run_installation(source_dir, request.force)

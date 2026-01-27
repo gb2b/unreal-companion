@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { 
-  Wand2, 
-  Code, 
-  Image, 
-  Zap, 
+import {
+  Wand2,
+  Code,
+  Image,
+  Zap,
   Brain,
   ChevronDown
 } from 'lucide-react'
 import { useLLMStore } from '@/stores/llmStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 interface AutoRule {
@@ -143,6 +144,7 @@ function ModelDropdown({
 
 export function AutoModeTab() {
   const { autoModeEnabled, setAutoModeEnabled, updateAutoModeRules } = useLLMStore()
+  const { t } = useTranslation()
   const [rules, setRules] = useState<AutoRule[]>(DEFAULT_RULES)
 
   const handleModelChange = (ruleId: string, field: 'preferredModel' | 'fallbackModel', value: string) => {
@@ -165,10 +167,10 @@ export function AutoModeTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-            Mode Auto
+            {t('autoModeTab.title')}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Sélection intelligente du modèle selon le contexte
+            {t('autoModeTab.subtitle')}
           </p>
         </div>
         
@@ -212,12 +214,12 @@ export function AutoModeTab() {
           </div>
           <div>
             <p className="font-medium">
-              {autoModeEnabled ? "Mode Auto activé" : "Mode Auto désactivé"}
+              {autoModeEnabled ? t('autoModeTab.enabled') : t('autoModeTab.disabled')}
             </p>
             <p className="text-sm text-muted-foreground">
-              {autoModeEnabled 
-                ? "Le système analyse vos messages et choisit le meilleur modèle" 
-                : "Vous utilisez un modèle fixe pour toutes les requêtes"}
+              {autoModeEnabled
+                ? t('autoModeTab.enabledDesc')
+                : t('autoModeTab.disabledDesc')}
             </p>
           </div>
         </div>
@@ -225,30 +227,30 @@ export function AutoModeTab() {
 
       {/* How it works */}
       <div className="p-4 rounded-xl bg-muted/30 border border-border">
-        <h3 className="font-medium mb-2">Comment ça marche</h3>
+        <h3 className="font-medium mb-2">{t('autoModeTab.howItWorks')}</h3>
         <ul className="text-sm text-muted-foreground space-y-1.5">
           <li className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">1</span>
-            <span><strong>Mots-clés</strong> : détection du type de tâche (code, brainstorm, image...)</span>
+            <span><strong>{t('autoModeTab.keywords')}</strong>: {t('autoModeTab.keywordsDesc')}</span>
           </li>
           <li className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">2</span>
-            <span><strong>Images</strong> : si présentes, modèles vision prioritaires</span>
+            <span><strong>{t('autoModeTab.images')}</strong>: {t('autoModeTab.imagesDesc')}</span>
           </li>
           <li className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">3</span>
-            <span><strong>Complexité</strong> : analyse de la longueur et structure du message</span>
+            <span><strong>{t('autoModeTab.complexity')}</strong>: {t('autoModeTab.complexityDesc')}</span>
           </li>
           <li className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">4</span>
-            <span><strong>Fallback</strong> : si le modèle préféré n'est pas disponible</span>
+            <span><strong>{t('autoModeTab.fallback')}</strong>: {t('autoModeTab.fallbackDesc')}</span>
           </li>
         </ul>
       </div>
 
       {/* Routing Rules */}
       <div className="space-y-4">
-        <h3 className="font-medium">Règles de routage</h3>
+        <h3 className="font-medium">{t('autoModeTab.routingRules')}</h3>
         
         <div className="space-y-3">
           {rules.map(rule => {
@@ -275,13 +277,13 @@ export function AutoModeTab() {
                 
                 <div className="grid grid-cols-2 gap-3">
                   <ModelDropdown
-                    label="Modèle préféré"
+                    label={t('autoModeTab.preferredModel')}
                     value={rule.preferredModel}
                     onChange={(v) => handleModelChange(rule.id, 'preferredModel', v)}
                     disabled={!autoModeEnabled}
                   />
                   <ModelDropdown
-                    label="Fallback"
+                    label={t('autoModeTab.fallback')}
                     value={rule.fallbackModel}
                     onChange={(v) => handleModelChange(rule.id, 'fallbackModel', v)}
                     disabled={!autoModeEnabled}
@@ -306,24 +308,24 @@ export function AutoModeTab() {
 
       {/* Cost Optimization */}
       <div className="p-4 rounded-xl border border-border">
-        <h3 className="font-medium mb-2">Optimisation des coûts</h3>
+        <h3 className="font-medium mb-2">{t('autoModeTab.costOptimization')}</h3>
         <p className="text-sm text-muted-foreground mb-3">
-          Le mode auto privilégie les modèles économiques pour les tâches simples.
+          {t('autoModeTab.costDesc')}
         </p>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <Zap className="h-5 w-5 mx-auto text-emerald-400 mb-1" />
-            <p className="text-xs font-medium">Simple</p>
+            <p className="text-xs font-medium">{t('autoModeTab.simple')}</p>
             <p className="text-[10px] text-muted-foreground">GPT-5 Mini</p>
           </div>
           <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <Code className="h-5 w-5 mx-auto text-amber-400 mb-1" />
-            <p className="text-xs font-medium">Standard</p>
+            <p className="text-xs font-medium">{t('autoModeTab.standard')}</p>
             <p className="text-[10px] text-muted-foreground">Sonnet / Turbo</p>
           </div>
           <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
             <Brain className="h-5 w-5 mx-auto text-violet-400 mb-1" />
-            <p className="text-xs font-medium">Complexe</p>
+            <p className="text-xs font-medium">{t('autoModeTab.complex')}</p>
             <p className="text-[10px] text-muted-foreground">Opus / Codex</p>
           </div>
         </div>

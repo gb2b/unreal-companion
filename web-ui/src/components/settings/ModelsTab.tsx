@@ -3,6 +3,7 @@ import { Check, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useLLMStore } from '@/stores/llmStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 // Model tier badges
@@ -18,7 +19,7 @@ const TIER_BADGES: Record<string, { label: string; color: string }> = {
 }
 
 export function ModelsTab() {
-  const { 
+  const {
     currentProvider,
     currentModel,
     customModel,
@@ -27,6 +28,7 @@ export function ModelsTab() {
     setModel,
     setCustomModel,
   } = useLLMStore()
+  const { t } = useTranslation()
 
   const [customModelInput, setCustomModelInput] = useState('')
 
@@ -39,19 +41,19 @@ export function ModelsTab() {
       {/* Model Selection */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Available Models</h2>
+          <h2 className="text-lg font-semibold">{t('models.available')}</h2>
           {availableModels.length > 0 && (
             <span className="text-xs text-muted-foreground">
-              {availableModels.length} models available
+              {availableModels.length} {t('models.availableCount')}
             </span>
           )}
         </div>
-        
+
         {availableModels.length === 0 ? (
           <div className="p-4 rounded-lg border border-dashed border-border text-center text-muted-foreground">
-            {currentProvider === 'ollama' 
-              ? 'No models found. Make sure Ollama is running and has models installed.'
-              : 'Loading models...'}
+            {currentProvider === 'ollama'
+              ? t('models.noModels')
+              : t('models.loading')}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -100,38 +102,32 @@ export function ModelsTab() {
       {/* Custom Model Input */}
       {supportsCustom && (
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Custom Model</h2>
+          <h2 className="text-lg font-semibold">{t('models.custom')}</h2>
           <div className="p-4 rounded-xl border border-dashed border-border space-y-3">
             <p className="text-sm text-muted-foreground">
-              Enter any model name not listed above. Useful for new models or specific versions.
+              {t('models.customDesc')}
             </p>
             <div className="flex gap-2">
               <Input
                 value={customModelInput}
                 onChange={(e) => setCustomModelInput(e.target.value)}
-                placeholder={currentProvider === 'ollama' 
-                  ? 'e.g., llama3.2:70b, codellama:13b' 
-                  : currentProvider === 'anthropic'
-                    ? 'e.g., claude-opus-4-5-20260115'
-                    : currentProvider === 'google'
-                      ? 'e.g., gemini-3-pro-latest'
-                      : 'e.g., gpt-5-turbo-latest'}
+                placeholder={t('models.customPlaceholder')}
                 className={cn(
                   customModel && "border-primary"
                 )}
               />
-              <Button 
+              <Button
                 onClick={() => setCustomModel(customModelInput)}
                 disabled={!customModelInput.trim() || customModelInput === customModel}
                 variant={customModel ? "default" : "outline"}
               >
-                {customModel ? 'Update' : 'Use'}
+                {customModel ? t('models.update') : t('models.use')}
               </Button>
             </div>
             {customModel && (
               <p className="text-xs text-primary flex items-center gap-1">
                 <Check className="h-3 w-3" />
-                Using custom model: {customModel}
+                {t('models.usingCustom')} {customModel}
               </p>
             )}
           </div>
@@ -140,12 +136,12 @@ export function ModelsTab() {
 
       {/* Current Selection Summary */}
       <section className="p-4 rounded-xl border border-border bg-muted/30">
-        <h3 className="font-medium mb-2">Current Selection</h3>
+        <h3 className="font-medium mb-2">{t('models.currentSelection')}</h3>
         <div className="space-y-1 text-sm">
-          <p><span className="text-muted-foreground">Provider:</span> {currentProvider}</p>
-          <p><span className="text-muted-foreground">Model:</span> {customModel || currentModel || 'Not set'}</p>
+          <p><span className="text-muted-foreground">{t('models.provider')}</span> {currentProvider}</p>
+          <p><span className="text-muted-foreground">{t('models.model')}</span> {customModel || currentModel || t('models.notSet')}</p>
           {customModel && (
-            <p className="text-xs text-primary">Using custom model</p>
+            <p className="text-xs text-primary">{t('models.usingCustomModel')}</p>
           )}
         </div>
       </section>

@@ -1,0 +1,35 @@
+id: gametest
+version: "1.0"
+name: "Game Test Session"
+description: "Structure a playtest session and capture feedback"
+category: "dev"
+behavior: "repeatable"
+ui_visible: true
+icon: "gamepad"
+color: "red"
+estimated_time: "10 min"
+
+context_required:
+  - gdd
+  - build_info
+
+outputs:
+  - type: "playtest-report"
+    path: "playtests/test-{{date}}.md"
+
+steps:
+  - id: "objectives"
+    file: "steps/step-01-objectives.md"
+    title: "Test Objectives"
+  - id: "scenarios"
+    file: "steps/step-02-scenarios.md"
+    title: "Test Scenarios"
+  - id: "observations"
+    file: "steps/step-03-observations.md"
+    title: "Observations"
+  - id: "feedback"
+    file: "steps/step-04-feedback.md"
+    title: "Player Feedback"
+  - id: "actions"
+    file: "steps/step-05-actions.md"
+    title: "Action Items"

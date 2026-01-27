@@ -1,0 +1,56 @@
+id: sprint-planning
+version: "1.0"
+name: "Sprint Planning"
+description: "Plan your next development sprint with clear, actionable tasks"
+agent: "game-designer"
+estimated_time: "15 min"
+category: "agile"
+behavior: "repeatable"
+ui_visible: true
+icon: "calendar"
+color: "blue"
+quick_action: true
+
+# Load existing documents for context
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: true
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: false
+  - name: "gdd"
+    patterns: ["output/design/gdd.md"]
+    strategy: "index"
+    required: false
+  - name: "previous_sprints"
+    patterns: ["output/production/sprint-*.md"]
+    strategy: "index"
+    required: false
+
+# Output configuration
+output:
+  path: "output/production/sprint-{{timestamp}}.md"
+  format: "md"
+  update_context: false
+
+# Steps
+steps:
+  - id: "context"
+    file: "steps/step-01-context.md"
+  - id: "goals"
+    file: "steps/step-02-goals.md"
+  - id: "tasks"
+    file: "steps/step-03-tasks.md"
+  - id: "prioritize"
+    file: "steps/step-04-prioritize.md"
+  - id: "review"
+    file: "steps/step-05-review.md"
+
+celebrations:
+  complete: |
+    🚀 Sprint planned!
+    You have {{task_count}} tasks ready for your next sprint.
+    Time to build something amazing!

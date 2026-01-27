@@ -1,0 +1,54 @@
+id: narrative
+version: "1.0"
+name: "Narrative Design"
+description: "Craft your game's story, characters, and dialogue systems"
+agent: "narrative-designer"
+estimated_time: "60-90 min"
+category: "conversation"
+behavior: "repeatable"
+ui_visible: true
+icon: "book-open"
+color: "amber"
+output_pattern: "narrative-{subject}-{date}.md"
+suggested_after: ["game-brief"]
+
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: true
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: true
+  - name: "gdd"
+    patterns: ["output/design/gdd.md"]
+    strategy: "index"
+    required: false
+
+output:
+  path: "output/narrative/narrative-bible.md"
+  format: "md"
+  update_context: true
+
+steps:
+  - id: "premise"
+    file: "steps/step-01-premise.md"
+  - id: "world"
+    file: "steps/step-02-world.md"
+  - id: "characters"
+    file: "steps/step-03-characters.md"
+  - id: "story-structure"
+    file: "steps/step-04-story-structure.md"
+  - id: "themes"
+    file: "steps/step-05-themes.md"
+  - id: "dialogue"
+    file: "steps/step-06-dialogue.md"
+  - id: "review"
+    file: "steps/step-07-review.md"
+
+celebrations:
+  complete: |
+    📖 Narrative Bible complete!
+    Your story foundation is solid. Characters, world, and structure are defined.
+    Ready to write those compelling scenes!

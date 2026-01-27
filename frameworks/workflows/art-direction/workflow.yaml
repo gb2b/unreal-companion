@@ -1,0 +1,55 @@
+id: art-direction
+version: "1.0"
+name: "Art Direction"
+description: "Define your game's visual identity, style, and aesthetics"
+agent: "art-director"
+estimated_time: "45-60 min"
+category: "document"
+behavior: "one-shot"
+ui_visible: true
+icon: "palette"
+color: "pink"
+suggested_after: ["game-brief"]
+document_order: 4
+
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: true
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: true
+  - name: "narrative"
+    patterns: ["output/narrative/*.md"]
+    strategy: "index"
+    required: false
+
+output:
+  path: "output/art/art-direction.md"
+  format: "md"
+  update_context: true
+  visual_format: "moodboard"
+
+steps:
+  - id: "vision"
+    file: "steps/step-01-vision.md"
+  - id: "style"
+    file: "steps/step-02-style.md"
+  - id: "color"
+    file: "steps/step-03-color.md"
+  - id: "characters"
+    file: "steps/step-04-characters.md"
+  - id: "environments"
+    file: "steps/step-05-environments.md"
+  - id: "ui"
+    file: "steps/step-06-ui.md"
+  - id: "review"
+    file: "steps/step-07-review.md"
+
+celebrations:
+  complete: |
+    🎨 Art Direction complete!
+    Your visual identity is defined. Style, colors, and aesthetics are locked.
+    Time to create some stunning visuals!

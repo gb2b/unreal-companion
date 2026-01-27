@@ -18,12 +18,22 @@ export interface WorkflowInfo {
   description: string;
   agent: string;
   estimated_time: string;
+  // New fields for UI organization
+  category: 'document' | 'conversation' | 'agile' | 'dev' | 'board' | 'onboarding' | 'technical' | 'other';
+  behavior: 'one-shot' | 'repeatable' | 'infinite' | 'system';
+  ui_visible: boolean;
+  icon: string;
+  color: string;
+  quick_action: boolean;
+  document_order: number;
+  suggested_after: string[];
 }
 
 export interface WorkflowSession {
   id: string;
   workflow_id: string;
   project_id: string;
+  project_path?: string;  // Added for single-call optimization
   current_step: number;
   total_steps: number;
   status: 'active' | 'paused' | 'completed' | 'cancelled';
@@ -57,12 +67,54 @@ export interface StepInfo {
   requires_input: boolean;
 }
 
+// Step render data from backend (structured JSON for UI)
+export interface StepRenderData {
+  step_id: string;
+  step_number: number;
+  total_steps: number;
+  title: string;
+  agent: {
+    id: string;
+    name: string;
+    avatar: string;
+    color?: string;
+  };
+  intro_text: string;
+  questions: Array<{
+    id: string;
+    type: string;
+    label: string;
+    required: boolean;
+    placeholder?: string;
+    options?: Array<{
+      id: string;
+      label: string;
+      value: string;
+      description?: string;
+      icon?: string;
+    }>;
+    suggestions?: string[];
+    help_text?: string;
+  }>;
+  suggestions: Suggestion[];
+  prefilled: Record<string, string>;
+  can_skip: boolean;
+  skip_reason: string;
+  is_complete: boolean;
+  error?: string;
+}
+
 interface WorkflowState {
   // Available workflows
   workflows: WorkflowInfo[];
   
+  // All sessions for current project (for Today view)
+  projectSessions: WorkflowSession[];
+  
   // Active session
   activeSession: WorkflowSession | null;
+  activeWorkflow: WorkflowInfo | null;
+  pendingWorkflow: WorkflowInfo | null;  // For immediate view switch
   
   // Chat
   messages: ChatMessage[];
@@ -71,6 +123,7 @@ interface WorkflowState {
   
   // Current step
   currentStep: StepInfo | null;
+  currentStepData: StepRenderData | null;  // Complete step data from /start
   suggestions: Suggestion[];
   
   // Document being generated
@@ -83,12 +136,15 @@ interface WorkflowState {
   
   // Loading states
   isLoading: boolean;
+  isStartStreaming: boolean;  // SSE streaming for /start
+  streamingThoughts: string[];  // Thoughts from SSE during start
   error: string | null;
 }
 
 interface WorkflowActions {
   // Workflow management
   fetchWorkflows: () => Promise<void>;
+  fetchProjectSessions: (projectId: string, projectPath: string) => Promise<void>;
   startWorkflow: (workflowId: string, projectId: string, projectPath: string) => Promise<void>;
   resumeSession: (sessionId: string, projectPath: string) => Promise<void>;
   
@@ -101,6 +157,9 @@ interface WorkflowActions {
   connectWebSocket: (sessionId: string, projectPath: string) => void;
   disconnectWebSocket: () => void;
   
+  // Step data
+  setCurrentStepData: (data: StepRenderData | null) => void;
+  
   // UI
   toggleDocumentPreview: () => void;
   setError: (error: string | null) => void;
@@ -109,17 +168,23 @@ interface WorkflowActions {
 
 const initialState: WorkflowState = {
   workflows: [],
+  projectSessions: [],
   activeSession: null,
+  activeWorkflow: null,
+  pendingWorkflow: null,
   messages: [],
   isStreaming: false,
   streamingContent: '',
   currentStep: null,
+  currentStepData: null,
   suggestions: [],
   documentContent: '',
   documentPreview: false,
   ws: null,
   wsConnected: false,
   isLoading: false,
+  isStartStreaming: false,
+  streamingThoughts: [],
   error: null,
 };
 
@@ -128,7 +193,9 @@ const initialState: WorkflowState = {
 const API_BASE = '/api/workflows';
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  // Ensure proper path joining (API_BASE ends without slash, path starts with slash or is empty)
+  const fullPath = path === '/' ? `${API_BASE}/` : `${API_BASE}${path}`;
+  const response = await fetch(fullPath, {
     headers: {
       'Content-Type': 'application/json',
     },
@@ -164,15 +231,40 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>((set, ge
     }
   },
   
+  fetchProjectSessions: async (projectId: string, projectPath: string) => {
+    try {
+      const sessions = await fetchApi<WorkflowSession[]>(
+        `/sessions/${encodeURIComponent(projectId)}?project_path=${encodeURIComponent(projectPath)}`
+      );
+      set({ projectSessions: sessions });
+    } catch (error) {
+      console.error('Failed to fetch project sessions:', error);
+      set({ projectSessions: [] });
+    }
+  },
+  
   startWorkflow: async (workflowId, projectId, projectPath) => {
-    set({ isLoading: true, error: null });
+    // Find the workflow to show pending state immediately
+    const workflow = get().workflows.find(w => w.id === workflowId) || null;
+    
+    // Set pending state immediately for instant view switch + start streaming
+    set({ 
+      pendingWorkflow: workflow,
+      isLoading: true,
+      isStartStreaming: true,
+      streamingThoughts: [],
+      error: null,
+      currentStepData: null,
+    });
+    
+    // Store project path early for later use
+    localStorage.setItem('currentProjectPath', projectPath);
     
     try {
-      const response = await fetchApi<{
-        session: WorkflowSession;
-        step: StepInfo & { agent_message: string; suggestions: Suggestion[] };
-      }>('/start', {
+      // Use SSE endpoint for streaming with thinking indicators
+      const response = await fetch(`${API_BASE}/start/stream`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workflow_id: workflowId,
           project_id: projectId,
@@ -180,60 +272,167 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>((set, ge
         }),
       });
       
-      // Create initial agent message
-      const initialMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        role: 'agent',
-        content: response.step.agent_message,
-        timestamp: new Date().toISOString(),
-        suggestions: response.step.suggestions,
-      };
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || 'Failed to start workflow');
+      }
       
-      set({
-        activeSession: response.session,
-        currentStep: response.step,
-        suggestions: response.step.suggestions || [],
-        messages: [initialMessage],
-        isLoading: false,
-      });
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
       
-      // Connect WebSocket for streaming
-      get().connectWebSocket(response.session.id, projectPath);
+      if (!reader) {
+        throw new Error('No response body');
+      }
+      
+      let buffer = '';
+      let sessionData: WorkflowSession | null = null;
+      let stepData: StepRenderData | null = null;
+      let stepResponse: (StepInfo & { agent_message: string; suggestions: Suggestion[] }) | null = null;
+      
+      // Process SSE stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          
+          const data = line.slice(6);
+          
+          if (data === '[DONE]') {
+            console.log('[Workflow] SSE stream complete');
+            break;
+          }
+          
+          try {
+            const parsed = JSON.parse(data);
+            
+            switch (parsed.type) {
+              case 'thinking':
+                console.log('[Workflow] Thought:', parsed.content);
+                set(state => ({
+                  streamingThoughts: [...state.streamingThoughts, parsed.content],
+                }));
+                break;
+                
+              case 'session':
+                console.log('[Workflow] Session received:', parsed.data.id);
+                sessionData = {
+                  ...parsed.data,
+                  project_path: projectPath,
+                };
+                break;
+                
+              case 'step_data':
+                console.log('[Workflow] Step data received');
+                stepData = parsed.data;
+                break;
+                
+              case 'step':
+                console.log('[Workflow] Step response received');
+                stepResponse = parsed.data;
+                break;
+                
+              case 'error':
+                console.error('[Workflow] SSE error:', parsed.content);
+                throw new Error(parsed.content);
+            }
+          } catch (e) {
+            if (e instanceof SyntaxError) {
+              // JSON parse error, ignore incomplete data
+            } else {
+              throw e;
+            }
+          }
+        }
+      }
+      
+      // Finalize state
+      if (sessionData && stepResponse) {
+        const initialMessage: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: 'agent',
+          content: stepResponse.agent_message,
+          timestamp: new Date().toISOString(),
+          suggestions: stepResponse.suggestions,
+        };
+        
+        set({
+          activeSession: sessionData,
+          activeWorkflow: workflow,
+          pendingWorkflow: null,
+          currentStep: stepResponse,
+          currentStepData: stepData,
+          suggestions: stepResponse.suggestions || [],
+          messages: [initialMessage],
+          isLoading: false,
+          isStartStreaming: false,
+          streamingThoughts: [],
+        });
+        
+        // Connect WebSocket for chat streaming
+        get().connectWebSocket(sessionData.id, projectPath);
+      } else {
+        throw new Error('Incomplete response from server');
+      }
       
     } catch (error) {
       set({ 
-        isLoading: false, 
+        pendingWorkflow: null,
+        isLoading: false,
+        isStartStreaming: false,
+        streamingThoughts: [],
         error: error instanceof Error ? error.message : 'Failed to start workflow' 
       });
     }
   },
   
   resumeSession: async (sessionId, projectPath) => {
-    set({ isLoading: true, error: null });
+    // Set loading immediately for UI feedback
+    set({ 
+      isLoading: true, 
+      isStartStreaming: true,
+      streamingThoughts: ['Preparing workflow...'],
+      error: null 
+    });
     
     try {
       const response = await fetchApi<{
         session: WorkflowSession;
         step: StepInfo & { agent_message: string; suggestions: Suggestion[] };
+        step_data?: StepRenderData;
       }>(`/session/${sessionId}/resume?project_path=${encodeURIComponent(projectPath)}`, {
         method: 'POST',
       });
+      
+      // Find the workflow for this session
+      const { workflows } = get();
+      const activeWorkflow = workflows.find(w => w.id === response.session.workflow_id) || null;
       
       // Create resume message
       const resumeMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
         role: 'agent',
-        content: response.step.agent_message,
+        content: response.step.agent_message || 'Session resumed.',
         timestamp: new Date().toISOString(),
         suggestions: response.step.suggestions,
       };
       
       set({
         activeSession: response.session,
+        activeWorkflow,  // Set the workflow!
+        pendingWorkflow: null,
         currentStep: response.step,
+        currentStepData: response.step_data || null,
         suggestions: response.step.suggestions || [],
         messages: [resumeMessage],
         isLoading: false,
+        isStartStreaming: false,
+        streamingThoughts: [],
       });
       
       // Connect WebSocket
@@ -241,7 +440,9 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>((set, ge
       
     } catch (error) {
       set({ 
-        isLoading: false, 
+        isLoading: false,
+        isStartStreaming: false,
+        streamingThoughts: [],
         error: error instanceof Error ? error.message : 'Failed to resume session' 
       });
     }
@@ -405,6 +606,12 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>((set, ge
       ws.close();
       set({ ws: null, wsConnected: false });
     }
+  },
+  
+  // === Step Data ===
+  
+  setCurrentStepData: (data) => {
+    set({ currentStepData: data });
   },
   
   // === UI ===

@@ -1,0 +1,56 @@
+id: game-architecture
+version: "1.0"
+name: "Game Architecture"
+description: "Design your game's technical architecture and systems"
+agent: "game-architect"
+estimated_time: "45-60 min"
+category: "document"
+behavior: "one-shot"
+ui_visible: true
+icon: "code"
+color: "cyan"
+suggested_after: ["gdd"]
+document_order: 3
+
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: true
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: true
+  - name: "gdd"
+    patterns: ["output/design/gdd.md"]
+    strategy: "index"
+    required: false
+
+output:
+  path: "output/technical/architecture.md"
+  format: "md"
+  update_context: true
+
+steps:
+  - id: "overview"
+    file: "steps/step-01-overview.md"
+  - id: "stack"
+    file: "steps/step-02-stack.md"
+  - id: "systems"
+    file: "steps/step-03-systems.md"
+  - id: "gameplay-systems"
+    file: "steps/step-04-gameplay-systems.md"
+  - id: "data"
+    file: "steps/step-05-data.md"
+  - id: "performance"
+    file: "steps/step-06-performance.md"
+  - id: "risks"
+    file: "steps/step-07-risks.md"
+  - id: "roadmap"
+    file: "steps/step-08-roadmap.md"
+
+celebrations:
+  complete: |
+    🏗️ Architecture document complete!
+    You have a solid technical foundation for your game.
+    Time to start building!

@@ -2171,49 +2171,13 @@ User: "Génère un concept art du Temple principal"
   - Suggestions LLM (workflows, party mode) pour approfondir
   - Types: briefs, design, narrative, art, audio, sessions, boards, reports, references
 
-- [ ] **P2.10** Avatars et Personnalités Agents
-  - Système d'avatars (emoji, image, pixel-art)
-  - Expressions selon l'état (thinking, excited, celebrating...)
-  - Animations UI (bounce, confettis, particules)
-  - Phrases signatures personnalisables
-  - Sons optionnels pour les événements
-
-- [ ] **P2.11** UI Personnalisation Agents
-  - Éditeur visuel (pas YAML brut)
-  - Nom, avatar, ton, verbosité
-  - Phrases signatures (greeting, excited, milestone)
-  - Aperçu en direct
-  - Import/Export pour partage
-
-- [ ] **P2.12** UI Personnalisation Workflows
-  - Éditeur visuel drag & drop
-  - Ajout/suppression d'étapes
-  - Configuration des questions (type, options)
-  - Messages agent par étape
-  - Célébrations et milestones
-  - Mode test avant publication
-
-- [ ] **P2.13** Input Vocal (Whisper)
-  - Intégration Whisper (ou alternative)
-  - Bouton micro dans l'input
-  - Transcription en temps réel
-  - Support multi-langue (fr/en)
-  - Édition avant envoi
-
-- [ ] **P2.14** Input Multimodal
-  - Upload images avec description
-  - Upload vidéos (extraction frames)
-  - Upload documents (PDF, txt, md)
-  - Analyse par le LLM (vision)
-  - Attachments dans les conversations
-
-- [ ] **P2.15** Studio Home Page
-  - Dashboard "Que fait-on aujourd'hui ?"
-  - Reprise dernière conversation
-  - Suggestions intelligentes
-  - Aperçu du Board (tasks prêtes)
-  - Accès rapide équipe
-  - Onboarding première visite
+- [ ] **P2.10** LLM Performance & Architecture Refactoring
+  - Instrumentation TTFT/TTC/tokens (baseline)
+  - Nettoyage dual workflow (chat vs step-based)
+  - Single call au démarrage workflow
+  - Streaming + thinking UI (SSE)
+  - Contexte compact (facts + résumé, cache)
+  - i18n complète
 
 ### Phase 3 : EDITOR Mode
 
@@ -2236,21 +2200,48 @@ User: "Génère un concept art du Temple principal"
   - Suggestions basées sur tasks
   - Lien task active → conversation
 
-### Phase 4 : Génération Assets (Images & 3D)
+### Phase 4 : CLI
 
-- [ ] **P4.1** Génération d'Images
+- [ ] **P4.1** Workflows CLI-ready
+  - Parser YAML workflows
+  - Exécution séquentielle questions
+  - Écriture artifacts
+  - Support input vocal (optionnel)
+
+- [ ] **P4.2** Documentation MCP
+  - Instructions pour Claude Code
+  - Instructions pour Cursor
+  - Instructions pour VS Code
+  - Exemples d'usage
+
+- [ ] **P4.3** Prompts/Instructions pour CLI
+  - CLAUDE.md template avec context
+  - Instructions agents exportables
+  - Workflows exécutables en CLI
+
+### Phase 5 : Studio Avancé
+
+- [ ] **P5.1** Suggestions IA
+- [ ] **P5.2** Workflow Dynamique
+- [ ] **P5.3** Document Live
+- [ ] **P5.4** Avatars & Personnalités
+- [ ] **P5.5** UI Customization
+
+### Phase 6 : Assets
+
+- [ ] **P6.1** Génération d'Images
   - Intégration Replicate (SDXL)
   - Intégration OpenAI (DALL-E)
   - Intégration Stability AI
   - Configuration clés API dans settings
 
-- [ ] **P4.2** Context-aware generation
+- [ ] **P6.2** Context-aware generation
   - Injection style guide dans prompts
   - Injection mood board refs
   - UI génération dans boards
   - Ajout auto aux artifacts
 
-- [ ] **P4.3** Meshy API (Génération 3D)
+- [ ] **P6.3** Meshy API (Génération 3D)
   - Text → 3D generation
   - Image → 3D generation
   - Preview 3D dans l'UI
@@ -2258,56 +2249,23 @@ User: "Génère un concept art du Temple principal"
   - Import direct dans Unreal
   - Placement dans level
 
-- [ ] **P4.4** UI Services Externes
+- [ ] **P6.4** UI Services Externes
   - Settings page pour API keys
   - Status de connexion par service
   - Usage/quotas si disponible
 
-### Phase 5 : CLI Compatibility
+### Phase 7 : Polish
 
-- [ ] **P5.1** Workflows CLI-ready
-  - Parser YAML workflows
-  - Exécution séquentielle questions
-  - Écriture artifacts
-  - Support input vocal (optionnel)
+- [ ] **P7.1** Party Mode Complet
+- [ ] **P7.2** Input Vocal
+- [ ] **P7.3** Input Multimodal
+- [ ] **P7.4** i18n
+- [ ] **P7.5** Polish final
 
-- [ ] **P5.2** Documentation MCP
-  - Instructions pour Claude Code
-  - Instructions pour Cursor
-  - Instructions pour VS Code
-  - Exemples d'usage
+### Tasks techniques transverses
 
-- [ ] **P5.3** Prompts/Instructions pour CLI
-  - CLAUDE.md template avec context
-  - Instructions agents exportables
-  - Workflows exécutables en CLI
-
-### Phase 6 : Polish & Extras
-
-- [ ] **P6.0** Internationalisation (i18n)
-  - Interface multilingue (en/fr)
-  - Détection auto langue utilisateur
-  - Switch intelligent par le LLM
-  - Suggestion de changement d'interface
-  - Config langue documents par type
-  - Traductions workflows (messages, questions)
-  - Option bilingue pour documents
-
-- [ ] **P6.1** Onboarding complet
-  - Studio : présentation équipe + quick start
-  - Editor : exemples testables + liste tools
-  - Tooltips et guides contextuels
-
-- [ ] **P6.2** Thèmes et Customisation UI
-  - Dark/Light mode
-  - Couleurs personnalisables
-  - Layouts alternatifs
-
-- [ ] **P6.3** Export/Partage
-  - Export agents (YAML)
-  - Export workflows (YAML)
-  - Partage entre utilisateurs
-  - Marketplace communautaire (future)
+- [ ] **TASK-workflow-step-architecture** — Architecture step-based (JSON structuré, parsing/validation)
+- [ ] **TASK-llm-speed-remediation** — Remédiation vitesse LLM (streaming, single-call, métriques, contexte)
 
 ---
 
@@ -2433,7 +2391,7 @@ Les tâches détaillées sont dans le dossier `.tasks/` :
 └── phase-7-polish/                # 5 tasks
 ```
 
-**Total : 32 tasks**
+**Total : 34 tasks (+ 2 tasks techniques transverses)**
 
 Chaque fichier contient : Objectif, Prérequis, Spécifications, Critères d'acceptation, Tests à écrire.
 
@@ -2527,6 +2485,11 @@ Chaque fichier contient : Objectif, Prérequis, Spécifications, Critères d'acc
   - Modèle "Fast-Food Workflow" pour les tasks
   - Clarifications sur workflows, Party Mode, transitions
   - Réorganisation des phases
+
+- **2026-01-26** — Mise à jour Plan & Tasks
+  - Alignement des phases avec `.tasks/` (CLI en Phase 4, Studio Avancé en Phase 5, Assets en Phase 6, Polish en Phase 7)
+  - P2.10 = LLM Performance & Architecture Refactoring
+  - Ajout des tasks techniques transverses (step-based + speed remediation)
 
 - **2024-01-22** — Création initiale du document
   - Vision STUDIO/EDITOR

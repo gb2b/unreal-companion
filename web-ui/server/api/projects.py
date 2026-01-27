@@ -299,9 +299,10 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
 
 @router.get("/{project_id}/documents")
 def list_project_documents(project_id: str, db: Session = Depends(get_db)):
-    """List all documents for a project"""
+    """List all documents for a project with semantic type detection"""
     from pathlib import Path
     from datetime import datetime
+    import re
     
     repo = ProjectRepository(db)
     project = repo.get_by_id(project_id)
@@ -316,9 +317,45 @@ def list_project_documents(project_id: str, db: Session = Depends(get_db)):
         docs_path = Path(project.uproject_path).parent / ".unreal-companion" / "docs"
     
     if not docs_path or not docs_path.exists():
-        return {"documents": []}
+        return {"documents": [], "project_state": {"has_any_docs": False}}
+    
+    # Document type detection patterns (name -> type)
+    TYPE_PATTERNS = {
+        r'brief|game-brief|concept': 'brief',
+        r'gdd|game-design|design-doc': 'gdd',
+        r'architecture|technical|tech-spec': 'architecture',
+        r'narrative|story|lore|dialogue': 'narrative',
+        r'art|visual|style-guide|art-direction': 'art-direction',
+        r'audio|sound|music': 'audio',
+        r'sprint|planning|roadmap': 'planning',
+    }
+    
+    def detect_doc_type(name: str, parent_folder: str) -> str:
+        """Detect semantic document type from name and folder"""
+        name_lower = name.lower().replace('.md', '').replace('_', '-')
+        folder_lower = parent_folder.lower() if parent_folder else ''
+        
+        # Check name patterns
+        for pattern, doc_type in TYPE_PATTERNS.items():
+            if re.search(pattern, name_lower):
+                return doc_type
+        
+        # Check parent folder as fallback
+        for pattern, doc_type in TYPE_PATTERNS.items():
+            if re.search(pattern, folder_lower):
+                return doc_type
+        
+        return 'document'  # Generic fallback
     
     documents = []
+    project_state = {
+        "has_any_docs": False,
+        "has_brief": False,
+        "has_gdd": False,
+        "has_architecture": False,
+        "has_narrative": False,
+        "has_art_direction": False,
+    }
     
     def scan_folder(folder: Path, prefix: str = ""):
         for item in sorted(folder.iterdir()):
@@ -326,30 +363,49 @@ def list_project_documents(project_id: str, db: Session = Depends(get_db)):
                 continue
                 
             rel_path = f"{prefix}/{item.name}" if prefix else item.name
+            parent_folder = prefix.split('/')[-1] if prefix else ""
             
             if item.is_dir():
                 documents.append({
+                    "id": rel_path.replace('/', '_'),
                     "path": rel_path,
                     "name": item.name,
                     "type": "folder"
                 })
                 scan_folder(item, rel_path)
-            else:
+            elif item.suffix.lower() in ['.md', '.txt', '.yaml', '.json']:
                 stat = item.stat()
+                doc_type = detect_doc_type(item.name, parent_folder)
+                
                 documents.append({
+                    "id": rel_path.replace('/', '_').replace('.', '_'),
                     "path": rel_path,
-                    "name": item.name,
-                    "type": "file",
+                    "name": item.stem,
+                    "type": doc_type,
+                    "file_type": item.suffix[1:],
                     "size": stat.st_size,
                     "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
                 })
+                
+                # Update project state
+                project_state["has_any_docs"] = True
+                if doc_type == 'brief':
+                    project_state["has_brief"] = True
+                elif doc_type == 'gdd':
+                    project_state["has_gdd"] = True
+                elif doc_type == 'architecture':
+                    project_state["has_architecture"] = True
+                elif doc_type == 'narrative':
+                    project_state["has_narrative"] = True
+                elif doc_type == 'art-direction':
+                    project_state["has_art_direction"] = True
     
     try:
         scan_folder(docs_path)
     except Exception as e:
         print(f"Error scanning documents: {e}")
     
-    return {"documents": documents}
+    return {"documents": documents, "project_state": project_state}
 
 
 class ConceptAnalyzeRequest(BaseModel):

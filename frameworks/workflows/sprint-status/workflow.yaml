@@ -1,0 +1,30 @@
+id: sprint-status
+version: "1.0"
+name: "Sprint Status"
+description: "Quick check on current sprint progress and blockers"
+category: "agile"
+behavior: "repeatable"
+ui_visible: true
+icon: "bar-chart"
+color: "green"
+estimated_time: "3 min"
+quick_action: true
+
+context_required:
+  - tasks
+  - sprint
+
+outputs:
+  - type: "status-report"
+    path: "sprints/status-{{date}}.md"
+
+steps:
+  - id: "progress"
+    file: "steps/step-01-progress.md"
+    title: "Sprint Progress"
+  - id: "blockers"
+    file: "steps/step-02-blockers.md"
+    title: "Blockers & Risks"
+  - id: "summary"
+    file: "steps/step-03-summary.md"
+    title: "Status Summary"

@@ -1,0 +1,56 @@
+id: level-design
+version: "1.0"
+name: "Level Design"
+description: "Plan your game's levels, progression, and spatial design"
+agent: "level-designer"
+estimated_time: "45-60 min"
+category: "document"
+behavior: "one-shot"
+ui_visible: true
+icon: "map"
+color: "emerald"
+suggested_after: ["gdd"]
+document_order: 6
+
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: true
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: true
+  - name: "gdd"
+    patterns: ["output/design/gdd.md"]
+    strategy: "full"
+    required: true
+  - name: "narrative"
+    patterns: ["output/narrative/*.md"]
+    strategy: "index"
+    required: false
+
+output:
+  path: "output/design/level-design.md"
+  format: "md"
+  update_context: true
+
+steps:
+  - id: "structure"
+    file: "steps/step-01-structure.md"
+  - id: "progression"
+    file: "steps/step-02-progression.md"
+  - id: "first-level"
+    file: "steps/step-03-first-level.md"
+  - id: "pacing"
+    file: "steps/step-04-pacing.md"
+  - id: "secrets"
+    file: "steps/step-05-secrets.md"
+  - id: "review"
+    file: "steps/step-06-review.md"
+
+celebrations:
+  complete: |
+    🗺️ Level Design document complete!
+    Your level structure and progression are mapped out.
+    Time to block out those levels!

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { 
-  Terminal, 
+import {
+  Terminal,
   History,
   Server,
   Gamepad2,
@@ -31,6 +31,7 @@ import { useChatStore, ToolCall } from '@/stores/chatStore'
 import { useLLMStore } from '@/stores/llmStore'
 import { useConnectionStore } from '@/stores/connectionStore'
 import { useProjectStore } from '@/stores/projectStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
 
@@ -98,17 +99,18 @@ export function EditorPage() {
 
 // ============ EDITOR HEADER ============
 
-function EditorHeader({ 
-  onShowLogs, 
+function EditorHeader({
+  onShowLogs,
   onShowHistory,
-  showHistory 
-}: { 
+  showHistory
+}: {
   onShowLogs: () => void
   onShowHistory: () => void
   showHistory: boolean
 }) {
   const { unrealConnected, mcpConnected } = useConnectionStore()
   const { currentAgent, setAgent } = useChatStore()
+  const { t } = useTranslation()
   const [showAgents, setShowAgents] = useState(false)
 
   const currentAgentData = AGENTS.find(a => a.id === currentAgent) || AGENTS[0]
@@ -192,7 +194,7 @@ function EditorHeader({
           className="gap-1"
         >
           <History className="h-4 w-4" />
-          <span className="hidden sm:inline">History</span>
+          <span className="hidden sm:inline">{t('editorPage.history')}</span>
         </Button>
 
         {/* Logs Button */}
@@ -203,7 +205,7 @@ function EditorHeader({
           className="gap-1"
         >
           <Terminal className="h-4 w-4" />
-          <span className="hidden sm:inline">Logs</span>
+          <span className="hidden sm:inline">{t('editorPage.logs')}</span>
         </Button>
       </div>
     </div>
@@ -245,6 +247,7 @@ function StatusDot({
 function ConversationHistory({ onClose }: { onClose: () => void }) {
   const { currentProject } = useProjectStore()
   const { loadConversation, setConversationId } = useChatStore()
+  const { t } = useTranslation()
   const [conversations, setConversations] = useState<Array<{
     id: string
     title: string
@@ -283,12 +286,12 @@ function ConversationHistory({ onClose }: { onClose: () => void }) {
   return (
     <div className="h-full flex flex-col">
       <div className="h-12 border-b border-border flex items-center justify-between px-4">
-        <h3 className="font-medium text-sm">Conversations</h3>
+        <h3 className="font-medium text-sm">{t('editorPage.conversations')}</h3>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -296,7 +299,7 @@ function ConversationHistory({ onClose }: { onClose: () => void }) {
           </div>
         ) : conversations.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground text-sm">
-            No conversations yet
+            {t('editorPage.noConversations')}
           </div>
         ) : (
           conversations.map(conv => {
@@ -337,6 +340,7 @@ function ChatArea() {
   const { currentModel } = useLLMStore()
   const { unrealConnected } = useConnectionStore()
   const { currentProject } = useProjectStore()
+  const { t } = useTranslation()
   const [input, setInput] = useState('')
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([])
   const [isCapturingViewport, setIsCapturingViewport] = useState(false)
@@ -502,11 +506,11 @@ function ChatArea() {
               className="h-11 w-11 rounded-xl shrink-0"
               onClick={() => setShowContextPicker(true)}
               disabled={isLoading}
-              title="Add context from Studio"
+              title={t('editorPage.addContext')}
             >
               <FileText className="h-4 w-4" />
             </Button>
-            
+
             {/* Image Upload */}
             <input
               ref={fileInputRef}
@@ -522,11 +526,11 @@ function ChatArea() {
               className="h-11 w-11 rounded-xl shrink-0"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              title="Attach image"
+              title={t('editorPage.attachImage')}
             >
               <Image className="h-4 w-4" />
             </Button>
-            
+
             {/* Viewport Screenshot */}
             {unrealConnected && (
               <Button
@@ -535,7 +539,7 @@ function ChatArea() {
                 className="h-11 w-11 rounded-xl shrink-0"
                 onClick={captureViewport}
                 disabled={isLoading || isCapturingViewport}
-                title="Capture viewport"
+                title={t('editorPage.captureViewport')}
               >
                 {isCapturingViewport ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -544,7 +548,7 @@ function ChatArea() {
                 )}
               </Button>
             )}
-            
+
             {/* Text Input */}
             <textarea
               value={input}
@@ -555,15 +559,15 @@ function ChatArea() {
                   handleSend()
                 }
               }}
-              placeholder={`Ask ${currentAgentData.name}...`}
+              placeholder={`${t('editorPage.askPlaceholder')} ${currentAgentData.name}...`}
               disabled={isLoading || !currentModel}
               rows={1}
               className="flex-1 min-h-[44px] max-h-[200px] resize-none rounded-xl border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
             />
-            
+
             {/* Send Button */}
-            <Button 
-              onClick={handleSend} 
+            <Button
+              onClick={handleSend}
               disabled={(!input.trim() && attachedImages.length === 0) || isLoading || !currentModel}
               size="icon"
               className="h-11 w-11 rounded-xl shrink-0"
@@ -571,10 +575,10 @@ function ChatArea() {
               <Send className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {!currentModel && (
             <p className="text-xs text-center text-muted-foreground mt-2">
-              Configure a LLM provider in Settings to start chatting
+              {t('editorPage.configureProvider')}
             </p>
           )}
         </div>
@@ -593,21 +597,23 @@ function ChatArea() {
 
 // ============ EMPTY STATE ============
 
-function EmptyState({ 
-  agent, 
-  suggestions, 
-  onSuggestionClick 
-}: { 
+function EmptyState({
+  agent,
+  suggestions,
+  onSuggestionClick
+}: {
   agent: typeof AGENTS[0]
   suggestions: string[]
   onSuggestionClick: (text: string) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="h-full flex flex-col items-center justify-center overflow-y-auto py-8">
       <div className="text-center max-w-2xl px-4">
         <div className="text-6xl mb-4">{agent.emoji}</div>
         <h3 className="text-xl font-semibold mb-2">
-          Chat with {agent.name}
+          {t('editorPage.chatWith')} {agent.name}
         </h3>
         <p className="text-muted-foreground mb-6">
           {agent.description}
@@ -708,6 +714,8 @@ function MessageBubble({ message }: { message: ReturnType<typeof useChatStore.ge
 // ============ TOOL CALLS BLOCK ============
 
 function ToolCallsBlock({ toolCalls }: { toolCalls: ToolCall[] }) {
+  const { t } = useTranslation()
+
   return (
     <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/30">
@@ -715,10 +723,10 @@ function ToolCallsBlock({ toolCalls }: { toolCalls: ToolCall[] }) {
           <div className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center">
             <Wrench className="h-3.5 w-3.5 text-primary" />
           </div>
-          <span className="font-medium text-sm">Executing Actions</span>
+          <span className="font-medium text-sm">{t('editorPage.executingActions')}</span>
         </div>
         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-500">
-          {toolCalls.length} ops ✓
+          {toolCalls.length} {t('editorPage.opsComplete')}
         </span>
       </div>
       
@@ -732,6 +740,7 @@ function ToolCallsBlock({ toolCalls }: { toolCalls: ToolCall[] }) {
 }
 
 function ToolCallStep({ toolCall }: { toolCall: ToolCall }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   
   let isSuccess = false
@@ -784,18 +793,18 @@ function ToolCallStep({ toolCall }: { toolCall: ToolCall }) {
       {expanded && (
         <div className="px-4 pb-3 pt-1 ml-8 space-y-2">
           <div className="text-xs">
-            <span className="text-muted-foreground">Tool: </span>
+            <span className="text-muted-foreground">{t('editorPage.tool')} </span>
             <span className="font-mono text-primary">{toolCall.name}</span>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Input:</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('editorPage.input')}</p>
             <pre className="text-xs bg-muted rounded-lg p-2 overflow-x-auto font-mono">
               {JSON.stringify(toolCall.input, null, 2)}
             </pre>
           </div>
           {toolCall.result && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Result:</p>
+              <p className="text-xs text-muted-foreground mb-1">{t('editorPage.result')}</p>
               <pre className="text-xs bg-muted rounded-lg p-2 overflow-x-auto font-mono max-h-32">
                 {toolCall.result}
               </pre>
@@ -810,6 +819,8 @@ function ToolCallStep({ toolCall }: { toolCall: ToolCall }) {
 // ============ TYPING INDICATOR ============
 
 function TypingIndicator() {
+  const { t } = useTranslation()
+
   return (
     <div className="flex gap-3 animate-fade-in">
       <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center animate-float">
@@ -822,7 +833,7 @@ function TypingIndicator() {
             <span></span>
             <span></span>
           </div>
-          <span className="text-sm text-muted-foreground">Thinking...</span>
+          <span className="text-sm text-muted-foreground">{t('editorPage.thinking')}</span>
         </div>
       </div>
     </div>

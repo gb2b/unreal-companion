@@ -1,0 +1,37 @@
+id: mood-board
+version: "1.0"
+name: "Mood Board Generator"
+description: "Create a visual mood board for art direction"
+category: "board"
+behavior: "repeatable"
+ui_visible: true
+icon: "image"
+color: "rose"
+estimated_time: "8 min"
+
+context_required:
+  - brief
+  - art_direction
+
+outputs:
+  - type: "mood-board"
+    path: "boards/moodboard-{{id}}.json"
+  - type: "summary"
+    path: "boards/moodboard-{{id}}.md"
+
+steps:
+  - id: "theme"
+    file: "steps/step-01-theme.md"
+    title: "Visual Theme"
+  - id: "colors"
+    file: "steps/step-02-colors.md"
+    title: "Color Palette"
+  - id: "references"
+    file: "steps/step-03-references.md"
+    title: "Visual References"
+  - id: "keywords"
+    file: "steps/step-04-keywords.md"
+    title: "Keywords & Tags"
+  - id: "generate"
+    file: "steps/step-05-generate.md"
+    title: "Generate Board"

@@ -3,6 +3,7 @@ import { X, FolderPlus, Sparkles, Folder, Search, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useProjectStore } from '@/stores/projectStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 interface DiscoveredProject {
@@ -18,6 +19,7 @@ interface NewProjectModalProps {
 
 export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
   const { createProject, setCurrentProject } = useProjectStore()
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [projectPath, setProjectPath] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -69,7 +71,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
     setError('')
     
     if (!name.trim()) {
-      setError('Project name is required')
+      setError(t('newProject.nameRequired'))
       return
     }
     
@@ -136,10 +138,10 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
             <Sparkles className="h-8 w-8 text-cyan-400" />
           </div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
-            Create Your Studio
+            {t('newProject.title')}
           </h2>
           <p className="text-muted-foreground mt-2">
-            30 seconds to get started
+            {t('newProject.subtitle')}
           </p>
           <button
             onClick={onClose}
@@ -164,11 +166,11 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
           
           {/* Project Name - Main focus */}
           <div>
-            <label className="block text-sm font-medium mb-2">What's your game called?</label>
+            <label className="block text-sm font-medium mb-2">{t('newProject.nameLabel')}</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My Roguelike Adventure"
+              placeholder={t('newProject.namePlaceholder')}
               className="text-lg h-12"
               autoFocus
             />
@@ -179,8 +181,8 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Folder className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm font-medium">Link Unreal Project Folder</label>
-                <span className="text-xs text-muted-foreground">(optional)</span>
+                <label className="text-sm font-medium">{t('newProject.linkFolder')}</label>
+                <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
               </div>
               {discoveredProjects.length > 0 && (
                 <Button
@@ -191,21 +193,21 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
                   className="text-xs h-7"
                 >
                   <Search className="h-3 w-3 mr-1" />
-                  {discoveredProjects.length} found
+                  {discoveredProjects.length} {t('newProject.found')}
                 </Button>
               )}
               {isDiscovering && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Scanning...
+                  {t('newProject.scanning')}
                 </span>
               )}
             </div>
-            
+
             {/* Discovered projects list */}
             {showDiscovered && discoveredProjects.length > 0 && (
               <div className="mb-3 p-2 rounded-lg bg-background border border-border max-h-40 overflow-y-auto">
-                <p className="text-xs text-muted-foreground mb-2">Detected Unreal projects:</p>
+                <p className="text-xs text-muted-foreground mb-2">{t('newProject.detectedProjects')}</p>
                 <div className="space-y-1">
                   {discoveredProjects.map((project) => (
                     <button
@@ -221,7 +223,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
                 </div>
               </div>
             )}
-            
+
             <Input
               value={projectPath}
               onChange={(e) => {
@@ -235,45 +237,45 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
                   }
                 }
               }}
-              placeholder="/Users/you/UnrealProjects/MyGame"
+              placeholder={t('newProject.pathPlaceholder')}
               className="font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground mt-2">
-              {discoveredProjects.length > 0 
-                ? 'Select a detected project above, or paste a path manually'
-                : 'Paste the full path to your Unreal project folder'}
+              {discoveredProjects.length > 0
+                ? t('newProject.selectOrPaste')
+                : t('newProject.pastePath')}
             </p>
             {companionPath && !error.includes('selected') && (
               <p className="text-xs text-cyan-400 mt-1 flex items-center gap-1">
                 <FolderPlus className="h-3 w-3" />
-                Will create: <code className="bg-muted px-1 rounded">{companionPath}</code>
+                {t('newProject.willCreate')} <code className="bg-muted px-1 rounded">{companionPath}</code>
               </p>
             )}
           </div>
 
           {/* What you get */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-500/5 to-emerald-500/5 border border-cyan-500/20">
-            <p className="text-sm font-medium mb-2">Your Studio will include:</p>
+            <p className="text-sm font-medium mb-2">{t('newProject.includesTitle')}</p>
             <ul className="text-xs text-muted-foreground space-y-1">
               <li className="flex items-center gap-2">
-                <span className="text-cyan-400">✓</span> Production Board with task queues
+                <span className="text-cyan-400">✓</span> {t('newProject.includesBoard')}
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-cyan-400">✓</span> AI agents to help design your game
+                <span className="text-cyan-400">✓</span> {t('newProject.includesAgents')}
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-cyan-400">✓</span> Workflow templates (Brief, GDD, Architecture)
+                <span className="text-cyan-400">✓</span> {t('newProject.includesWorkflows')}
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-cyan-400">✓</span> All docs stored locally in your project
+                <span className="text-cyan-400">✓</span> {t('newProject.includesLocal')}
               </li>
             </ul>
           </div>
-          
+
           {/* Submit */}
-          <Button 
-            type="submit" 
-            disabled={isLoading || !name.trim()} 
+          <Button
+            type="submit"
+            disabled={isLoading || !name.trim()}
             className={cn(
               "w-full h-12 text-lg font-semibold",
               "bg-gradient-to-r from-cyan-500 to-emerald-500",
@@ -281,7 +283,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
               "shadow-lg shadow-cyan-500/25"
             )}
           >
-            {isLoading ? 'Creating...' : 'Create Studio'}
+            {isLoading ? t('newProject.creating') : t('newProject.createButton')}
           </Button>
         </form>
       </div>

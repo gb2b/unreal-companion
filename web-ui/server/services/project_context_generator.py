@@ -156,7 +156,8 @@ _Last updated: {last_updated}_
         # Update based on workflow type
         updates = {}
         
-        if workflow_id == 'project-lite':
+        # === Core document workflows ===
+        if workflow_id == 'project-lite' or workflow_id == 'get-started':
             updates['game_name'] = responses.get('game_name')
             updates['genre'] = responses.get('genre')
             updates['vision'] = responses.get('concept')
@@ -164,12 +165,13 @@ _Last updated: {last_updated}_
         
         elif workflow_id == 'game-brief':
             updates['game_name'] = responses.get('game_name')
-            updates['vision'] = responses.get('elevator_pitch')
-            updates['pillars'] = [
+            updates['vision'] = responses.get('elevator_pitch') or responses.get('vision')
+            pillars = [
                 responses.get('pillar_1'),
                 responses.get('pillar_2'),
                 responses.get('pillar_3'),
             ]
+            updates['pillars'] = [p for p in pillars if p]  # Filter None values
             updates['platforms'] = responses.get('platforms')
             updates['team_size'] = responses.get('team_size')
             updates['status'] = 'Brief Complete'
@@ -177,13 +179,38 @@ _Last updated: {last_updated}_
         elif workflow_id == 'gdd':
             updates['status'] = 'GDD Complete'
         
+        elif workflow_id == 'architecture' or workflow_id == 'tech-spec':
+            updates['status'] = 'Architecture Defined'
+        
+        elif workflow_id == 'narrative':
+            updates['has_narrative'] = True
+        
+        # === Extract any common fields from responses ===
+        # These might be present in various workflows
+        common_fields = {
+            'game_name': ['game_name', 'project_name', 'title'],
+            'genre': ['genre', 'game_genre'],
+            'vision': ['vision', 'concept', 'elevator_pitch', 'description'],
+        }
+        
+        for target_field, source_fields in common_fields.items():
+            if target_field not in updates:
+                for source in source_fields:
+                    if responses.get(source):
+                        updates[target_field] = responses[source]
+                        break
+        
         # Merge updates into existing data
         for key, value in updates.items():
             if value:
                 existing_data[key] = value
         
-        # Add activity
+        # Add activity for ALL workflows
         self._add_activity(f"Completed {workflow_id} workflow")
+        
+        # Track output document if provided
+        if output_path:
+            self._add_activity(f"Generated: {output_path}")
         
         # Regenerate
         return self.generate()

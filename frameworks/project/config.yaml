@@ -1,0 +1,30 @@
+# Unreal Companion - Project Configuration
+# Copied to {project}/.unreal-companion/config.yaml during project setup
+
+version: "1.0"
+
+# User preferences
+user_name: "Developer"
+communication_language: "en"
+document_output_language: "en"
+
+# Paths (relative to .unreal-companion/)
+output_folder: "output"
+
+# Default agent for chat
+default_agent: "game-designer"
+
+# Auto-save settings
+auto_save: true
+update_context: true
+
+# Unreal Engine connection (MCP Server)
+unreal:
+  host: "127.0.0.1"
+  port: 55557
+  auto_connect: true
+
+# LLM settings (uses global if not specified)
+# llm:
+#   provider: "anthropic"
+#   model: "claude-sonnet-4-20250514"

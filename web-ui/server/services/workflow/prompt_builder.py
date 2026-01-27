@@ -47,10 +47,11 @@ class PromptBuilder:
         choices: list[str] = None,
         agent: dict = None,
         loaded_context: dict = None,
+        language: str = "en",
     ) -> BuiltPrompt:
         """
         Build prompts for a workflow step.
-        
+
         Args:
             step: Step definition from workflow
             session: Current workflow session
@@ -58,34 +59,90 @@ class PromptBuilder:
             choices: Selected suggestion IDs
             agent: Agent definition
             loaded_context: Pre-loaded documents
-            
+            language: Language code for responses (en, fr, es, etc.)
+
         Returns:
             BuiltPrompt with system and user prompts
         """
-        # Build system prompt
-        system_prompt = self._build_system_prompt(agent, step, loaded_context)
-        
+        # Build system prompt with language instruction
+        system_prompt = self._build_system_prompt(agent, step, loaded_context, language)
+
         # Build user prompt
         user_prompt = self._build_user_prompt(session, user_message, choices, step)
-        
+
         # Context summary for logging
         context_summary = self._summarize_context(loaded_context, session)
-        
+
         return BuiltPrompt(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             context_summary=context_summary,
         )
     
+    # Language names for instruction
+    LANGUAGE_NAMES = {
+        "en": "English",
+        "fr": "French",
+        "es": "Spanish",
+        "de": "German",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "zh": "Chinese",
+    }
+
+    # Language examples for instruction
+    LANGUAGE_EXAMPLES = {
+        "en": {
+            "greeting": "Hello! Let's get started.",
+            "question": "What is your game about?",
+            "continue": "Continue",
+            "other": "Other / Specify",
+        },
+        "fr": {
+            "greeting": "Bonjour ! Commençons.",
+            "question": "De quoi parle ton jeu ?",
+            "continue": "Continuer",
+            "other": "Autre / Préciser",
+        },
+        "es": {
+            "greeting": "¡Hola! Empecemos.",
+            "question": "¿De qué trata tu juego?",
+            "continue": "Continuar",
+            "other": "Otro / Especificar",
+        },
+    }
+
     def _build_system_prompt(
         self,
         agent: dict,
         step: dict,
         loaded_context: dict = None,
+        language: str = "en",
     ) -> str:
         """Build the system prompt with agent persona and instructions."""
         parts = []
-        
+
+        # Language instruction (CRITICAL - first AND last)
+        lang_name = self.LANGUAGE_NAMES.get(language, language)
+        lang_examples = self.LANGUAGE_EXAMPLES.get(language, self.LANGUAGE_EXAMPLES["en"])
+
+        # Strong language instruction at the START
+        parts.append(f"""# 🚨 MANDATORY LANGUAGE: {lang_name.upper()} 🚨
+
+YOU MUST WRITE YOUR ENTIRE RESPONSE IN {lang_name.upper()}.
+This is non-negotiable. Every word, every sentence, every question.
+
+Examples of correct {lang_name} responses:
+- "{lang_examples['greeting']}"
+- "{lang_examples['question']}"
+- "[C] {lang_examples['continue']}"
+- "[P] {lang_examples['other']}"
+
+NEVER respond in English if the language is not English.
+""")
+
         # Agent persona
         if agent:
             persona = agent.get("persona", {})
@@ -140,13 +197,41 @@ When generating content, follow this template structure:
 """)
         
         # Behavior rules
-        parts.append("""# Behavior Rules
+        parts.append(f"""# Behavior Rules
 1. Stay in character as defined in your persona
 2. Be conversational but focused on the task
-3. Ask clarifying questions if needed
+3. **ASK ONLY ONE QUESTION AT A TIME** - do not ask multiple questions in one message
 4. Validate user responses against requirements
-5. Provide helpful suggestions when appropriate
-6. Generate content that matches the output format
+5. Generate content that matches the output format
+
+# Interactive Response Format
+After your conversational text, ALWAYS end with a JSON block for interactive options.
+All labels and descriptions in the JSON MUST be in {lang_name}.
+
+```json
+{{
+  "suggestions": [
+    {{"id": "opt-1", "type": "choice_cards", "label": "{lang_examples['question']}", "options": [
+      {{"id": "a", "label": "Option A", "description": "Description en {lang_name}", "key": "A"}},
+      {{"id": "b", "label": "Option B", "description": "Description en {lang_name}", "key": "B"}}
+    ]}},
+    {{"id": "continue", "type": "choice", "label": "[C] {lang_examples['continue']}", "key": "C"}},
+    {{"id": "other", "type": "choice", "label": "[P] {lang_examples['other']}", "key": "P"}}
+  ]
+}}
+```
+
+Types:
+- "choice_cards": 2 visual A vs B options
+- "gauge": 1-5 scale (for importance, satisfaction)
+- "emoji_scale": emoji choices
+- "choice": simple clickable button with shortcut [X]
+
+# 🚨 FINAL REMINDER: LANGUAGE = {lang_name.upper()} 🚨
+Your ENTIRE response (text AND JSON labels) MUST be in {lang_name}.
+If language is French → respond in French.
+If language is Spanish → respond in Spanish.
+NEVER default to English unless the language setting is English.
 """)
         
         return "\n".join(parts)

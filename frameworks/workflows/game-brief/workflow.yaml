@@ -1,0 +1,120 @@
+# =============================================================================
+# Game Brief Workflow Configuration
+# =============================================================================
+# Defines your game's vision and direction - the foundation for all design decisions.
+# =============================================================================
+
+id: game-brief
+version: "2.0"
+name: "Game Brief"
+description: "Define your game's complete vision and direction"
+author: "Unreal Companion"
+
+# -----------------------------------------------------------------------------
+# Variables - Resolved from config or asked to user
+# -----------------------------------------------------------------------------
+config_source: "{project-root}/.unreal-companion/config.yaml"
+output_folder: "{config_source}:output_folder"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+date: system-generated
+
+# -----------------------------------------------------------------------------
+# Workflow paths
+# -----------------------------------------------------------------------------
+installed_path: "{project-root}/.unreal-companion/workflows/game-brief"
+instructions: "{installed_path}/instructions.md"
+template: "{installed_path}/template.md"
+context: "{installed_path}/context.md"
+
+# -----------------------------------------------------------------------------
+# Agent and Metadata
+# -----------------------------------------------------------------------------
+agent: "game-designer"
+category: "document"
+behavior: "one-shot"
+ui_visible: true
+icon: "target"
+color: "blue"
+suggested_after: ["get-started", "brainstorming"]
+document_order: 1
+
+# -----------------------------------------------------------------------------
+# Input Discovery - Load existing context
+# -----------------------------------------------------------------------------
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: false
+  - name: "brainstorms"
+    patterns: ["output/analysis/*brainstorm*.md"]
+    strategy: "index"
+    required: false
+
+# -----------------------------------------------------------------------------
+# Output Configuration
+# -----------------------------------------------------------------------------
+output:
+  path: "output/concept/game-brief.md"
+  format: "md"
+  update_context: true
+
+default_output_file: "{output_folder}/game-brief.md"
+
+# -----------------------------------------------------------------------------
+# Step-File Architecture
+# -----------------------------------------------------------------------------
+paradigm: "step-file-architecture"
+steps:
+  - id: "init"
+    file: "steps/step-01-init.md"
+    title: "Initialize"
+    progress: "Step 1 of 8"
+  - id: "identity"
+    file: "steps/step-02-identity.md"
+    title: "Game Identity"
+    progress: "Step 2 of 8"
+  - id: "vision"
+    file: "steps/step-03-vision.md"
+    title: "Vision Statement"
+    progress: "Step 3 of 8"
+  - id: "pillars"
+    file: "steps/step-04-pillars.md"
+    title: "Core Pillars"
+    progress: "Step 4 of 8"
+  - id: "references"
+    file: "steps/step-05-references.md"
+    title: "References & Inspirations"
+    progress: "Step 5 of 8"
+  - id: "audience"
+    file: "steps/step-06-audience.md"
+    title: "Target Audience"
+    progress: "Step 6 of 8"
+  - id: "scope"
+    file: "steps/step-07-scope.md"
+    title: "Scope & Constraints"
+    progress: "Step 7 of 8"
+  - id: "review"
+    file: "steps/step-08-review.md"
+    title: "Review & Complete"
+    progress: "Step 8 of 8"
+
+# -----------------------------------------------------------------------------
+# Features and Celebrations
+# -----------------------------------------------------------------------------
+features:
+  - "Step-file architecture for modular execution"
+  - "Progressive document building with auto-save"
+  - "Context-aware suggestions from existing documents"
+  - "State tracking via frontmatter"
+
+celebrations:
+  step_complete: "Section saved! Ready for the next part."
+  workflow_complete: |
+    🎮 Your Game Brief is complete!
+    This document defines your game's vision and will guide all future decisions.
+    Ready to dive into the GDD?
+
+standalone: true

@@ -1,0 +1,14 @@
+# Workflow Status - Auto-generated, do not edit manually
+# Tracks active workflow sessions and recent documents
+
+version: "1.0"
+last_updated: "{{date}}"
+
+# Currently active workflow sessions
+active_sessions: []
+
+# Recently completed workflows (last 10)
+recent_completed: []
+
+# Recently created documents (last 10)
+recent_documents: []

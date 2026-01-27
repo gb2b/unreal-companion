@@ -7,8 +7,13 @@ import uvicorn
 
 from config import settings
 from core.database import init_db
-from api import projects, chat, context, agents, websocket_routes, llm, status, viewport, meshy, usage, studio, workflows, system
+from core.logging import setup_logging, RequestLoggingMiddleware, get_logger
+from api import projects, chat, context, agents, websocket_routes, llm, status, viewport, meshy, usage, studio, workflows, system, metrics, knowledge
 from services.llm import llm_service
+
+# Setup logging first
+setup_logging(level="DEBUG" if settings.debug else "INFO")
+logger = get_logger(__name__)
 
 app = FastAPI(
     title=settings.app_name,
@@ -24,6 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request logging
+app.add_middleware(RequestLoggingMiddleware)
+
 # Include API routers
 app.include_router(projects.router)
 app.include_router(chat.router)
@@ -34,6 +42,8 @@ app.include_router(status.router)
 app.include_router(viewport.router)
 app.include_router(meshy.router)
 app.include_router(usage.router)
+app.include_router(metrics.router)
+app.include_router(knowledge.router)
 app.include_router(studio.router)
 app.include_router(workflows.router)
 app.include_router(system.router)
@@ -44,16 +54,28 @@ DIST_DIR = Path(__file__).parent.parent / "dist"
 
 @app.on_event("startup")
 async def startup():
+    logger.info("=" * 50)
+    logger.info("Starting Unreal Companion API Server")
+    logger.info("=" * 50)
+
     init_db()
-    
-    # No default project - let onboarding handle project creation
-    # This ensures the onboarding flow is shown to new users
-    
+    logger.info("Database initialized")
+
     # Load API keys from environment
     if settings.anthropic_api_key:
         llm_service.configure(anthropic_key=settings.anthropic_api_key)
+        logger.info("Anthropic API key loaded from environment")
+    else:
+        logger.warning("No Anthropic API key in environment - configure via Settings")
+
     if settings.openai_api_key:
         llm_service.configure(openai_key=settings.openai_api_key)
+        logger.info("OpenAI API key loaded from environment")
+
+    # Log current LLM config
+    config = llm_service.get_config()
+    logger.info(f"LLM Provider: {config['provider']}, Model: {config['model']}")
+    logger.info(f"API Keys configured: Anthropic={config['has_anthropic_key']}, OpenAI={config['has_openai_key']}")
 
 @app.get("/api")
 async def api_root():

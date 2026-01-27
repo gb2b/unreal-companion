@@ -1,0 +1,52 @@
+id: audio-design
+version: "1.0"
+name: "Audio Design"
+description: "Define your game's soundscape, music, and audio experience"
+agent: "audio-director"
+estimated_time: "30-45 min"
+category: "document"
+behavior: "one-shot"
+ui_visible: true
+icon: "music"
+color: "violet"
+suggested_after: ["game-brief"]
+document_order: 5
+
+input_discovery:
+  - name: "project_context"
+    patterns: ["project-context.md"]
+    strategy: "full"
+    required: true
+  - name: "game_brief"
+    patterns: ["output/concept/*brief*.md"]
+    strategy: "full"
+    required: true
+  - name: "art_direction"
+    patterns: ["output/art/*.md"]
+    strategy: "index"
+    required: false
+
+output:
+  path: "output/audio/audio-direction.md"
+  format: "md"
+  update_context: true
+
+steps:
+  - id: "vision"
+    file: "steps/step-01-vision.md"
+  - id: "music"
+    file: "steps/step-02-music.md"
+  - id: "sfx"
+    file: "steps/step-03-sfx.md"
+  - id: "voice"
+    file: "steps/step-04-voice.md"
+  - id: "implementation"
+    file: "steps/step-05-implementation.md"
+  - id: "review"
+    file: "steps/step-06-review.md"
+
+celebrations:
+  complete: |
+    🎵 Audio Direction complete!
+    Your soundscape is defined. Music, SFX, and audio vision are clear.
+    Let the sound design begin!

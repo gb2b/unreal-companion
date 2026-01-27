@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { 
-  Sparkles, 
+import {
+  Sparkles,
   Zap,
   Settings,
   FolderOpen,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 // Note: Sparkles kept for ModeButton icon
 import { useProjectStore } from '@/stores/projectStore'
+import { useTranslation } from '@/i18n/useI18n'
 import { cn } from '@/lib/utils'
 
 export type AppMode = 'studio' | 'editor'
@@ -21,14 +22,15 @@ interface MainHeaderProps {
   onNewProject: () => void
 }
 
-export function MainHeader({ 
-  mode, 
-  onModeChange, 
+export function MainHeader({
+  mode,
+  onModeChange,
   onSettingsClick,
   onNewProject,
   onLogoClick,
 }: MainHeaderProps & { onLogoClick?: () => void }) {
   const { projects, currentProject, setCurrentProject } = useProjectStore()
+  const { t } = useTranslation()
 
   return (
     <header className="h-14 border-b border-border bg-gradient-to-r from-card to-background flex items-center px-4">
@@ -64,7 +66,7 @@ export function MainHeader({
         <button
           onClick={onSettingsClick}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="Settings"
+          title={t('header.settings')}
         >
           <Settings className="h-5 w-5" />
         </button>
@@ -75,28 +77,30 @@ export function MainHeader({
 
 // ============ MODE TOGGLE ============
 
-function ModeToggle({ 
-  mode, 
-  onModeChange 
-}: { 
+function ModeToggle({
+  mode,
+  onModeChange
+}: {
   mode: AppMode
-  onModeChange: (mode: AppMode) => void 
+  onModeChange: (mode: AppMode) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="flex items-center bg-muted rounded-xl p-1">
       <ModeButton
         active={mode === 'studio'}
         onClick={() => onModeChange('studio')}
         icon={Sparkles}
-        label="Studio"
-        description="Plan & organize"
+        label={t('header.studio')}
+        description={t('header.studioDesc')}
       />
       <ModeButton
         active={mode === 'editor'}
         onClick={() => onModeChange('editor')}
         icon={Zap}
-        label="Editor"
-        description="Build & code"
+        label={t('header.editor')}
+        description={t('header.editorDesc')}
       />
     </div>
   )
@@ -158,6 +162,7 @@ function ProjectSelector({
   onNewProject: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const { t } = useTranslation()
 
   return (
     <div className="relative">
@@ -167,7 +172,7 @@ function ProjectSelector({
       >
         <FolderOpen className="h-4 w-4 text-primary flex-shrink-0" />
         <span className="text-sm font-medium truncate">
-          {currentProject?.name || 'Select project'}
+          {currentProject?.name || t('projectSelector.selectProject')}
         </span>
         <ChevronDown className={cn(
           "h-4 w-4 text-muted-foreground transition-transform flex-shrink-0",
@@ -183,7 +188,7 @@ function ProjectSelector({
             <div className="max-h-64 overflow-y-auto p-1">
               {projects.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-muted-foreground text-center">
-                  No projects yet
+                  {t('projectSelector.noProjects')}
                 </p>
               ) : (
                 projects.map(project => (
@@ -208,7 +213,7 @@ function ProjectSelector({
                 ))
               )}
             </div>
-            
+
             {/* New Project */}
             <div className="p-1 border-t border-border">
               <button
@@ -219,7 +224,7 @@ function ProjectSelector({
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                <span>New Project</span>
+                <span>{t('projectSelector.newProject')}</span>
               </button>
             </div>
           </div>

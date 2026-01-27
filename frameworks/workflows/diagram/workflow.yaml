@@ -1,0 +1,33 @@
+id: diagram
+version: "1.0"
+name: "Diagram Generator"
+description: "Generate technical or flow diagrams"
+category: "board"
+behavior: "repeatable"
+ui_visible: true
+icon: "git-merge"
+color: "sky"
+estimated_time: "5 min"
+
+context_required:
+  - architecture
+
+outputs:
+  - type: "diagram"
+    path: "boards/diagram-{{id}}.json"
+  - type: "mermaid"
+    path: "boards/diagram-{{id}}.mmd"
+
+steps:
+  - id: "type"
+    file: "steps/step-01-type.md"
+    title: "Diagram Type"
+  - id: "elements"
+    file: "steps/step-02-elements.md"
+    title: "Elements"
+  - id: "relationships"
+    file: "steps/step-03-relationships.md"
+    title: "Relationships"
+  - id: "generate"
+    file: "steps/step-04-generate.md"
+    title: "Generate Diagram"
