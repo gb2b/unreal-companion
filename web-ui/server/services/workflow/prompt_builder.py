@@ -170,6 +170,16 @@ You are **{agent.get('name', 'Assistant')}**, {agent.get('title', 'AI Assistant'
 ## Instructions
 {step.get('instructions', '')}
 """)
+            
+            # Include workflow-level instructions if available (XML flow control)
+            workflow_instructions = step.get('_workflow_instructions', '')
+            if workflow_instructions:
+                parts.append(f"""# Workflow Flow Control
+The following instructions define the workflow execution logic.
+Follow these rules for conditions, loops, and navigation:
+
+{workflow_instructions}
+""")
         
         # Loaded context
         if loaded_context:

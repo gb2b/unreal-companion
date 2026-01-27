@@ -1,0 +1,26 @@
+# Unreal Companion Instructions
+
+Project: {{project_name}}
+
+## Agents Available
+{{#each agents}}
+- {{name}} ({{id}}): {{title}}
+{{/each}}
+
+## How to Use
+
+1. **Activate an agent**: "I want to work with [agent name]"
+2. **Start a workflow**: "Start the [workflow] workflow"
+3. **Save info**: "Remember: [information]"
+
+## Configuration
+- Config: `.unreal-companion/config.yaml`
+- Context: `.unreal-companion/project-context.md`
+- Memories: `.unreal-companion/memories.yaml`
+
+## Key Workflows
+- `brainstorming` - Explore ideas
+- `game-brief` - Define vision
+- `gdd` - Design document
+- `game-architecture` - Technical design
+- `sprint-planning` - Plan sprints

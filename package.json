@@ -11,7 +11,12 @@
   "scripts": {
     "start": "node cli/bin/unreal-companion.js start",
     "install-companion": "node cli/bin/unreal-companion.js install",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "npm run test:cli && npm run test:web && npm run test:mcp",
+    "test:cli": "node --test cli/src/**/*.test.js",
+    "test:web": "cd web-ui/server && uv run pytest tests/ -q",
+    "test:web:verbose": "cd web-ui/server && uv run pytest tests/ -v",
+    "test:mcp": "cd Python && uv run pytest tests/ -q",
+    "test:mcp:verbose": "cd Python && uv run pytest tests/ -v"
   },
   "keywords": [
     "unreal",

@@ -24,6 +24,12 @@ unreal:
   port: 55557
   auto_connect: true
 
+# Memory settings
+memories:
+  auto_propose: true            # Agents propose memories automatically
+  max_project: 50               # Max project-wide memories
+  max_per_agent: 20             # Max memories per agent
+
 # LLM settings (uses global if not specified)
 # llm:
 #   provider: "anthropic"

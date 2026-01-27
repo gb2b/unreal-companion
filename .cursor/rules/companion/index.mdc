@@ -1,0 +1,28 @@
+---
+description: Unreal Companion - Project Rules
+globs:
+alwaysApply: true
+---
+
+# Unreal Companion
+
+This project uses Unreal Companion for AI-assisted game development.
+
+## Quick Start
+
+To execute a workflow:
+1. Read `~/.unreal-companion/core/workflow-engine.md`
+2. Check `~/.unreal-companion/rules/workflows/` for available workflows
+3. Use the workflow rule or invoke via CLI
+
+## Project Files
+
+- Config: `.unreal-companion/config.yaml`
+- Status: `.unreal-companion/workflow-status.yaml`
+- Context: `.unreal-companion/project-context.md`
+
+## Available Workflows
+
+Run `npx unreal-companion --status` to see available workflows.
+
+Or check: `~/.unreal-companion/rules/workflows/`

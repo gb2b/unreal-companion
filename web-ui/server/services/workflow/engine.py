@@ -27,6 +27,7 @@ from services.unified_loader import (
     resolve_workflow_variables,
     load_project_config,
     DEV_TEMPLATES,
+    WORKFLOW_PHASES,
 )
 
 
@@ -470,6 +471,18 @@ class WorkflowEngine:
         # Get the workflow directory
         workflow_dir = Path(workflow.get('_loaded_from', self.templates_path / workflow_id))
         
+        # Load workflow-level instructions if they exist (XML flow control)
+        workflow_instructions = None
+        for instr_file in ['instructions.md', 'instructions.xml']:
+            instr_path = workflow_dir / instr_file
+            if instr_path.exists():
+                try:
+                    workflow_instructions = instr_path.read_text()
+                    workflow['_has_flow_control'] = True
+                    break
+                except Exception:
+                    pass
+        
         # Load step files
         steps_dir = workflow_dir / "steps"
         if steps_dir.exists():
@@ -478,6 +491,11 @@ class WorkflowEngine:
                 step_content = step_file.read_text()
                 step_data = self._parse_step_file(step_content)
                 step_data["file"] = step_file.name
+                
+                # Attach workflow instructions to each step for context
+                if workflow_instructions:
+                    step_data["_workflow_instructions"] = workflow_instructions
+                
                 loaded_steps.append(step_data)
             
             if loaded_steps:

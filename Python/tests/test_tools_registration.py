@@ -93,8 +93,8 @@ class TestToolsPackageInit:
         
         functions = get_all_register_functions()
         
-        # Should have 13 tool modules
-        assert len(functions) == 13
+        # Should have 14 tool modules
+        assert len(functions) == 14
         
         # All should be callable
         for module_name, func in functions:
@@ -145,8 +145,8 @@ class TestToolRegistration:
         mock_mcp = self.create_mock_mcp()
         count = register_all_tools(mock_mcp)
         
-        # Should register all 13 modules
-        assert count == 13
+        # Should register all 14 modules
+        assert count == 14
 
     def test_total_tools_registered(self):
         """Verify total number of tools matches expected count."""
@@ -155,9 +155,9 @@ class TestToolRegistration:
         mock_mcp = self.create_mock_mcp()
         register_all_tools(mock_mcp)
         
-        # Should have 67 tools total
-        assert len(mock_mcp._registered_tools) == 67, (
-            f"Expected 67 tools, got {len(mock_mcp._registered_tools)}: "
+        # Should have 81 tools total
+        assert len(mock_mcp._registered_tools) == 81, (
+            f"Expected 81 tools, got {len(mock_mcp._registered_tools)}: "
             f"{mock_mcp._registered_tools}"
         )
 
@@ -179,6 +179,7 @@ class TestToolNamingConsistency:
             "level_tools": "level_",
             "light_tools": "light_",
             "material_tools": "material_",
+            "meshy_tools": "meshy_",
             "project_tools": "project_",
             "python_tools": "python_",
             "viewport_tools": "viewport_",

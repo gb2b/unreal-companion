@@ -1,0 +1,23 @@
+# Unreal Companion - Memories
+# Persistent context that agents can access and update
+
+version: "1.0"
+last_updated: ""
+
+# Project-wide memories (accessible by all agents)
+project: []
+  # Example:
+  # - id: "m1"
+  #   content: "The game is a roguelike deck-builder"
+  #   source: "game-brief workflow"
+  #   created: "2026-01-27"
+  #   tags: ["genre", "concept"]
+
+# Agent-specific memories
+agents: {}
+  # Example:
+  # game-designer:
+  #   - id: "gd1"
+  #     content: "User prefers mechanics inspired by Slay the Spire"
+  #     source: "brainstorming"
+  #     created: "2026-01-27"

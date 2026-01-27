@@ -84,6 +84,87 @@ export function loadWorkflow(workflowId, projectPath = null) {
   return null;
 }
 
+// Workflow phases for organization
+const WORKFLOW_PHASES = [
+  '1-preproduction',
+  '2-design', 
+  '3-technical',
+  '4-production',
+  'quick-flow',
+  'tools'
+];
+
+/**
+ * Scan a directory for workflows (handles both flat and phase-based structure)
+ */
+function scanWorkflowDirectory(sourcePath, type, workflows) {
+  if (!existsSync(sourcePath)) return;
+  
+  const entries = readdirSync(sourcePath, { withFileTypes: true })
+    .filter(d => d.isDirectory());
+  
+  for (const dir of entries) {
+    // Check if this is a phase directory
+    if (WORKFLOW_PHASES.includes(dir.name)) {
+      // Scan phase subdirectory
+      const phasePath = join(sourcePath, dir.name);
+      const phaseWorkflows = readdirSync(phasePath, { withFileTypes: true })
+        .filter(d => d.isDirectory());
+      
+      for (const workflowDir of phaseWorkflows) {
+        const yamlPath = join(phasePath, workflowDir.name, 'workflow.yaml');
+        if (existsSync(yamlPath)) {
+          try {
+            const content = readFileSync(yamlPath, 'utf-8');
+            const workflow = yaml.parse(content);
+            workflows.set(workflow.id || workflowDir.name, {
+              id: workflow.id || workflowDir.name,
+              name: workflow.name || workflowDir.name,
+              description: workflow.description || '',
+              category: workflow.category || dir.name,
+              phase: dir.name,
+              behavior: workflow.behavior || 'one-shot',
+              source: type,
+              path: join(phasePath, workflowDir.name),
+              ui_visible: workflow.ui_visible !== false,
+              icon: workflow.icon || 'file-text',
+              suggested_after: workflow.suggested_after || [],
+              steps: workflow.steps ? workflow.steps.length : 0,
+            });
+          } catch (e) {
+            // Skip malformed workflows
+          }
+        }
+      }
+    } else {
+      // Direct workflow directory (legacy structure)
+      const yamlPath = join(sourcePath, dir.name, 'workflow.yaml');
+      if (existsSync(yamlPath)) {
+        try {
+          const content = readFileSync(yamlPath, 'utf-8');
+          const workflow = yaml.parse(content);
+          workflows.set(workflow.id || dir.name, {
+            id: workflow.id || dir.name,
+            name: workflow.name || dir.name,
+            description: workflow.description || '',
+            category: workflow.category || 'other',
+            phase: null,
+            behavior: workflow.behavior || 'one-shot',
+            source: type,
+            path: join(sourcePath, dir.name),
+            ui_visible: workflow.ui_visible !== false,
+            icon: workflow.icon || 'file-text',
+            suggested_after: workflow.suggested_after || [],
+            steps: workflow.steps ? workflow.steps.length : 0,
+          });
+        } catch (e) {
+          // Skip malformed workflows
+        }
+      }
+    }
+  }
+}
+
 /**
  * Load all workflows with their source information
  * @param {string} [projectPath] - Optional project path
@@ -104,39 +185,7 @@ export function listAllWorkflows(projectPath = null) {
   }
   
   for (const { path: sourcePath, type } of sources) {
-    if (existsSync(sourcePath)) {
-      try {
-        const dirs = readdirSync(sourcePath, { withFileTypes: true })
-          .filter(d => d.isDirectory());
-        
-        for (const dir of dirs) {
-          const yamlPath = join(sourcePath, dir.name, 'workflow.yaml');
-          if (existsSync(yamlPath)) {
-            try {
-              const content = readFileSync(yamlPath, 'utf-8');
-              const workflow = yaml.parse(content);
-              workflows.set(workflow.id || dir.name, {
-                id: workflow.id || dir.name,
-                name: workflow.name || dir.name,
-                description: workflow.description || '',
-                category: workflow.category || 'other',
-                behavior: workflow.behavior || 'one-shot',
-                source: type,
-                path: join(sourcePath, dir.name),
-                ui_visible: workflow.ui_visible !== false,
-                icon: workflow.icon || 'file-text',
-                suggested_after: workflow.suggested_after || [],
-                steps: workflow.steps ? workflow.steps.length : 0,
-              });
-            } catch (e) {
-              // Skip malformed workflows
-            }
-          }
-        }
-      } catch (e) {
-        // Directory doesn't exist or isn't readable
-      }
-    }
+    scanWorkflowDirectory(sourcePath, type, workflows);
   }
   
   return Array.from(workflows.values());

@@ -24,9 +24,11 @@ import { PATHS, getProjectPaths } from './workflow-loader.js';
  * These are the BMGD framework locations in the unreal-companion package
  * 
  * Structure:
- * - /frameworks/workflows/   - Source of truth for workflows
- * - /frameworks/agents/      - Source of truth for agents  
- * - /frameworks/global/      - Files for ~/.unreal-companion/
+ * - /frameworks/workflows/   - Source of truth for workflows (organized by phase)
+ * - /frameworks/agents/      - Source of truth for agents (agent.md format)
+ * - /frameworks/skills/      - Agent skills (SKILL.md format)
+ * - /frameworks/teams/       - Team definitions (team.md format)
+ * - /frameworks/rules-templates/ - IDE-specific rule templates
  * - /frameworks/project/     - Files for {project}/.unreal-companion/
  */
 export function getSourcePaths() {
@@ -44,8 +46,10 @@ export function getSourcePaths() {
         // Source of truth for workflows and agents
         workflows: frameworksWorkflows,
         agents: join(root, 'frameworks', 'agents'),
+        skills: join(root, 'frameworks', 'skills'),
+        teams: join(root, 'frameworks', 'teams'),
+        rulesTemplates: join(root, 'frameworks', 'rules-templates'),
         // Template files for installation
-        globalInit: join(root, 'frameworks', 'global'),
         projectInit: join(root, 'frameworks', 'project'),
       };
     }
@@ -56,10 +60,22 @@ export function getSourcePaths() {
     packageRoot: process.cwd(),
     workflows: join(process.cwd(), 'frameworks', 'workflows'),
     agents: join(process.cwd(), 'frameworks', 'agents'),
-    globalInit: join(process.cwd(), 'frameworks', 'global'),
+    skills: join(process.cwd(), 'frameworks', 'skills'),
+    teams: join(process.cwd(), 'frameworks', 'teams'),
+    rulesTemplates: join(process.cwd(), 'frameworks', 'rules-templates'),
     projectInit: join(process.cwd(), 'frameworks', 'project'),
   };
 }
+
+// Workflow phases for organization
+export const WORKFLOW_PHASES = [
+  '1-preproduction',
+  '2-design', 
+  '3-technical',
+  '4-production',
+  'quick-flow',
+  'tools'
+];
 
 // =============================================================================
 // Directory Copy Utilities
@@ -172,7 +188,7 @@ To execute this workflow:
 }
 
 /**
- * Generate MDC files for all workflows
+ * Generate MDC files for all workflows (supports phase-based structure)
  */
 export function generateAllMdcFiles(targetDir = null) {
   const sources = getSourcePaths();
@@ -180,30 +196,39 @@ export function generateAllMdcFiles(targetDir = null) {
   
   mkdirSync(rulesDir, { recursive: true });
   
-  const workflowDirs = readdirSync(sources.workflows, { withFileTypes: true })
-    .filter(d => d.isDirectory());
-  
   let generated = 0;
   
-  for (const dir of workflowDirs) {
-    const yamlPath = join(sources.workflows, dir.name, 'workflow.yaml');
-    if (!existsSync(yamlPath)) continue;
+  // Scan phases for workflows
+  for (const phase of WORKFLOW_PHASES) {
+    const phasePath = join(sources.workflows, phase);
+    if (!existsSync(phasePath)) continue;
     
-    try {
-      const content = readFileSync(yamlPath, 'utf-8');
-      const workflow = yaml.parse(content);
+    const workflowDirs = readdirSync(phasePath, { withFileTypes: true })
+      .filter(d => d.isDirectory());
+    
+    for (const dir of workflowDirs) {
+      const yamlPath = join(phasePath, dir.name, 'workflow.yaml');
+      if (!existsSync(yamlPath)) continue;
       
-      // Skip technical workflows
-      if (workflow.category === 'technical') continue;
-      if (!workflow.ui_visible && workflow.ui_visible !== undefined) continue;
-      
-      const mdcContent = generateMdcFromWorkflow(yamlPath, workflow);
-      const mdcPath = join(rulesDir, `${workflow.id || dir.name}.mdc`);
-      
-      writeFileSync(mdcPath, mdcContent);
-      generated++;
-    } catch (e) {
-      console.error(`Error generating MDC for ${dir.name}:`, e.message);
+      try {
+        const content = readFileSync(yamlPath, 'utf-8');
+        const workflow = yaml.parse(content);
+        
+        // Add phase info
+        workflow.phase = phase;
+        
+        // Skip technical workflows
+        if (workflow.category === 'technical') continue;
+        if (!workflow.ui_visible && workflow.ui_visible !== undefined) continue;
+        
+        const mdcContent = generateMdcFromWorkflow(yamlPath, workflow);
+        const mdcPath = join(rulesDir, `${workflow.id || dir.name}.mdc`);
+        
+        writeFileSync(mdcPath, mdcContent);
+        generated++;
+      } catch (e) {
+        console.error(`Error generating MDC for ${dir.name}:`, e.message);
+      }
     }
   }
   
@@ -231,15 +256,17 @@ export async function installGlobalDefaults(options = {}) {
     mkdirSync(join(PATHS.rules, 'workflows'), { recursive: true });
     mkdirSync(join(PATHS.agents, 'defaults'), { recursive: true });
     mkdirSync(join(PATHS.agents, 'custom'), { recursive: true });
+    mkdirSync(join(PATHS.globalRoot, 'skills'), { recursive: true });
     
     const results = {
       workflows: 0,
       rules: 0,
       core: 0,
       agents: 0,
+      skills: 0,
     };
     
-    // 1. Copy workflows
+    // 1. Copy workflows (phase-based structure)
     spinner.text = 'Copying workflow templates...';
     results.workflows = copyDirectory(sources.workflows, PATHS.workflowsDefaults, { 
       overwrite: force,
@@ -250,35 +277,32 @@ export async function installGlobalDefaults(options = {}) {
       }
     });
     
-    // 2. Copy core files (workflow-engine.md, etc.)
-    spinner.text = 'Copying core files...';
-    const coreSource = join(sources.globalInit, 'core');
-    if (existsSync(coreSource)) {
-      results.core = copyDirectory(coreSource, PATHS.core, { overwrite: force });
-    }
-    
-    // 3. Generate MDC rules
+    // 2. Generate MDC rules (from phase-based structure)
     spinner.text = 'Generating Cursor rules...';
     results.rules = generateAllMdcFiles();
     
-    // 4. Copy index.mdc (if exists in global/rules)
-    const indexSource = join(sources.globalInit, 'rules', 'index.mdc');
-    if (existsSync(indexSource)) {
-      copyFileSync(indexSource, join(PATHS.rules, 'index.mdc'));
-    }
-    
-    // 5. Copy COMPANION.md
-    const companionSource = join(sources.globalInit, 'COMPANION.md');
-    if (existsSync(companionSource)) {
-      copyFileSync(companionSource, join(PATHS.globalRoot, 'COMPANION.md'));
-    }
-    
-    // 6. Copy agents if they exist
+    // 3. Copy agents (new agent.md format)
     spinner.text = 'Copying agents...';
     if (existsSync(sources.agents)) {
       results.agents = copyDirectory(sources.agents, join(PATHS.agents, 'defaults'), { 
         overwrite: force 
       });
+    }
+    
+    // 4. Copy skills
+    spinner.text = 'Copying skills...';
+    if (existsSync(sources.skills)) {
+      results.skills = copyDirectory(sources.skills, join(PATHS.globalRoot, 'skills'), {
+        overwrite: force
+      });
+    }
+    
+    // 5. Copy to Cursor skills directory if Cursor is installed
+    const cursorSkillsDir = join(homedir(), '.cursor', 'skills');
+    if (existsSync(dirname(cursorSkillsDir))) {
+      spinner.text = 'Installing Cursor skills...';
+      mkdirSync(cursorSkillsDir, { recursive: true });
+      copyDirectory(sources.skills, cursorSkillsDir, { overwrite: force });
     }
     
     spinner.succeed('Global installation complete!');
@@ -382,6 +406,24 @@ _Key design and technical decisions will be recorded here._
 _Additional context and notes will appear here._
 `;
       writeFileSync(projectPaths.projectContext, contextContent);
+    }
+    
+    // Create memories.yaml
+    const memoriesPath = join(projectPaths.root, 'memories.yaml');
+    if (!existsSync(memoriesPath) || force) {
+      const memoriesContent = `# Unreal Companion - Memories
+# Persistent context that agents can access and update
+
+version: "1.0"
+last_updated: "${new Date().toISOString()}"
+
+# Project-wide memories (accessible by all agents)
+project: []
+
+# Agent-specific memories
+agents: {}
+`;
+      writeFileSync(memoriesPath, memoriesContent);
     }
     
     // Copy Cursor rules to project if not minimal

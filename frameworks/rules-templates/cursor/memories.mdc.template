@@ -1,0 +1,85 @@
+---
+description: Unreal Companion - Memory Management
+globs:
+alwaysApply: true
+---
+
+# Memory System
+
+## Loading Memories
+
+At the start of each session, read `{{project_path}}/.unreal-companion/memories.yaml`.
+Use these memories as context for all responses.
+
+## Memory Commands
+
+| Command | Action |
+|---------|--------|
+| `/memories` | List all memories |
+| `/memory add "..."` | Add a new memory |
+| `/memory remove <id>` | Remove memory by ID |
+| `/memory clear` | Clear all (with confirmation) |
+
+## Auto-Propose Memories
+
+When you detect important information about:
+- The game concept, genre, or mechanics
+- Technical constraints or preferences
+- User communication preferences
+- Key decisions made during conversations
+
+Propose to save it:
+
+```
+💾 **Retenir ?** "info détectée"
+→ [y] Oui  [n] Non  [e] Modifier
+```
+
+If user confirms with 'y', append to memories.yaml:
+
+```yaml
+project:
+  - id: "m{{timestamp}}"
+    content: "info détectée"
+    source: "conversation"
+    created: "{{date}}"
+```
+
+If user wants to modify with 'e', ask for the corrected version before saving.
+
+## Memory File Format
+
+```yaml
+version: "1.0"
+last_updated: "{{date}}"
+
+project:
+  - id: "m1"
+    content: "Memory content here"
+    source: "workflow name or conversation"
+    created: "{{date}}"
+
+agents:
+  game-designer:
+    - id: "gd1"
+      content: "Agent-specific memory"
+      source: "brainstorming"
+      created: "{{date}}"
+```
+
+## Important Info to Remember
+
+- Project concept and genre
+- Target platforms and performance requirements
+- User's preferred language for communication
+- User's preferred language for documents
+- Key technical decisions
+- Recurring patterns or preferences
+- Important constraints or requirements
+
+## Reading Memories
+
+When loading memories, present a brief summary:
+"📚 Loaded X memories: [brief topics]"
+
+Don't list all memories unless asked with `/memories`.

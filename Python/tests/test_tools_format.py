@@ -192,7 +192,7 @@ class TestToolCount:
     """Verify expected number of tools."""
     
     def test_total_tool_count(self):
-        """Verify we have the expected number of tools (67)."""
+        """Verify we have the expected number of tools (70)."""
         total_tools = 0
         
         for tool_file in TOOL_FILES:
@@ -201,9 +201,9 @@ class TestToolCount:
                 tools = get_tool_functions(filepath)
                 total_tools += len(tools)
         
-        # We expect 67 tools as documented
-        assert total_tools == 67, (
-            f"Expected 67 tools, found {total_tools}. "
+        # We expect 70 tools as documented
+        assert total_tools == 70, (
+            f"Expected 70 tools, found {total_tools}. "
             "Update documentation if tool count changed."
         )
     
