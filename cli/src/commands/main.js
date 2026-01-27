@@ -14,6 +14,7 @@
  */
 
 import { existsSync, mkdirSync, cpSync, writeFileSync, readFileSync, readdirSync } from 'fs';
+import path from 'path';
 import { join, basename } from 'path';
 import { execSync, spawn } from 'child_process';
 import chalk from 'chalk';
@@ -732,62 +733,188 @@ async function searchProjects(options) {
   console.log(chalk.dim('\n  Searching for Unreal projects...\n'));
   const found = findUnrealProjects();
   
-  if (found.length === 0) {
+  // Build choices
+  const choices = [];
+  
+  if (found.length > 0) {
+    console.log(chalk.green(`  Found ${found.length} project(s) in common locations.\n`));
+    choices.push(...found.map(p => ({
+      name: `${p.name} ${chalk.dim(`(${p.dir})`)}`,
+      value: p,
+    })));
+    choices.push(new inquirer.Separator());
+  } else {
     console.log(chalk.yellow('  No Unreal projects found in common locations.\n'));
-    return;
   }
-
-  console.log(chalk.green(`  Found ${found.length} project(s):\n`));
+  
+  // Add manual entry option
+  choices.push({
+    name: chalk.blue('+ Enter path manually'),
+    value: 'manual',
+  });
+  choices.push({
+    name: chalk.blue('+ Use current directory'),
+    value: 'current',
+  });
+  choices.push({
+    name: chalk.dim('  Cancel'),
+    value: 'cancel',
+  });
   
   const { selected } = await inquirer.prompt([
     {
-      type: 'checkbox',
+      type: 'list',
       name: 'selected',
-      message: 'Select projects to register:',
-      choices: found.map(p => ({
-        name: `${p.name} ${chalk.dim(`(${p.dir})`)}`,
-        value: p,
-      })),
+      message: found.length > 0 ? 'Select a project or add manually:' : 'How would you like to add a project?',
+      choices,
     },
   ]);
-
-  if (selected.length > 0) {
-    const projects = getProjects();
+  
+  if (selected === 'cancel') return;
+  
+  let projectToAdd = null;
+  
+  if (selected === 'manual') {
+    // Ask for path
+    const { projectPath } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'projectPath',
+        message: 'Enter project path:',
+        default: process.cwd(),
+        validate: (input) => {
+          if (!input.trim()) return 'Path is required';
+          return true;
+        },
+      },
+    ]);
     
-    for (const p of selected) {
-      // Check if already registered
-      const exists = projects.some(existing => 
-        existing.name === p.name || 
-        existing.path === p.dir || 
-        existing.project_path === p.dir
-      );
+    const resolvedPath = path.resolve(projectPath);
+    
+    // Check if directory exists
+    if (!existsSync(resolvedPath)) {
+      const { createDir } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'createDir',
+          message: `Directory doesn't exist. Create it?`,
+          default: true,
+        },
+      ]);
       
-      if (!exists) {
-        projects.push({
-          id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: p.name,
-          path: p.dir,
-          project_path: p.dir,
-          uproject_path: p.path,
-          created_at: new Date().toISOString(),
-        });
+      if (createDir) {
+        mkdirSync(resolvedPath, { recursive: true });
+        console.log(chalk.green(`  ✓ Created ${resolvedPath}\n`));
+      } else {
+        return;
       }
     }
     
-    // Save projects
-    mkdirSync(GLOBAL_DIR, { recursive: true });
-    writeFileSync(PROJECTS_FILE, JSON.stringify({
-      version: '1.0',
-      projects,
-      last_opened: null,
-    }, null, 2));
+    // Get project name
+    const dirName = path.basename(resolvedPath);
+    const { projectName } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'projectName',
+        message: 'Project name:',
+        default: dirName,
+      },
+    ]);
     
-    // Set first as active if none
-    if (!getActiveProject() && selected.length > 0) {
-      setActiveProject(selected[0].name);
+    projectToAdd = {
+      name: projectName,
+      dir: resolvedPath,
+      path: null, // No .uproject file
+    };
+    
+  } else if (selected === 'current') {
+    const cwd = process.cwd();
+    const dirName = path.basename(cwd);
+    
+    // Check for .uproject in current dir
+    const uprojectFiles = readdirSync(cwd).filter(f => f.endsWith('.uproject'));
+    
+    const { projectName } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'projectName',
+        message: 'Project name:',
+        default: uprojectFiles.length > 0 ? uprojectFiles[0].replace('.uproject', '') : dirName,
+      },
+    ]);
+    
+    projectToAdd = {
+      name: projectName,
+      dir: cwd,
+      path: uprojectFiles.length > 0 ? path.join(cwd, uprojectFiles[0]) : null,
+    };
+    
+  } else if (selected && selected !== 'cancel') {
+    projectToAdd = selected;
+  }
+  
+  if (projectToAdd) {
+    await registerProject(projectToAdd, options);
+  }
+}
+
+async function registerProject(p, options) {
+  const projects = getProjects();
+  
+  // Check if already registered
+  const exists = projects.some(existing => 
+    existing.name === p.name || 
+    existing.path === p.dir || 
+    existing.project_path === p.dir
+  );
+  
+  if (exists) {
+    console.log(chalk.yellow(`\n  Project "${p.name}" is already registered.\n`));
+    return;
+  }
+  
+  projects.push({
+    id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    name: p.name,
+    path: p.dir,
+    project_path: p.dir,
+    uproject_path: p.path,
+    created_at: new Date().toISOString(),
+  });
+  
+  // Save projects
+  mkdirSync(GLOBAL_DIR, { recursive: true });
+  writeFileSync(PROJECTS_FILE, JSON.stringify({
+    version: '1.0',
+    projects,
+    last_opened: null,
+  }, null, 2));
+  
+  // Set as active if none
+  if (!getActiveProject()) {
+    setActiveProject(p.name);
+  }
+  
+  console.log(chalk.green(`\n  ✓ Registered project: ${p.name}\n`));
+  
+  // Ask to initialize
+  const { initialize } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'initialize',
+      message: 'Initialize Unreal Companion for this project?',
+      default: true,
+    },
+  ]);
+  
+  if (initialize) {
+    await initProject(p.dir, {});
+    
+    // Ask to switch to project directory
+    if (process.cwd() !== p.dir) {
+      console.log(chalk.cyan(`\n  📁 Project location: ${p.dir}`));
+      console.log(chalk.dim(`     Run: cd "${p.dir}" to switch to the project\n`));
     }
-    
-    console.log(chalk.green(`\n  ✓ Registered ${selected.length} project(s)\n`));
   }
 }
 

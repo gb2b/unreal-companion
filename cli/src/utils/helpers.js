@@ -3,7 +3,7 @@
  */
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync, cpSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, basename } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
@@ -198,30 +198,149 @@ export function listDirs(dir) {
 }
 
 /**
- * Find Unreal projects in common locations
+ * Find Unreal projects using system search
+ * - macOS: mdfind (Spotlight)
+ * - Windows: PowerShell Get-ChildItem
+ * - Linux: locate or find
  */
 export function findUnrealProjects() {
-  const searchDirs = [
-    join(homedir(), 'Documents'),
-    join(homedir(), 'Projects'),
-    join(homedir(), 'Dev'),
-    join(homedir(), 'Unreal Projects'),
-    join(homedir(), 'UE5'),
-  ];
-
   const projects = [];
-
-  for (const dir of searchDirs) {
-    if (!existsSync(dir)) continue;
-
+  const seenPaths = new Set();
+  
+  // Paths to exclude (cross-platform patterns)
+  const excludePatterns = [
+    'Engine/Programs',
+    'Engine/Source',
+    'Templates',
+    'node_modules',
+    '.Trash',
+    // macOS
+    'Library/Application Support',
+    'Library/Caches',
+    // Windows
+    'AppData',
+    '$Recycle.Bin',
+    // Linux
+    '.local/share/Trash',
+  ];
+  
+  const isExcluded = (filePath) => {
+    const normalized = filePath.replace(/\\/g, '/');
+    return excludePatterns.some(pattern => normalized.includes(pattern));
+  };
+  
+  const addProject = (filePath) => {
+    if (seenPaths.has(filePath) || isExcluded(filePath)) return;
+    seenPaths.add(filePath);
+    
+    const dir = dirname(filePath);
+    const name = basename(filePath, '.uproject');
+    
+    projects.push({ name, path: filePath, dir });
+  };
+  
+  // Try system search first
+  let systemSearchSucceeded = false;
+  
+  if (process.platform === 'darwin') {
+    // macOS: Use Spotlight (mdfind)
     try {
-      const found = findUprojectFiles(dir, 3);
-      projects.push(...found);
+      const result = execSync('mdfind "kMDItemFSName == *.uproject"', {
+        encoding: 'utf-8',
+        timeout: 15000,
+        maxBuffer: 2 * 1024 * 1024,
+      });
+      
+      result.trim().split('\n').filter(f => f.length > 0).forEach(addProject);
+      systemSearchSucceeded = true;
     } catch {
-      // Skip directories we can't read
+      // Fall through to directory scan
+    }
+    
+  } else if (process.platform === 'win32') {
+    // Windows: Use PowerShell Get-ChildItem (much faster than dir /s)
+    try {
+      // Search in common locations
+      const searchRoots = [
+        join(homedir(), 'Documents'),
+        join(homedir(), 'Projects'),
+        'D:\\',
+        'E:\\',
+      ].filter(p => existsSync(p));
+      
+      for (const root of searchRoots) {
+        try {
+          // PowerShell command to find .uproject files (max depth 5)
+          const psCommand = `Get-ChildItem -Path "${root}" -Filter "*.uproject" -Recurse -Depth 5 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName`;
+          const result = execSync(`powershell -Command "${psCommand}"`, {
+            encoding: 'utf-8',
+            timeout: 30000,
+            maxBuffer: 2 * 1024 * 1024,
+            windowsHide: true,
+          });
+          
+          result.trim().split('\r\n').filter(f => f.length > 0).forEach(addProject);
+        } catch {
+          // Skip this root
+        }
+      }
+      systemSearchSucceeded = projects.length > 0;
+    } catch {
+      // Fall through to directory scan
+    }
+    
+  } else if (process.platform === 'linux') {
+    // Linux: Try locate first (fast, uses database), then find
+    try {
+      // Try locate (requires mlocate/plocate package and updated database)
+      const result = execSync('locate -i "*.uproject" 2>/dev/null || find ~ -name "*.uproject" -type f 2>/dev/null | head -100', {
+        encoding: 'utf-8',
+        timeout: 30000,
+        maxBuffer: 2 * 1024 * 1024,
+        shell: '/bin/bash',
+      });
+      
+      result.trim().split('\n').filter(f => f.length > 0).forEach(addProject);
+      systemSearchSucceeded = projects.length > 0;
+    } catch {
+      // Fall through to directory scan
+    }
+  }
+  
+  // Fallback: scan common directories (if system search failed or found nothing)
+  if (!systemSearchSucceeded) {
+    const searchDirs = process.platform === 'win32'
+      ? [
+          join(homedir(), 'Documents', 'Unreal Projects'),
+          join(homedir(), 'Documents', 'UnrealProjects'),
+          join(homedir(), 'Projects'),
+          'D:\\UnrealProjects',
+          'D:\\Projects',
+          process.cwd(),
+        ]
+      : [
+          join(homedir(), 'Documents', 'Unreal Projects'),
+          join(homedir(), 'Documents', 'UnrealProjects'),
+          join(homedir(), 'UnrealProjects'),
+          join(homedir(), 'Projects'),
+          join(homedir(), 'Dev'),
+          join(homedir(), 'Development'),
+          process.cwd(),
+        ];
+
+    for (const dir of searchDirs) {
+      if (!existsSync(dir)) continue;
+
+      try {
+        const found = findUprojectFiles(dir, 4);
+        found.forEach(p => addProject(p.path));
+      } catch {
+        // Skip directories we can't read
+      }
     }
   }
 
+  projects.sort((a, b) => a.name.localeCompare(b.name));
   return projects;
 }
 
@@ -410,9 +529,9 @@ export function setActiveProject(projectId) {
 /**
  * Count agents (defaults + custom)
  * 
- * Structure:
- * - ~/.unreal-companion/agents/defaults/ (built-in defaults)
- * - ~/.unreal-companion/agents/custom/ (global custom)
+ * Structure (new format with agent.md):
+ * - ~/.unreal-companion/agents/defaults/{agent-id}/agent.md
+ * - ~/.unreal-companion/agents/custom/{agent-id}/agent.md
  */
 export function countAgents() {
   const defaultsDir = join(GLOBAL_DIR, 'agents', 'defaults');
@@ -421,22 +540,43 @@ export function countAgents() {
   let defaults = 0;
   let custom = 0;
   
+  // Count agent directories (each with agent.md or agent.yaml)
   if (existsSync(defaultsDir)) {
-    defaults = listYamlFiles(defaultsDir).length;
+    const dirs = listDirs(defaultsDir);
+    defaults = dirs.filter(dir => {
+      const agentMd = join(defaultsDir, dir, 'agent.md');
+      const agentYaml = join(defaultsDir, dir, 'agent.yaml');
+      return existsSync(agentMd) || existsSync(agentYaml);
+    }).length;
   }
   if (existsSync(customDir)) {
-    custom = listYamlFiles(customDir).length;
+    const dirs = listDirs(customDir);
+    custom = dirs.filter(dir => {
+      const agentMd = join(customDir, dir, 'agent.md');
+      const agentYaml = join(customDir, dir, 'agent.yaml');
+      return existsSync(agentMd) || existsSync(agentYaml);
+    }).length;
   }
   
   return { defaults, custom, total: defaults + custom };
 }
 
+// Workflow phases for counting
+const WORKFLOW_PHASES = [
+  '1-preproduction',
+  '2-design', 
+  '3-technical',
+  '4-production',
+  'quick-flow',
+  'tools'
+];
+
 /**
  * Count workflows (defaults + custom)
  * 
- * Structure:
- * - ~/.unreal-companion/workflows/defaults/ (built-in defaults)
- * - ~/.unreal-companion/workflows/custom/ (global custom)
+ * Structure (new phase-based format):
+ * - ~/.unreal-companion/workflows/defaults/{phase}/{workflow-id}/workflow.yaml
+ * - ~/.unreal-companion/workflows/custom/{workflow-id}/workflow.yaml
  */
 export function countWorkflows() {
   const defaultsDir = join(GLOBAL_DIR, 'workflows', 'defaults');
@@ -445,11 +585,30 @@ export function countWorkflows() {
   let defaults = 0;
   let custom = 0;
   
+  // Count workflows in phase directories
   if (existsSync(defaultsDir)) {
-    defaults = listDirs(defaultsDir).length;
+    const entries = listDirs(defaultsDir);
+    for (const entry of entries) {
+      const entryPath = join(defaultsDir, entry);
+      
+      if (WORKFLOW_PHASES.includes(entry)) {
+        // Phase directory - count workflows inside
+        const phaseWorkflows = listDirs(entryPath);
+        defaults += phaseWorkflows.filter(w => 
+          existsSync(join(entryPath, w, 'workflow.yaml'))
+        ).length;
+      } else if (existsSync(join(entryPath, 'workflow.yaml'))) {
+        // Direct workflow (legacy structure)
+        defaults++;
+      }
+    }
   }
+  
   if (existsSync(customDir)) {
-    custom = listDirs(customDir).length;
+    const dirs = listDirs(customDir);
+    custom = dirs.filter(dir => 
+      existsSync(join(customDir, dir, 'workflow.yaml'))
+    ).length;
   }
   
   return { defaults, custom, total: defaults + custom };
