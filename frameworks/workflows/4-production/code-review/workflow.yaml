@@ -16,7 +16,7 @@ context_required:
 
 outputs:
   - type: "review"
-    path: "reviews/review-{{date}}.md"
+    path: "{output_folder}/reviews/review-{{subject}}-{{date}}.md"
 
 steps:
   - id: "overview"

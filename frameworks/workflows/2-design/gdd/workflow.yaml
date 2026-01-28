@@ -2,7 +2,6 @@ id: gdd
 version: "1.0"
 name: "Game Design Document"
 description: "Complete game design specification"
-agent: "game-designer"
 estimated_time: "2-4 hours"
 category: "document"
 behavior: "one-shot"
@@ -12,6 +11,13 @@ color: "green"
 suggested_after: ["game-brief"]
 document_order: 2
 
+# Agent configuration
+agents:
+  primary: "game-designer"
+  alternatives:
+    - "solo-dev"
+  party_mode: true  # GDD benefits from multi-perspective
+
 # Load existing documents - GDD builds on Game Brief
 input_discovery:
   - name: "project_context"
@@ -19,17 +25,17 @@ input_discovery:
     strategy: "full"
     required: false
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: true  # GDD requires a Game Brief
   - name: "brainstorms"
-    patterns: ["output/analysis/*brainstorm*.md"]
+    patterns: ["{output_folder}/analysis/*brainstorm*.md"]
     strategy: "index"
     required: false
 
 # Output configuration
 output:
-  path: "output/design/gdd.md"
+  path: "{output_folder}/design/gdd.md"
   format: "md"
   update_context: true
   chapters: true  # Generate as chapters

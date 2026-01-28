@@ -13,9 +13,9 @@ context_required: []
 
 outputs:
   - type: "mind-map"
-    path: "boards/mindmap-{{id}}.json"
+    path: "{output_folder}/boards/mindmap-{{subject}}-{{date}}.json"
   - type: "summary"
-    path: "boards/mindmap-{{id}}.md"
+    path: "{output_folder}/boards/mindmap-{{subject}}-{{date}}.md"
 
 steps:
   - id: "central"

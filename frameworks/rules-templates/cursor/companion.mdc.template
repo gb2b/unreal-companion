@@ -4,79 +4,18 @@ globs:
 alwaysApply: true
 ---
 
-# Unreal Companion
+# Unreal Companion - {{project_name}}
 
-**Project:** {{project_name}}  
-**Version:** {{version}}
+{{> core/workflow-instructions}}
 
-## Available Agents
+## Cursor-Specific
 
-{{#each agents}}
-- **{{name}}** (`{{id}}`) - {{title}}
-{{/each}}
+### Skills
+Skills are in `~/.cursor/skills/`. Use them for specialized knowledge.
 
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `/agent <name>` | Activate a specific agent |
-| `/workflow <name>` | Start a workflow |
-| `/status` | Show project status |
-| `/memories` | List all memories |
-| `/memory add "..."` | Add a memory |
-| `/memory remove <id>` | Remove a memory |
-
-## Agent Activation
-
-To work with an agent, say:
-- "I want to work with [agent name]"
-- "Activate [agent name]"
-- `/agent [agent-id]`
-
-## Starting Workflows
-
-To start a workflow:
-- "Start the [workflow name] workflow"
-- "Let's do [workflow name]"
-- `/workflow [workflow-id]`
-
-## Configuration
-
-- Config: `{{project_path}}/.unreal-companion/config.yaml`
-- Context: `{{project_path}}/.unreal-companion/project-context.md`
-- Memories: `{{project_path}}/.unreal-companion/memories.yaml`
-- Status: `{{project_path}}/.unreal-companion/workflow-status.yaml`
-
-## Workflows by Phase
-
-### 1. Preproduction
-- `brainstorming` - Explore ideas freely
-- `quick-brainstorming` - Fast idea generation
-- `game-brief` - Define game vision
-
-### 2. Design
-- `gdd` - Game Design Document
-- `narrative` - Story and characters
-- `art-direction` - Visual style
-- `level-design` - Level design
-
-### 3. Technical
-- `game-architecture` - Technical architecture
-- `project-context` - Generate project context
-
-### 4. Production
-- `sprint-planning` - Plan sprints
-- `dev-story` - Work on stories
-- `code-review` - Review code
-- `retrospective` - Sprint retro
-
-### Quick Flow
-- `quick-prototype` - Rapid prototype
-- `quick-dev` - Quick implementation
-
-## Skills
-
-Skills provide specialized knowledge. Available in `~/.cursor/skills/`:
-- MCP tools (core, blueprint, graph, world)
-- Game design (balance, progression)
-- Development (code-review, performance)
+### CLI
+```bash
+unreal-companion workflow list      # List workflows
+unreal-companion workflow start     # Start a workflow
+unreal-companion status             # Check status
+```

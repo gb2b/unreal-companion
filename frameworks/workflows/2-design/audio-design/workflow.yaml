@@ -18,16 +18,16 @@ input_discovery:
     strategy: "full"
     required: true
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: true
   - name: "art_direction"
-    patterns: ["output/art/*.md"]
+    patterns: ["{output_folder}/art/*.md"]
     strategy: "index"
     required: false
 
 output:
-  path: "output/audio/audio-direction.md"
+  path: "{output_folder}/audio/audio-direction.md"
   format: "md"
   update_context: true
 

@@ -2,7 +2,6 @@ id: brainstorming
 version: "1.0"
 name: "Brainstorming"
 description: "Free-form idea exploration with AI assistance"
-agent: "game-designer"
 estimated_time: "Open-ended"
 category: "conversation"
 behavior: "infinite"
@@ -12,6 +11,14 @@ color: "purple"
 output_pattern: "session-brainstorm-{subject}-{date}.md"
 quick_action: true
 
+# Agent configuration
+agents:
+  primary: "game-designer"
+  alternatives:
+    - "solo-dev"      # Pragmatic, prototype-focused
+    - "game-architect" # Technical feasibility focus
+  party_mode: true    # Allow multi-agent collaboration
+
 # Load existing documents for context
 input_discovery:
   - name: "project_context"
@@ -19,13 +26,13 @@ input_discovery:
     strategy: "full"
     required: false
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: false
 
 # Output configuration
 output:
-  path: "output/analysis/brainstorm-{{timestamp}}.md"
+  path: "{output_folder}/analysis/brainstorm-{{subject}}-{{date}}.md"
   format: "md"
   visual_format: "mindmap"
 

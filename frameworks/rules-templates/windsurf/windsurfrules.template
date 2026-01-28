@@ -1,0 +1,8 @@
+# Unreal Companion - {{project_name}}
+
+{{> core/workflow-instructions}}
+
+## Windsurf-Specific
+
+### Cascade Integration
+Use Cascade flows for complex multi-step workflows.

@@ -171,14 +171,36 @@ function installWorkflows() {
   return workflows;
 }
 
-function createConfig(locale, theme) {
+/**
+ * Create global config with user preferences
+ */
+function createGlobalConfig(preferences) {
+  const { locale, theme, userName } = preferences;
+  
   return {
-    version: '1.0',
-    locale,
-    active_project: null,
-    llm: { default_provider: null },
-    ui: { theme, animations: true, compact_mode: false },
-    telemetry: { enabled: false },
+    version: '2.0',
+    
+    preferences: {
+      interface_language: locale,
+      theme: theme,
+      
+      documents: {
+        default_language: locale,
+        overrides: {
+          technical: 'en',
+          code_comments: 'en',
+        },
+      },
+    },
+    
+    user: {
+      name: userName || 'Developer',
+    },
+    
+    llm: {
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-20250514',
+    },
   };
 }
 
@@ -187,6 +209,7 @@ async function runInstall(options) {
 
   let locale = 'en';
   let theme = 'dark';
+  let userName = 'Developer';
 
   if (!options.yes) {
     const answers = await inquirer.prompt([
@@ -209,27 +232,39 @@ async function runInstall(options) {
           { name: 'System', value: 'system' },
         ],
       },
+      {
+        type: 'input',
+        name: 'userName',
+        message: 'Your name (for documents):',
+        default: 'Developer',
+      },
     ]);
     locale = answers.locale;
     theme = answers.theme;
+    userName = answers.userName;
   }
 
   console.log('');
 
-  // Use unified installer
-  const result = await installGlobalDefaults({ force: options.force });
+  // Use unified installer (skip IDE prompt for global install - will be asked per project)
+  const result = await installGlobalDefaults({ force: options.force, skipIDEPrompt: true });
   
   if (!result.success) {
     console.log(chalk.red(`\n  Installation failed: ${result.error}\n`));
     return;
   }
 
-  // Create configuration
+  // Create global configuration with user preferences
   const spinner = ora('Creating configuration...').start();
-  const config = createConfig(locale, theme);
+  const config = createGlobalConfig({ locale, theme, userName });
   
   mkdirSync(GLOBAL_DIR, { recursive: true });
-  writeFileSync(CONFIG_FILE, yaml.stringify(config));
+  
+  // Write config as YAML with header
+  const configHeader = '# Unreal Companion - Global Configuration\n# User preferences and default settings\n\n';
+  writeFileSync(CONFIG_FILE, configHeader + yaml.stringify(config));
+  
+  // Initialize projects registry
   writeFileSync(PROJECTS_FILE, JSON.stringify({ version: '1.0', projects: [], last_opened: null }, null, 2));
   markInstalled(getVersion());
   spinner.succeed('Configuration created');
@@ -238,9 +273,135 @@ async function runInstall(options) {
   console.log(chalk.green('\n  ✓ Installation complete!\n'));
   console.log(chalk.dim(`  📁 Installation path: ${PATHS.globalRoot}`));
   console.log(chalk.dim(`  📋 Workflows: ${result.workflows} files copied`));
-  console.log(chalk.dim(`  📜 Cursor rules: ${result.rules} .mdc files generated`));
-  console.log(chalk.dim(`  📄 Core files: ${result.core} files copied`));
+  console.log(chalk.dim(`  🎭 Agents: ${result.agents} copied`));
+  console.log(chalk.dim(`  🛠️ Skills: ${result.skills} copied`));
   console.log('');
+  
+  // Propose to initialize a project
+  if (!options.yes) {
+    const { initProject: shouldInit } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'initProject',
+        message: 'Would you like to initialize a project now?',
+        default: true,
+      },
+    ]);
+    
+    if (shouldInit) {
+      await promptProjectInit(options);
+    }
+  }
+}
+
+/**
+ * Interactive project initialization prompt
+ */
+async function promptProjectInit(options) {
+  let done = false;
+  
+  while (!done) {
+    const { initMethod } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'initMethod',
+        message: 'How would you like to initialize a project?',
+        choices: [
+          { name: `${chalk.blue('🎮')} Choose an Unreal project`, value: 'unreal' },
+          { name: `${chalk.blue('📁')} Enter path manually`, value: 'manual' },
+          { name: `${chalk.blue('📍')} Use current directory ${chalk.dim(`(${basename(process.cwd())})`)}`, value: 'current' },
+          { name: chalk.dim('   Skip for now'), value: 'skip' },
+        ],
+      },
+    ]);
+    
+    switch (initMethod) {
+      case 'unreal': {
+        // Search for Unreal projects
+        console.log(chalk.dim('\n  Searching for Unreal projects...\n'));
+        const found = findUnrealProjects();
+        
+        if (found.length === 0) {
+          console.log(chalk.yellow('  No Unreal projects found.\n'));
+          continue; // Go back to main choices
+        }
+        
+        const choices = found.slice(0, 10).map(p => ({
+          name: `${p.name} ${chalk.dim(`(${p.dir})`)}`,
+          value: p.dir,
+        }));
+        choices.push(new inquirer.Separator());
+        choices.push({ name: chalk.dim('← Back'), value: 'back' });
+        
+        const { selectedProject } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'selectedProject',
+            message: `Found ${found.length} project(s). Select one:`,
+            choices,
+          },
+        ]);
+        
+        if (selectedProject === 'back') continue;
+        
+        await initProject(selectedProject, options);
+        done = true;
+        break;
+      }
+      
+      case 'manual': {
+        const { manualPath } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'manualPath',
+            message: 'Enter project path:',
+            default: process.cwd(),
+          },
+        ]);
+        
+        if (!manualPath || manualPath.trim() === '') {
+          continue; // Go back
+        }
+        
+        // Resolve path
+        const resolvedPath = path.resolve(manualPath);
+        
+        // Check if directory exists
+        if (!existsSync(resolvedPath)) {
+          const { createDir } = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'createDir',
+              message: `Directory doesn't exist. Create it?`,
+              default: true,
+            },
+          ]);
+          
+          if (createDir) {
+            mkdirSync(resolvedPath, { recursive: true });
+            console.log(chalk.green(`  ✓ Created ${resolvedPath}\n`));
+          } else {
+            continue; // Go back
+          }
+        }
+        
+        await initProject(resolvedPath, options);
+        done = true;
+        break;
+      }
+      
+      case 'current': {
+        await initProject(process.cwd(), options);
+        done = true;
+        break;
+      }
+      
+      case 'skip':
+      default:
+        done = true;
+        break;
+    }
+  }
 }
 
 // =============================================================================
@@ -262,6 +423,7 @@ async function initProject(projectPath, options) {
   const result = await setupProjectNew(projectPath, { 
     force: options.force,
     minimal: options.minimal,
+    skipIDEPrompt: options.yes,  // Skip IDE prompt if --yes
   });
   
   if (!result.success) {

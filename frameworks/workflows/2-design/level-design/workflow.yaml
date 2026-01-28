@@ -18,20 +18,20 @@ input_discovery:
     strategy: "full"
     required: true
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: true
   - name: "gdd"
-    patterns: ["output/design/gdd.md"]
+    patterns: ["{output_folder}/design/gdd.md"]
     strategy: "full"
     required: true
   - name: "narrative"
-    patterns: ["output/narrative/*.md"]
+    patterns: ["{output_folder}/narrative/*.md"]
     strategy: "index"
     required: false
 
 output:
-  path: "output/design/level-design.md"
+  path: "{output_folder}/design/level-design.md"
   format: "md"
   update_context: true
 

@@ -31,7 +31,12 @@ context: "{installed_path}/context.md"
 # -----------------------------------------------------------------------------
 # Agent and Metadata
 # -----------------------------------------------------------------------------
-agent: "game-designer"
+agents:
+  primary: "game-designer"
+  alternatives:
+    - "solo-dev"       # For indie/solo projects
+  party_mode: false    # Game Brief is focused, single-agent
+
 category: "document"
 behavior: "one-shot"
 ui_visible: true
@@ -57,11 +62,11 @@ input_discovery:
 # Output Configuration
 # -----------------------------------------------------------------------------
 output:
-  path: "output/concept/game-brief.md"
+  path: "{output_folder}/concept/game-brief.md"
   format: "md"
   update_context: true
 
-default_output_file: "{output_folder}/game-brief.md"
+default_output_file: "{output_folder}/concept/game-brief.md"
 
 # -----------------------------------------------------------------------------
 # Step-File Architecture

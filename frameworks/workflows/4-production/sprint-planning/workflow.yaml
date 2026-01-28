@@ -18,21 +18,21 @@ input_discovery:
     strategy: "full"
     required: true
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: false
   - name: "gdd"
-    patterns: ["output/design/gdd.md"]
+    patterns: ["{output_folder}/design/gdd.md"]
     strategy: "index"
     required: false
   - name: "previous_sprints"
-    patterns: ["output/production/sprint-*.md"]
+    patterns: ["{output_folder}/production/sprint-*.md"]
     strategy: "index"
     required: false
 
 # Output configuration
 output:
-  path: "output/production/sprint-{{timestamp}}.md"
+  path: "{output_folder}/production/sprint-{{timestamp}}.md"
   format: "md"
   update_context: false
 

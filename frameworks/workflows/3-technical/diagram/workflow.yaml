@@ -14,9 +14,9 @@ context_required:
 
 outputs:
   - type: "diagram"
-    path: "boards/diagram-{{id}}.json"
+    path: "{output_folder}/boards/diagram-{{subject}}-{{date}}.json"
   - type: "mermaid"
-    path: "boards/diagram-{{id}}.mmd"
+    path: "{output_folder}/boards/diagram-{{subject}}-{{date}}.mmd"
 
 steps:
   - id: "type"

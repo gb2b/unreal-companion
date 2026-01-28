@@ -1,16 +1,59 @@
 id: narrative
-version: "1.0"
+version: "2.0"
 name: "Narrative Design"
-description: "Craft your game's story, characters, and dialogue systems"
-agent: "narrative-designer"
-estimated_time: "60-90 min"
+description: "Craft your game's story, characters, lore, and quests"
+estimated_time: "15-60 min (varies by type)"
 category: "conversation"
 behavior: "repeatable"
 ui_visible: true
 icon: "book-open"
 color: "amber"
-output_pattern: "narrative-{subject}-{date}.md"
 suggested_after: ["game-brief"]
+
+# Agent configuration
+agents:
+  primary: "game-designer"  # For now, uses game-designer
+  alternatives:
+    - "solo-dev"
+  party_mode: false
+
+# This workflow produces different document types
+output_types:
+  - id: "bible"
+    name: "Narrative Bible"
+    description: "Complete narrative foundation"
+    path: "{output_folder}/narrative/narrative-bible.md"
+    steps: ["premise", "world", "characters", "story-structure", "themes", "dialogue", "review"]
+    
+  - id: "character"
+    name: "Character Profile"
+    description: "Deep dive into a single character"
+    path: "{output_folder}/narrative/character-{{subject}}.md"
+    steps: ["character-intro", "character-background", "character-arc", "character-review"]
+    
+  - id: "quest"
+    name: "Quest Design"
+    description: "Design a quest or mission"
+    path: "{output_folder}/narrative/quest-{{subject}}.md"
+    steps: ["quest-hook", "quest-objectives", "quest-rewards", "quest-review"]
+    
+  - id: "lore"
+    name: "Lore Entry"
+    description: "World-building lore piece"
+    path: "{output_folder}/narrative/lore-{{subject}}.md"
+    steps: ["lore-context", "lore-content", "lore-connections", "lore-review"]
+    
+  - id: "dialogue"
+    name: "Dialogue Script"
+    description: "Write a dialogue sequence"
+    path: "{output_folder}/narrative/dialogue-{{subject}}.md"
+    steps: ["dialogue-context", "dialogue-draft", "dialogue-review"]
+
+# Default output (for backwards compatibility)
+output:
+  path: "{output_folder}/narrative/narrative-{{subject}}-{{date}}.md"
+  format: "md"
+  update_context: true
 
 input_discovery:
   - name: "project_context"
@@ -18,20 +61,23 @@ input_discovery:
     strategy: "full"
     required: true
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: true
   - name: "gdd"
-    patterns: ["output/design/gdd.md"]
+    patterns: ["{output_folder}/design/gdd.md"]
+    strategy: "index"
+    required: false
+  - name: "existing_narrative"
+    patterns: ["{output_folder}/narrative/*.md"]
     strategy: "index"
     required: false
 
-output:
-  path: "output/narrative/narrative-bible.md"
-  format: "md"
-  update_context: true
-
+# Steps for full narrative bible (default)
 steps:
+  - id: "type-select"
+    file: "steps/step-00-type-select.md"
+    title: "Select Document Type"
   - id: "premise"
     file: "steps/step-01-premise.md"
   - id: "world"
@@ -47,8 +93,53 @@ steps:
   - id: "review"
     file: "steps/step-07-review.md"
 
+# Character-specific steps
+character_steps:
+  - id: "character-intro"
+    file: "steps/character/step-01-intro.md"
+    title: "Character Introduction"
+  - id: "character-background"
+    file: "steps/character/step-02-background.md"
+    title: "Background & History"
+  - id: "character-arc"
+    file: "steps/character/step-03-arc.md"
+    title: "Character Arc"
+  - id: "character-review"
+    file: "steps/character/step-04-review.md"
+    title: "Review & Finalize"
+
+# Quest-specific steps
+quest_steps:
+  - id: "quest-hook"
+    file: "steps/quest/step-01-hook.md"
+    title: "Quest Hook"
+  - id: "quest-objectives"
+    file: "steps/quest/step-02-objectives.md"
+    title: "Objectives & Flow"
+  - id: "quest-rewards"
+    file: "steps/quest/step-03-rewards.md"
+    title: "Rewards & Consequences"
+  - id: "quest-review"
+    file: "steps/quest/step-04-review.md"
+    title: "Review & Finalize"
+
+# Lore-specific steps
+lore_steps:
+  - id: "lore-context"
+    file: "steps/lore/step-01-context.md"
+    title: "Historical Context"
+  - id: "lore-content"
+    file: "steps/lore/step-02-content.md"
+    title: "Lore Content"
+  - id: "lore-connections"
+    file: "steps/lore/step-03-connections.md"
+    title: "Connections & References"
+  - id: "lore-review"
+    file: "steps/lore/step-04-review.md"
+    title: "Review & Finalize"
+
 celebrations:
   complete: |
-    📖 Narrative Bible complete!
-    Your story foundation is solid. Characters, world, and structure are defined.
-    Ready to write those compelling scenes!
+    📖 Narrative document complete!
+    Your story grows stronger with each piece.
+    Ready for the next chapter?

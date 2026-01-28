@@ -1,0 +1,8 @@
+# Unreal Companion - {{project_name}}
+
+{{> core/workflow-instructions}}
+
+## VS Code Copilot-Specific
+
+### Inline Suggestions
+Copilot can suggest workflow commands inline when typing comments.

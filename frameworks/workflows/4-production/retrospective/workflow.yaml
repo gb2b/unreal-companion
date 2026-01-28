@@ -15,7 +15,7 @@ context_required:
 
 outputs:
   - type: "retrospective"
-    path: "sprints/retro-{{sprint_id}}.md"
+    path: "{output_folder}/sprints/retro-{{sprint_id}}.md"
 
 steps:
   - id: "what-went-well"

@@ -15,9 +15,9 @@ context_required:
 
 outputs:
   - type: "mood-board"
-    path: "boards/moodboard-{{id}}.json"
+    path: "{output_folder}/boards/moodboard-{{subject}}-{{date}}.json"
   - type: "summary"
-    path: "boards/moodboard-{{id}}.md"
+    path: "{output_folder}/boards/moodboard-{{subject}}-{{date}}.md"
 
 steps:
   - id: "theme"

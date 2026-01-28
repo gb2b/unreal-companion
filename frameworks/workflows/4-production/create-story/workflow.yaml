@@ -16,7 +16,7 @@ context_required:
 
 outputs:
   - type: "story"
-    path: "stories/story-{{story_id}}.md"
+    path: "{output_folder}/stories/story-{{story_id}}.md"
 
 steps:
   - id: "user-need"

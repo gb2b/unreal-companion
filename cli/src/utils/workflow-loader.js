@@ -14,6 +14,27 @@ import { homedir } from 'os';
 import yaml from 'yaml';
 
 // =============================================================================
+// Utilities
+// =============================================================================
+
+/**
+ * Convert a subject/title to a filename-friendly slug
+ * "Combat System Design" → "combat-system-design"
+ * "My Great Idea!" → "my-great-idea"
+ */
+export function slugify(text) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9\s-]/g, '')    // Remove special chars
+    .replace(/\s+/g, '-')            // Spaces to dashes
+    .replace(/-+/g, '-')             // Multiple dashes to one
+    .replace(/^-|-$/g, '')           // Trim dashes
+    .substring(0, 50);               // Max length
+}
+
+// =============================================================================
 // Constants
 // =============================================================================
 
@@ -35,7 +56,7 @@ export function getProjectPaths(projectPath) {
     workflowStatus: join(companionRoot, 'workflow-status.yaml'),
     projectContext: join(companionRoot, 'project-context.md'),
     docs: join(companionRoot, 'docs'),
-    output: join(companionRoot, 'output'),
+    output: join(companionRoot, 'docs'),  // Unified: output = docs
   };
 }
 
@@ -341,7 +362,7 @@ export function listAllAgents(projectPath = null) {
 export function loadProjectConfig(projectPath) {
   const projectPaths = getProjectPaths(projectPath);
   const defaults = {
-    output_folder: 'output',
+    output_folder: 'docs',  // Unified with web-ui
     user_name: 'Developer',
     communication_language: 'en',
     document_output_language: 'en',
@@ -372,20 +393,24 @@ export function loadProjectConfig(projectPath) {
  * @param {string} projectPath - Project path
  * @returns {Object} Workflow with resolved variables
  */
-export function resolveWorkflowVariables(workflow, projectPath) {
+export function resolveWorkflowVariables(workflow, projectPath, runtimeVars = {}) {
   const config = loadProjectConfig(projectPath);
   const projectPaths = getProjectPaths(projectPath);
   const now = new Date();
   
+  // System variables (resolved automatically)
   const variables = {
     'project-root': projectPath,
-    'output_folder': join(projectPath, config.output_folder),
+    'output_folder': projectPaths.docs,  // Use .unreal-companion/docs/
+    'docs_folder': projectPaths.docs,    // Alias
     'user_name': config.user_name,
     'communication_language': config.communication_language,
     'document_output_language': config.document_output_language,
     'date': now.toISOString().split('T')[0],
     'datetime': now.toISOString(),
     'timestamp': now.getTime().toString(),
+    // Merge runtime variables (subject, story_id, sprint_id, etc.)
+    ...runtimeVars,
   };
   
   // Deep clone workflow

@@ -16,7 +16,7 @@ context_required:
 
 outputs:
   - type: "story"
-    path: "stories/dev-{{story_id}}.md"
+    path: "{output_folder}/stories/dev-{{story_id}}.md"
   - type: "tasks"
     action: "create_tasks"
 

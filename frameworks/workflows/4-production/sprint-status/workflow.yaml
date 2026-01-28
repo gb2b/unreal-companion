@@ -16,7 +16,7 @@ context_required:
 
 outputs:
   - type: "status-report"
-    path: "sprints/status-{{date}}.md"
+    path: "{output_folder}/sprints/status-{{date}}.md"
 
 steps:
   - id: "progress"

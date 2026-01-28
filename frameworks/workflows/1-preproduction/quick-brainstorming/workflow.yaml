@@ -15,9 +15,9 @@ context_required: []
 
 outputs:
   - type: "ideas"
-    path: "brainstorms/quick-{{date}}.md"
+    path: "{output_folder}/brainstorms/quick-{{subject}}-{{date}}.md"
   - type: "mind-map"
-    path: "boards/mindmap-{{date}}.json"
+    path: "{output_folder}/boards/mindmap-{{subject}}-{{date}}.json"
     optional: true
 
 steps:

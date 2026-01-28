@@ -1,86 +1,12 @@
-# Unreal Companion - Claude Instructions
+# CLAUDE.md - {{project_name}}
 
-## Project: {{project_name}}
+{{> core/workflow-instructions}}
 
-### Overview
-
-Unreal Companion is a game development assistant that provides specialized agents, workflows, and tools for Unreal Engine development.
-
-### Configuration
-
-- **Config:** `{{project_path}}/.unreal-companion/config.yaml`
-- **Context:** `{{project_path}}/.unreal-companion/project-context.md`
-- **Memories:** `{{project_path}}/.unreal-companion/memories.yaml`
-- **Status:** `{{project_path}}/.unreal-companion/workflow-status.yaml`
-
-### Available Agents
-
-| Agent | Role | Triggers |
-|-------|------|----------|
-{{#each agents}}
-| **{{name}}** (`{{id}}`) | {{title}} | {{triggers}} |
-{{/each}}
-
-### Activating Agents
-
-Say:
-- "I want to work with [agent name]"
-- "Activate [agent name]"
-- "Switch to [agent name]"
-
-### Available Workflows
-
-#### Preproduction
-- `brainstorming` - Explore ideas freely
-- `game-brief` - Define game vision
-
-#### Design
-- `gdd` - Complete game design document
-- `narrative` - Story and characters
-- `art-direction` - Visual style guide
-
-#### Technical
-- `game-architecture` - Technical architecture
-- `project-context` - Project context document
-
-#### Production
-- `sprint-planning` - Plan development sprints
-- `dev-story` - Implement user stories
-- `code-review` - Code review workflow
-
-### Starting Workflows
-
-Say:
-- "Start [workflow name]"
-- "Let's do [workflow name]"
-- "Begin the [workflow name] workflow"
-
-### Memory System
-
-Memories persist context between sessions.
-
-**Commands:**
-- `/memories` - List all memories
-- `/memory add "..."` - Add a memory
-- `/memory remove <id>` - Remove a memory
-
-**Auto-propose:** When detecting important info, propose:
-```
-💾 **Remember?** "detected info"
-→ [y] Yes  [n] No  [e] Edit
-```
+## Claude Code-Specific
 
 ### Skills
+Skills are in `~/.claude/skills/`. Use them for specialized knowledge.
 
-Skills are in `~/.claude/skills/`. They provide specialized knowledge:
-- MCP tools for Unreal Engine
-- Game design methodologies
-- Code review checklists
-- Performance testing guides
-
-### Party Mode
-
-Agents can mention each other with `@agent-name` for collaboration:
-```
-@game-architect Can you review this system design?
-```
+### Agent Greeting Example
+If `agents.primary: "game-designer"`, load Zelda's persona and greet:
+> "Hey {user_name}! Let's explore new adventures! 🎲"

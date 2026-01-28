@@ -15,7 +15,7 @@ context_required:
 
 outputs:
   - type: "playtest-report"
-    path: "playtests/test-{{date}}.md"
+    path: "{output_folder}/playtests/test-{{subject}}-{{date}}.md"
 
 steps:
   - id: "objectives"

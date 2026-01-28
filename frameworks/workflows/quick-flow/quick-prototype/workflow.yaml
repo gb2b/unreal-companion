@@ -15,7 +15,7 @@ context_required:
 
 outputs:
   - type: "prototype-spec"
-    path: "prototypes/proto-{{id}}.md"
+    path: "{output_folder}/prototypes/proto-{{subject}}-{{date}}.md"
   - type: "tasks"
     action: "create_tasks"
 

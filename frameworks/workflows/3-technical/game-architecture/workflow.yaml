@@ -2,7 +2,6 @@ id: game-architecture
 version: "1.0"
 name: "Game Architecture"
 description: "Design your game's technical architecture and systems"
-agent: "game-architect"
 estimated_time: "45-60 min"
 category: "document"
 behavior: "one-shot"
@@ -12,22 +11,30 @@ color: "cyan"
 suggested_after: ["gdd"]
 document_order: 3
 
+# Agent configuration
+agents:
+  primary: "game-architect"
+  alternatives:
+    - "game-dev"       # Implementation-focused
+    - "solo-dev"       # Pragmatic approach
+  party_mode: true     # Architecture benefits from discussion
+
 input_discovery:
   - name: "project_context"
     patterns: ["project-context.md"]
     strategy: "full"
     required: true
   - name: "game_brief"
-    patterns: ["output/concept/*brief*.md"]
+    patterns: ["{output_folder}/concept/*brief*.md"]
     strategy: "full"
     required: true
   - name: "gdd"
-    patterns: ["output/design/gdd.md"]
+    patterns: ["{output_folder}/design/gdd.md"]
     strategy: "index"
     required: false
 
 output:
-  path: "output/technical/architecture.md"
+  path: "{output_folder}/technical/architecture.md"
   format: "md"
   update_context: true
 

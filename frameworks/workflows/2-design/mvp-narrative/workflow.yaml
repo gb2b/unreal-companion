@@ -17,7 +17,7 @@ context_required:
 
 outputs:
   - type: "narrative"
-    path: "narrative/mvp-narrative.md"
+    path: "{output_folder}/narrative/mvp-narrative.md"
 
 steps:
   - id: "core-conflict"

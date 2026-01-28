@@ -1,111 +1,24 @@
-# AGENTS.md - Unreal Companion
+# AGENTS.md - {{project_name}}
 
-## Project: {{project_name}}
+{{> core/workflow-instructions}}
 
-This project uses Unreal Companion for AI-assisted game development.
-
-## Configuration
+## Project Structure
 
 ```
 {{project_path}}/.unreal-companion/
 ├── config.yaml          # Project configuration
 ├── project-context.md   # Project context
 ├── memories.yaml        # Persistent memories
-└── workflow-status.yaml # Workflow status
+├── workflow-status.yaml # Workflow status
+└── docs/                # Generated documents
 ```
 
-## Available Agents
+## Global Resources
 
-{{#each agents}}
-### {{name}} ({{id}})
-
-**Title:** {{title}}  
-**Tone:** {{tone}}
-
-{{description}}
-
-**Expertise:** {{expertise}}
-
-**Menu:**
-{{#each menu}}
-- `{{cmd}}` - {{label}}: {{description}}
-{{/each}}
-
----
-
-{{/each}}
-
-## Workflows
-
-### Preproduction Phase
-- **brainstorming** - Free-form idea exploration
-- **quick-brainstorming** - Fast idea generation
-- **game-brief** - Define your game's vision and scope
-
-### Design Phase
-- **gdd** - Complete Game Design Document
-- **narrative** - Story, characters, and dialogue
-- **mvp-narrative** - Minimal viable narrative
-- **art-direction** - Visual style and art direction
-- **level-design** - Level and environment design
-
-### Technical Phase
-- **game-architecture** - Technical architecture document
-- **project-context** - Generate project context
-- **diagram** - Architecture diagrams
-
-### Production Phase
-- **sprint-planning** - Plan development sprints
-- **sprint-status** - Check sprint progress
-- **create-story** - Create user stories
-- **dev-story** - Implement user stories
-- **code-review** - Code review workflow
-- **retrospective** - Sprint retrospective
-
-### Quick Flow
-- **quick-prototype** - Rapid prototype planning
-- **quick-dev** - Quick implementation
-
-### Tools
-- **mind-map** - Create mind maps
-- **mood-board** - Visual mood boards
-- **gametest** - Test planning
-- **workflow-status** - Check all workflow status
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| "Activate [agent]" | Switch to a specific agent |
-| "Start [workflow]" | Begin a workflow |
-| "Show status" | Display project status |
-| "Show memories" | List saved memories |
-| "Remember: [info]" | Save a memory |
-
-## Memory System
-
-The system can remember important information between sessions.
-
-**To save a memory:**
-- Say "Remember: [information]"
-- Or confirm when the agent proposes to save
-
-**Memories include:**
-- Project concept and genre
-- Target platforms
-- Technical decisions
-- User preferences
-
-## Party Mode
-
-Agents can collaborate by mentioning each other:
-- "@game-designer, what do you think about this mechanic?"
-- "@game-architect, is this technically feasible?"
-
-## Skills
-
-Agents have access to specialized skills:
-- **MCP Tools** - Direct Unreal Engine manipulation
-- **Game Design** - Balance, progression, psychology
-- **Development** - Code review, performance testing
-- **Meta** - Advanced thinking techniques
+```
+~/.unreal-companion/
+├── workflows/defaults/  # Workflow definitions
+├── agents/defaults/     # Agent personas
+├── skills/              # Specialized skills
+└── config.yaml          # Global preferences
+```
