@@ -1,5 +1,74 @@
 # Unreal Companion - Workflow Instructions
 
+## Session Start (CRITICAL)
+
+At the START of each conversation, read these files IN ORDER:
+
+1. **Global Config**: `~/.unreal-companion/config.yaml`
+   - `communication_language`: Language to use for conversation
+   - `user_name`: How to address the user
+   - `document_output_language`: Language for generated documents
+
+2. **Project Config**: `.unreal-companion/config.yaml`
+   - `project_name`: Current project name
+   - Project-specific settings and overrides
+
+3. **Project Context**: `.unreal-companion/project-context.md`
+   - Current project vision and status
+   - Key documents created
+   - Important decisions made
+
+4. **Workflow Status**: `.unreal-companion/workflow-status.yaml`
+   - Active workflows in progress
+   - Document completion status
+   - What's done vs pending
+
+### Use this information to:
+- **Communicate** in the user's preferred language
+- **Address** the user by their name
+- **Know** what's already done (don't redo existing documents)
+- **Resume** any in-progress workflows
+- **Suggest** logical next steps based on project state
+
+### Greeting (on conversation start)
+
+After reading the files above, greet the user with a personalized status and suggestions.
+
+**Adapt to context:**
+
+1. **Fresh project** (no documents):
+   - Welcome the user
+   - Explain what Unreal Companion can do
+   - Suggest starting with **get-started** workflow
+   - Offer quick alternatives (brainstorming, quick-prototype)
+
+2. **Early stage** (game-brief exists, no GDD):
+   - Summarize the game concept briefly
+   - Suggest next logical step (GDD, architecture, narrative)
+   - Offer to refine the game-brief if needed
+
+3. **In progress** (multiple documents):
+   - Show what's complete vs pending
+   - **Read recent documents** and offer insights:
+     - "I noticed in your combat brainstorm you mentioned X. Have you considered Y?"
+     - "Your GDD mentions multiplayer but architecture doesn't cover networking yet."
+   - Suggest connections between documents
+   - Offer to continue pending workflows
+
+4. **Active workflow** (in workflow-status.yaml):
+   - Remind where they left off
+   - Offer to continue or start fresh
+
+**Proactive suggestions examples:**
+- "Based on your game-brief, you might want to explore [narrative/level-design/art-direction] next."
+- "I see your brainstorm on combat mechanics - want me to help draft a detailed system design?"
+- "Your GDD is 70% complete. Missing sections: audio, accessibility. Want to tackle those?"
+- "It's been a while since the architecture doc was updated. Want to review it against recent changes?"
+
+**Always offer choices** (numbered list) so user can quickly pick or say something else.
+
+---
+
 ## Quick Start
 
 To execute a workflow, say: "Execute the [workflow-name] workflow"
@@ -16,18 +85,30 @@ Example: "Execute the get-started workflow" or "Lance le workflow game-brief"
 |----------|----------|
 | Workflows | `~/.unreal-companion/workflows/defaults/{phase}/{id}/` |
 | Agents | `~/.unreal-companion/agents/defaults/{agent-id}/agent.md` |
-| Config | `.unreal-companion/config.yaml` |
+| Global Config | `~/.unreal-companion/config.yaml` |
+| Project Config | `.unreal-companion/config.yaml` |
 | Docs output | `.unreal-companion/docs/` |
 | Status | `.unreal-companion/workflow-status.yaml` |
+| Context | `.unreal-companion/project-context.md` |
+
+**Workflow phases** (folders under `workflows/defaults/`):
+- `quick-flow` - Quick workflows (get-started, brainstorming, etc.)
+- `1-preproduction` - Game brief, GDD
+- `2-design` - Narrative, level design, etc.
+- `3-technical` - Architecture, tech specs
+- `4-production` - Sprints, stories
+- `tools` - Utility workflows
 
 ## Executing a Workflow
 
 ### Step 1: Load Workflow
 
-Find and read the workflow definition:
-```
-~/.unreal-companion/workflows/defaults/{phase}/{workflow-id}/workflow.yaml
-```
+**Pattern:** `~/.unreal-companion/workflows/defaults/{phase}/{workflow-id}/workflow.yaml`
+
+**Examples:**
+- `get-started` → `~/.unreal-companion/workflows/defaults/quick-flow/get-started/workflow.yaml`
+- `game-brief` → `~/.unreal-companion/workflows/defaults/1-preproduction/game-brief/workflow.yaml`
+- `gdd` → `~/.unreal-companion/workflows/defaults/2-design/gdd/workflow.yaml`
 
 ### Step 2: Load Agent (CRITICAL)
 

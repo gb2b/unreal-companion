@@ -383,104 +383,28 @@ export async function generateProjectIDERules(projectPath, selectedIDEs, sources
   // Generate workflow list once for all IDEs
   const workflowList = generateWorkflowList();
   
-  // Core instructions shared by all IDEs
-  const coreInstructions = `## Quick Start
+  // Load core instructions from template file (single source of truth)
+  const coreTemplatePath = join(sources.rulesTemplates, 'core', 'workflow-instructions.md');
+  let coreInstructions = '';
+  
+  if (existsSync(coreTemplatePath)) {
+    coreInstructions = readFileSync(coreTemplatePath, 'utf-8');
+    // Remove the markdown title (first line starting with #)
+    coreInstructions = coreInstructions.replace(/^# .+\n+/, '');
+    // Replace template variables
+    coreInstructions = coreInstructions.replace(/\{\{workflow_list\}\}/g, workflowList);
+  } else {
+    // Fallback if template not found
+    coreInstructions = `## Quick Start
 
 To execute a workflow, say: "Execute the [workflow-name] workflow"
 
-Example: "Execute the get-started workflow" or "Lance le workflow game-brief"
-
 ## Available Workflows
 ${workflowList}
-## Paths
 
-| Resource | Location |
-|----------|----------|
-| Workflows | \`~/.unreal-companion/workflows/defaults/{phase}/{id}/\` |
-| Agents | \`~/.unreal-companion/agents/defaults/{agent-id}/agent.md\` |
-| Config | \`.unreal-companion/config.yaml\` |
-| Docs output | \`.unreal-companion/docs/\` |
-| Status | \`.unreal-companion/workflow-status.yaml\` |
-
-## Executing a Workflow
-
-### Step 1: Load Workflow
-\`\`\`
-~/.unreal-companion/workflows/defaults/{phase}/{workflow-id}/workflow.yaml
-\`\`\`
-
-### Step 2: Load Agent (CRITICAL)
-Read \`agents.primary\` from workflow.yaml, then load:
-\`\`\`
-~/.unreal-companion/agents/defaults/{agent}/agent.md
-\`\`\`
-
-**Adopt the agent's persona:**
-- Use their tone and communication style
-- Use their expressions and catchphrases
-- Greet user as the agent would
-- Follow their principles
-
-### Step 3: Multi-Agent Option
-If workflow has \`agents.alternatives\` or \`agents.party_mode: true\`:
-- Offer choice: "How do you want to proceed?"
-  1. Primary agent (default)
-  2. Alternative agent(s)
-  3. Party Mode (if enabled) - multiple agents collaborate
-
-### Step 4: Execute Steps
-- Read \`instructions.md\` from workflow folder
-- Follow steps with agent personality
-- **Save after EACH step** to \`output.path\`
-- \`{output_folder}\` = \`.unreal-companion/docs/\`
-
-### Step 5: Auto-Extract Subject
-For paths with \`{{subject}}\`:
-- **Deduce from conversation** - don't ask explicitly
-- "brainstorme sur le combat" → subject = "combat"
-- Slugify: "Combat System" → "combat-system"
-
-## Available Agents
-
-| Agent | Persona | Expertise |
-|-------|---------|-----------|
-| game-designer | Zelda 🎲 | Mechanics, GDD, balance |
-| game-architect | Solid 🏗️ | Technical architecture, systems |
-| game-dev | Ada 💻 | Implementation, coding |
-| solo-dev | Indie ⚡ | Rapid prototyping, pragmatic |
-| level-designer | Lara 🗺️ | Level design, pacing |
-| scrum-master | Coach 📋 | Agile, sprints |
-| game-qa | Tester 🔍 | Testing, quality |
-| 3d-artist | Navi 🎨 | 3D art, modeling |
-| unreal-agent | Epic 🎮 | Unreal Engine, MCP tools |
-
-## Party Mode
-
-When \`agents.party_mode: true\`:
-- Primary agent leads the conversation
-- Invite others with @mention: "@game-architect review this?"
-
-## Status Tracking (CRITICAL)
-
-### After EACH step, update \`.unreal-companion/workflow-status.yaml\`:
-
-\`\`\`yaml
-active_sessions:
-  - workflow: "game-brief"
-    current_step: "identity"
-    progress: "2/8"
-
-documents:
-  game-brief:
-    status: "in_progress"  # or "complete"
-    path: "docs/concept/game-brief.md"
-\`\`\`
-
-### After document completion, update \`.unreal-companion/project-context.md\`:
-
-- Update \`## Key Documents\` table with status and path
-- Update \`## Vision\` if relevant info extracted
-- Update \`## Next Steps\` based on progress`;
+See ~/.unreal-companion/workflows/defaults/ for all workflows.
+`;
+  }
 
   for (const ideId of selectedIDEs) {
     switch (ideId) {
