@@ -1,78 +1,172 @@
 # Project Tools
 
-Tools for project-wide settings and configuration.
+Tools for project-wide settings and input configuration.
 
-## Available Tools (1)
+## Available Tools (2)
 
 | Tool | Description |
 |------|-------------|
-| `project_create_input_mapping` | Create input action/axis mapping |
+| `project_create_input_action` | Create Enhanced Input Action asset |
+| `project_add_to_mapping_context` | Add action to Input Mapping Context |
 
 ---
 
-## project_create_input_mapping
+## Enhanced Input System (UE5+)
 
-Create an input mapping for the project.
+### project_create_input_action
+
+Create an Enhanced Input Action asset.
 
 ```python
-project_create_input_mapping(
+project_create_input_action(
     action_name: str,
-    key: str,
-    input_type: str = "Action"  # Action or Axis
+    value_type: str = "Digital",
+    path: str = "/Game/Input/Actions"
 )
 ```
 
-### Common Keys
+**Value Types:**
 
-| Category | Keys |
-|----------|------|
-| Keyboard | `SpaceBar`, `E`, `F`, `Escape`, `W`, `A`, `S`, `D` |
-| Mouse | `LeftMouseButton`, `RightMouseButton`, `MiddleMouseButton` |
-| Gamepad | `Gamepad_FaceButton_Bottom`, `Gamepad_LeftTrigger` |
+| Type | Aliases | Description |
+|------|---------|-------------|
+| `Digital` | `Bool` | Boolean (pressed/released) |
+| `Axis1D` | `Float` | Single axis (trigger, mouse wheel) |
+| `Axis2D` | `Vector2D` | 2D axis (mouse, gamepad stick) |
+| `Axis3D` | `Vector` | 3D axis (motion controller) |
 
 **Example:**
 ```python
-# Action mapping (on/off)
-project_create_input_mapping(
-    action_name="Jump",
-    key="SpaceBar",
-    input_type="Action"
+# Simple button actions
+project_create_input_action(action_name="IA_Jump", value_type="Digital")
+project_create_input_action(action_name="IA_Fire", value_type="Digital")
+project_create_input_action(action_name="IA_Interact", value_type="Digital")
+
+# Axis actions
+project_create_input_action(action_name="IA_Look", value_type="Axis2D")
+project_create_input_action(action_name="IA_Move", value_type="Axis2D")
+project_create_input_action(action_name="IA_Zoom", value_type="Axis1D")
+```
+
+---
+
+### project_add_to_mapping_context
+
+Add an Input Action to an existing Input Mapping Context with a key binding.
+
+```python
+project_add_to_mapping_context(
+    context_path: str,
+    action_path: str,
+    key: str
+)
+```
+
+**Common Keys:**
+
+| Category | Keys |
+|----------|------|
+| Keyboard | `SpaceBar`, `E`, `F`, `Escape`, `W`, `A`, `S`, `D`, `LeftShift`, `LeftControl` |
+| Mouse | `LeftMouseButton`, `RightMouseButton`, `MiddleMouseButton`, `MouseX`, `MouseY` |
+| Gamepad | `Gamepad_RightTrigger`, `Gamepad_LeftTrigger`, `Gamepad_FaceButton_Bottom`, `Gamepad_LeftThumbstick` |
+
+**Example:**
+```python
+# Add fire action to default context
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Fire",
+    key="LeftMouseButton"
 )
 
-project_create_input_mapping(
-    action_name="Fire",
-    key="LeftMouseButton",
-    input_type="Action"
+# Add jump action
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Jump",
+    key="SpaceBar"
 )
 
-# Axis mapping (continuous value)
-project_create_input_mapping(
-    action_name="MoveForward",
-    key="W",
-    input_type="Axis"
+# Add gamepad binding
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Fire",
+    key="Gamepad_RightTrigger"
 )
 ```
 
 ---
 
-## Typical Workflow
+## Typical Enhanced Input Workflow
 
 ```python
-# Set up basic character controls
-project_create_input_mapping(action_name="Jump", key="SpaceBar")
-project_create_input_mapping(action_name="Interact", key="E")
-project_create_input_mapping(action_name="Fire", key="LeftMouseButton")
-project_create_input_mapping(action_name="Aim", key="RightMouseButton")
+# 1. Create Input Actions
+project_create_input_action(action_name="IA_Fire", value_type="Digital")
+project_create_input_action(action_name="IA_Aim", value_type="Digital")
+project_create_input_action(action_name="IA_Jump", value_type="Digital")
+project_create_input_action(action_name="IA_Look", value_type="Axis2D")
+project_create_input_action(action_name="IA_Move", value_type="Axis2D")
 
-# Use in Blueprint
-node_add_batch(
+# 2. Add to Mapping Context (assuming IMC_Default exists)
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Fire",
+    key="LeftMouseButton"
+)
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Aim",
+    key="RightMouseButton"
+)
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Jump",
+    key="SpaceBar"
+)
+
+# 3. Use in Blueprint with graph_batch
+graph_batch(
     blueprint_name="BP_Player",
     nodes=[
-        {"ref": "jump", "type": "input_action", "action_name": "Jump"},
-        {"ref": "do_jump", "type": "function_call", "function_name": "Jump"}
+        {"ref": "fire", "type": "input_action", "action_name": "IA_Fire"},
+        {"ref": "start_fire", "type": "function_call", "function_name": "StartFiring"},
+        {"ref": "stop_fire", "type": "function_call", "function_name": "StopFiring"}
     ],
     connections=[
-        {"source_ref": "jump", "source_pin": "Pressed", "target_ref": "do_jump", "target_pin": "execute"}
+        {"source_ref": "fire", "source_pin": "Started", 
+         "target_ref": "start_fire", "target_pin": "execute"},
+        {"source_ref": "fire", "source_pin": "Completed", 
+         "target_ref": "stop_fire", "target_pin": "execute"}
     ]
 )
 ```
+
+---
+
+## Finding Existing Input Assets
+
+Use `core_query` to find existing Input Actions and Mapping Contexts:
+
+```python
+# Find all Input Actions
+core_query(
+    type="asset",
+    action="find",
+    pattern="IA_*",
+    class_filter="InputAction"
+)
+
+# Find all Input Mapping Contexts
+core_query(
+    type="asset",
+    action="find",
+    pattern="IMC_*",
+    class_filter="InputMappingContext"
+)
+
+# Check if specific action exists
+core_query(
+    type="asset",
+    action="exists",
+    path="/Game/Input/Actions/IA_Fire"
+)
+```
+

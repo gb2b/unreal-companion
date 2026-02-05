@@ -12,8 +12,11 @@
 #include "Editor.h"
 #include "K2Node.h"
 #include "K2Node_Event.h"
+#include "K2Node_FunctionEntry.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Materials/MaterialInstance.h"
@@ -613,6 +616,73 @@ TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::GetInfoBlueprint(const TS
             }
         }
         ResultObj->SetArrayField(TEXT("interfaces"), IntArray);
+    }
+    
+    // Event Dispatchers - Debug info to compare manual vs programmatic creation
+    if (InfoType == TEXT("all") || InfoType == TEXT("dispatchers"))
+    {
+        // List delegate signature graphs
+        TArray<TSharedPtr<FJsonValue>> GraphsArray;
+        for (UEdGraph* Graph : Blueprint->DelegateSignatureGraphs)
+        {
+            if (!Graph) continue;
+            
+            TSharedPtr<FJsonObject> GraphObj = MakeShareable(new FJsonObject());
+            GraphObj->SetStringField(TEXT("graph_name"), Graph->GetFName().ToString());
+            
+            // Get nodes in graph
+            TArray<TSharedPtr<FJsonValue>> NodesArray;
+            for (UEdGraphNode* Node : Graph->Nodes)
+            {
+                if (!Node) continue;
+                
+                TSharedPtr<FJsonObject> NodeObj = MakeShareable(new FJsonObject());
+                NodeObj->SetStringField(TEXT("class"), Node->GetClass()->GetName());
+                NodeObj->SetStringField(TEXT("title"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+                
+                // Check for FunctionEntry to get UserDefinedPins
+                if (UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(Node))
+                {
+                    TArray<TSharedPtr<FJsonValue>> PinsArray;
+                    for (const TSharedPtr<FUserPinInfo>& Pin : EntryNode->UserDefinedPins)
+                    {
+                        if (!Pin.IsValid()) continue;
+                        TSharedPtr<FJsonObject> PinObj = MakeShareable(new FJsonObject());
+                        PinObj->SetStringField(TEXT("name"), Pin->PinName.ToString());
+                        PinObj->SetStringField(TEXT("category"), Pin->PinType.PinCategory.ToString());
+                        PinObj->SetStringField(TEXT("direction"), Pin->DesiredPinDirection == EGPD_Output ? TEXT("Output") : TEXT("Input"));
+                        PinsArray.Add(MakeShareable(new FJsonValueObject(PinObj)));
+                    }
+                    NodeObj->SetArrayField(TEXT("user_pins"), PinsArray);
+                    NodeObj->SetNumberField(TEXT("user_pins_count"), EntryNode->UserDefinedPins.Num());
+                }
+                
+                NodesArray.Add(MakeShareable(new FJsonValueObject(NodeObj)));
+            }
+            GraphObj->SetArrayField(TEXT("nodes"), NodesArray);
+            GraphObj->SetNumberField(TEXT("node_count"), Graph->Nodes.Num());
+            
+            GraphsArray.Add(MakeShareable(new FJsonValueObject(GraphObj)));
+        }
+        ResultObj->SetArrayField(TEXT("delegate_signature_graphs"), GraphsArray);
+        
+        // List delegate variables
+        TArray<TSharedPtr<FJsonValue>> DelegateVarsArray;
+        for (const FBPVariableDescription& Var : Blueprint->NewVariables)
+        {
+            if (Var.VarType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate)
+            {
+                TSharedPtr<FJsonObject> VarObj = MakeShareable(new FJsonObject());
+                VarObj->SetStringField(TEXT("var_name"), Var.VarName.ToString());
+                VarObj->SetStringField(TEXT("member_name"), Var.VarType.PinSubCategoryMemberReference.MemberName.ToString());
+                VarObj->SetStringField(TEXT("member_parent"), 
+                    Var.VarType.PinSubCategoryMemberReference.MemberParent ? 
+                    Var.VarType.PinSubCategoryMemberReference.MemberParent->GetName() : TEXT("nullptr"));
+                VarObj->SetStringField(TEXT("property_flags"), FString::Printf(TEXT("0x%llX"), static_cast<uint64>(Var.PropertyFlags)));
+                DelegateVarsArray.Add(MakeShareable(new FJsonValueObject(VarObj)));
+            }
+        }
+        ResultObj->SetArrayField(TEXT("delegate_variables"), DelegateVarsArray);
     }
     
     return ResultObj;

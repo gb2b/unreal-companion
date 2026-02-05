@@ -53,21 +53,7 @@ material_create_instance(
 )
 ```
 
----
-
-## material_get_info
-
-Get information about a Material or Material Instance.
-
-```python
-material_get_info(material_path: str)
-```
-
-**Example:**
-```python
-info = material_get_info(material_path="/Game/Materials/M_Metal")
-# Returns parameters, expressions, etc.
-```
+> **Note**: To get material info, use `core_get_info(type="material", path="/Game/Materials/M_Name")`
 
 ---
 
@@ -133,5 +119,5 @@ material_set_parameter(
 )
 
 # 4. Save
-asset_save_all()
+core_save(scope="all")
 ```

@@ -137,41 +137,70 @@ world_delete_batch(actors=["TempActor1", "TempActor2", "DebugMarker"])
 
 ---
 
-## world_find_actors_by_name
+## world_select_actors
 
-Find actors by name pattern (supports wildcards).
-
-```python
-world_find_actors_by_name(pattern: str)
-```
-
-**Example:**
-```python
-# Find all actors starting with "BP_Enemy"
-world_find_actors_by_name(pattern="BP_Enemy*")
-```
-
----
-
-## world_find_actors_in_radius
-
-Find actors within a radius of a point.
+Select actor(s) in the level editor.
 
 ```python
-world_find_actors_in_radius(
-    center: List[float],      # [X, Y, Z]
-    radius: float,            # Search radius
-    class_filter: str = None  # Optional class filter
+world_select_actors(
+    actor_names: List[str],
+    add_to_selection: bool = False
 )
 ```
 
 **Example:**
 ```python
-# Find all actors within 500 units of origin
-world_find_actors_in_radius(center=[0, 0, 0], radius=500)
+# Select a single actor
+world_select_actors(actor_names=["Player1"])
 
-# Find only lights
-world_find_actors_in_radius(center=[0, 0, 0], radius=1000, class_filter="Light")
+# Add to current selection
+world_select_actors(actor_names=["Enemy1", "Enemy2"], add_to_selection=True)
+```
+
+---
+
+## world_get_selected_actors
+
+Get the currently selected actors in the level editor.
+
+```python
+world_get_selected_actors()
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "count": 2,
+  "actors": [
+    {"name": "Player1", "class": "BP_PlayerCharacter_C", "location": [0, 0, 100]},
+    {"name": "Enemy1", "class": "BP_Enemy_C", "location": [500, 0, 100]}
+  ]
+}
+```
+
+---
+
+## world_duplicate_actor
+
+Duplicate an actor in the level.
+
+```python
+world_duplicate_actor(
+    actor_name: str,
+    new_location: List[float] = None,  # Optional [X, Y, Z]
+    new_name: str = None               # Optional new label
+)
+```
+
+**Example:**
+```python
+# Duplicate with new position
+world_duplicate_actor(
+    actor_name="Enemy1",
+    new_location=[1000, 0, 100],
+    new_name="Enemy2"
+)
 ```
 
 ---
@@ -193,9 +222,9 @@ world_set_batch(actors=[
 ])
 
 # 3. Find and remove debug actors
-debug_actors = world_find_actors_by_name(pattern="Debug*")
+debug_actors = core_query(type="actor", action="find", pattern="Debug*")
 world_delete_batch(actors=[a["name"] for a in debug_actors["actors"]])
 
 # 4. Save level
-level_save()
+core_save(scope="level")
 ```

@@ -67,16 +67,6 @@ level_create(name="NewLevel", path="/Game/Maps/Prototypes")
 
 ---
 
-## level_save
-
-Save the current level.
-
-```python
-level_save()
-```
-
----
-
 ## Typical Workflow
 
 ```python
@@ -90,7 +80,7 @@ world_spawn_batch(actors=[
 ])
 
 # Save the level
-level_save()
+core_save(scope="level")
 
 # Open another level
 level_open(level_path="/Game/Maps/MainLevel")

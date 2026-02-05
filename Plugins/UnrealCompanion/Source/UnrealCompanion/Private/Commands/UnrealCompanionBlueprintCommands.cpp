@@ -2232,29 +2232,37 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintCommands::HandleVariableBatch(c
                         FBlueprintEditorUtils::SetBlueprintPropertyReadOnlyFlag(Blueprint, NewVarName, false);
                     }
                     
-                    // Set default value if provided
+                    // Set default value if provided - need to compile first to have CDO access
                     if (OpObj->HasField(TEXT("default_value")))
                     {
-                        FString DefaultValue;
                         TSharedPtr<FJsonValue> DefaultValueJson = OpObj->TryGetField(TEXT("default_value"));
                         if (DefaultValueJson.IsValid())
                         {
-                            if (DefaultValueJson->Type == EJson::String)
-                            {
-                                DefaultValue = DefaultValueJson->AsString();
-                            }
-                            else if (DefaultValueJson->Type == EJson::Number)
-                            {
-                                DefaultValue = FString::SanitizeFloat(DefaultValueJson->AsNumber());
-                            }
-                            else if (DefaultValueJson->Type == EJson::Boolean)
-                            {
-                                DefaultValue = DefaultValueJson->AsBool() ? TEXT("true") : TEXT("false");
-                            }
+                            // Compile to create the property in CDO
+                            FKismetEditorUtilities::CompileBlueprint(Blueprint);
                             
-                            if (!DefaultValue.IsEmpty())
+                            UObject* CDO = Blueprint->GeneratedClass ? Blueprint->GeneratedClass->GetDefaultObject() : nullptr;
+                            if (CDO)
                             {
-                                FBlueprintEditorUtils::SetBlueprintVariableMetaData(Blueprint, NewVarName, nullptr, TEXT("DefaultValue"), DefaultValue);
+                                FString ErrorMessage;
+                                if (FUnrealCompanionCommonUtils::SetObjectProperty(CDO, VarName, DefaultValueJson, ErrorMessage))
+                                {
+                                    FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+                                    
+                                    FString DefaultValueStr;
+                                    if (DefaultValueJson->Type == EJson::String)
+                                        DefaultValueStr = DefaultValueJson->AsString();
+                                    else if (DefaultValueJson->Type == EJson::Number)
+                                        DefaultValueStr = FString::SanitizeFloat(DefaultValueJson->AsNumber());
+                                    else if (DefaultValueJson->Type == EJson::Boolean)
+                                        DefaultValueStr = DefaultValueJson->AsBool() ? TEXT("true") : TEXT("false");
+                                    
+                                    ResultObj->SetStringField(TEXT("default_value"), DefaultValueStr);
+                                }
+                                else
+                                {
+                                    UE_LOG(LogTemp, Warning, TEXT("Failed to set default value for %s: %s"), *VarName, *ErrorMessage);
+                                }
                             }
                         }
                     }
@@ -2282,30 +2290,50 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintCommands::HandleVariableBatch(c
             TSharedPtr<FJsonValue> ValueJson = OpObj->TryGetField(TEXT("value"));
             if (ValueJson.IsValid())
             {
-                FString NewValue;
-                if (ValueJson->Type == EJson::String)
+                // Get the CDO to set the actual default value
+                UObject* CDO = Blueprint->GeneratedClass ? Blueprint->GeneratedClass->GetDefaultObject() : nullptr;
+                if (CDO)
                 {
-                    NewValue = ValueJson->AsString();
+                    FString ErrorMessage;
+                    if (FUnrealCompanionCommonUtils::SetObjectProperty(CDO, VarName, ValueJson, ErrorMessage))
+                    {
+                        FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+                        bOpSuccess = true;
+                        
+                        // Return the value that was set
+                        FString NewValueStr;
+                        if (ValueJson->Type == EJson::String)
+                            NewValueStr = ValueJson->AsString();
+                        else if (ValueJson->Type == EJson::Number)
+                            NewValueStr = FString::SanitizeFloat(ValueJson->AsNumber());
+                        else if (ValueJson->Type == EJson::Boolean)
+                            NewValueStr = ValueJson->AsBool() ? TEXT("true") : TEXT("false");
+                        
+                        ResultObj->SetStringField(TEXT("new_value"), NewValueStr);
+                    }
+                    else
+                    {
+                        OpError = ErrorMessage;
+                    }
                 }
-                else if (ValueJson->Type == EJson::Number)
+                else
                 {
-                    NewValue = FString::SanitizeFloat(ValueJson->AsNumber());
+                    // Fallback to metadata for uncompiled blueprints
+                    FString NewValue;
+                    if (ValueJson->Type == EJson::String)
+                        NewValue = ValueJson->AsString();
+                    else if (ValueJson->Type == EJson::Number)
+                        NewValue = FString::SanitizeFloat(ValueJson->AsNumber());
+                    else if (ValueJson->Type == EJson::Boolean)
+                        NewValue = ValueJson->AsBool() ? TEXT("true") : TEXT("false");
+                    
+                    FName VarFName(*VarName);
+                    FBlueprintEditorUtils::SetBlueprintVariableMetaData(Blueprint, VarFName, nullptr, TEXT("DefaultValue"), NewValue);
+                    
+                    bOpSuccess = true;
+                    ResultObj->SetStringField(TEXT("new_value"), NewValue);
+                    ResultObj->SetStringField(TEXT("note"), TEXT("Set via metadata (blueprint not yet compiled)"));
                 }
-                else if (ValueJson->Type == EJson::Boolean)
-                {
-                    NewValue = ValueJson->AsBool() ? TEXT("true") : TEXT("false");
-                }
-                
-                // Get current default value for response
-                FName VarFName(*VarName);
-                FString PreviousValue;
-                FBlueprintEditorUtils::GetBlueprintVariableMetaData(Blueprint, VarFName, nullptr, TEXT("DefaultValue"), PreviousValue);
-                
-                FBlueprintEditorUtils::SetBlueprintVariableMetaData(Blueprint, VarFName, nullptr, TEXT("DefaultValue"), NewValue);
-                
-                bOpSuccess = true;
-                ResultObj->SetStringField(TEXT("previous_value"), PreviousValue);
-                ResultObj->SetStringField(TEXT("new_value"), NewValue);
             }
             else
             {
@@ -2318,12 +2346,78 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintCommands::HandleVariableBatch(c
         else if (Action == TEXT("remove"))
         {
             FName VarFName(*VarName);
-            FProperty* ExistingProp = FindFProperty<FProperty>(Blueprint->GeneratedClass, *VarName);
+            bool bWasEventDispatcher = false;
             
-            if (ExistingProp)
+            // First, check if this is an Event Dispatcher by looking for its signature graph
+            // Event Dispatchers have a corresponding DelegateSignatureGraph named "VarName__DelegateSignature"
+            FName SignatureGraphName = FName(*(VarName + TEXT("__DelegateSignature")));
+            UEdGraph* SignatureGraphToRemove = nullptr;
+            
+            for (UEdGraph* Graph : Blueprint->DelegateSignatureGraphs)
             {
+                if (Graph && Graph->GetFName() == SignatureGraphName)
+                {
+                    SignatureGraphToRemove = Graph;
+                    bWasEventDispatcher = true;
+                    break;
+                }
+            }
+            
+            // Also check NewVariables for delegate type (in case signature graph name differs)
+            for (const FBPVariableDescription& Var : Blueprint->NewVariables)
+            {
+                if (Var.VarName == VarFName && Var.VarType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate)
+                {
+                    bWasEventDispatcher = true;
+                    // Try to find the signature graph from the MemberReference
+                    FName SigName = Var.VarType.PinSubCategoryMemberReference.MemberName;
+                    if (SigName != NAME_None && !SignatureGraphToRemove)
+                    {
+                        for (UEdGraph* Graph : Blueprint->DelegateSignatureGraphs)
+                        {
+                            if (Graph && Graph->GetFName() == SigName)
+                            {
+                                SignatureGraphToRemove = Graph;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            // Check if variable exists in generated class
+            FProperty* ExistingProp = Blueprint->GeneratedClass ? FindFProperty<FProperty>(Blueprint->GeneratedClass, *VarName) : nullptr;
+            
+            // Also check NewVariables directly (for variables not yet compiled)
+            bool bExistsInNewVariables = false;
+            for (const FBPVariableDescription& Var : Blueprint->NewVariables)
+            {
+                if (Var.VarName == VarFName)
+                {
+                    bExistsInNewVariables = true;
+                    break;
+                }
+            }
+            
+            if (ExistingProp || bExistsInNewVariables)
+            {
+                // Remove the delegate signature graph first if it exists
+                if (SignatureGraphToRemove)
+                {
+                    Blueprint->DelegateSignatureGraphs.Remove(SignatureGraphToRemove);
+                    FBlueprintEditorUtils::RemoveGraph(Blueprint, SignatureGraphToRemove);
+                    ResultObj->SetBoolField(TEXT("removed_signature_graph"), true);
+                }
+                
+                // Remove the variable
                 FBlueprintEditorUtils::RemoveMemberVariable(Blueprint, VarFName);
                 bOpSuccess = true;
+                
+                if (bWasEventDispatcher)
+                {
+                    ResultObj->SetBoolField(TEXT("was_event_dispatcher"), true);
+                }
             }
             else
             {

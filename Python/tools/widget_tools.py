@@ -6,7 +6,7 @@ Naming convention: widget_*
 """
 
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from mcp.server.fastmcp import FastMCP, Context
 
 logger = logging.getLogger("UnrealCompanion")
@@ -42,107 +42,134 @@ def register_widget_tools(mcp: FastMCP):
         })
 
     @mcp.tool()
-    def widget_add_text_block(
+    def widget_batch(
         ctx: Context,
         widget_name: str,
-        text_block_name: str,
-        text: str = "",
-        position: List[float] = None,
-        size: List[float] = None,
-        font_size: int = 12,
-        color: List[float] = None
+        widgets: Optional[List[Dict[str, Any]]] = None,
+        modify: Optional[List[Dict[str, Any]]] = None,
+        remove: Optional[List[str]] = None,
+        on_error: str = "continue",
+        dry_run: bool = False
     ) -> Dict[str, Any]:
         """
-        Add a Text Block widget to a Widget Blueprint.
+        Batch widget operations: add, modify, and remove widgets in a Widget Blueprint.
+        
+        Similar to graph_batch for Blueprint nodes, this provides a unified way to
+        manipulate the widget tree.
         
         Args:
-            widget_name: Name of the target Widget Blueprint
-            text_block_name: Name to give the new Text Block
-            text: Initial text content
-            position: [X, Y] position in the canvas panel
-            size: [Width, Height] of the text block
-            font_size: Font size in points
-            color: [R, G, B, A] color values (0.0 to 1.0)
+            widget_name: Target Widget Blueprint name or path (e.g., "WBP_HUD")
+            
+            widgets: List of widgets to add, each with:
+                - ref: Symbolic reference for parent_ref linking
+                - type: Widget type. Can be:
+                    - Built-in: TextBlock, Image, ProgressBar, Button, CanvasPanel, etc.
+                    - User Widget by name: "WBP_ProgressBar" (auto-detected if starts with WBP_ or W_)
+                    - User Widget by path: "UserWidget:/Game/UI/WBP_ProgressBar"
+                    - Direct path: "/Game/UI/WBP_ProgressBar"
+                - name: Widget name in the tree
+                - parent: Existing widget name to add to
+                - parent_ref: OR ref of widget created in this batch
+                - is_variable: Expose as variable (default: false)
+                - slot: Slot properties (depends on parent type):
+                    For CanvasPanel: position, size, anchors, alignment, auto_size, z_order
+                    For HorizontalBox/VerticalBox: padding, h_align, v_align, size, fill_ratio
+                    For Overlay: padding, h_align, v_align
+                - properties: Widget-specific properties:
+                    Built-in widgets:
+                        TextBlock: text, color, font_size, justification
+                        ProgressBar: percent, fill_color, bar_fill_type
+                        Image: color_and_opacity, brush_size
+                        Button: background_color
+                        Slider: value, min_value, max_value
+                        SizeBox: width_override, height_override
+                        Common: visibility, is_enabled, tool_tip
+                    User Widgets:
+                        Any exposed variable (Instance Editable / Expose on Spawn)
+                        Supports: Float, Int, Bool, String, Text, LinearColor, Vector2D, Object references
+                    
+            modify: List of widgets to modify [{name, slot, properties}]
+            
+            remove: List of widget names to remove
+            
+            on_error: Error strategy - "rollback", "continue", "stop"
+            dry_run: Validate without executing
             
         Returns:
-            Response containing success status and text block properties
+            Results with added/modified/removed counts and any errors
+            
+        Supported Widget Types:
+            Panels: CanvasPanel, HorizontalBox, VerticalBox, Overlay, GridPanel,
+                    UniformGridPanel, WidgetSwitcher, ScrollBox, Border, SizeBox, ScaleBox
+            Common: TextBlock, Image, Button, ProgressBar, Slider, CheckBox,
+                    EditableText, EditableTextBox, ComboBoxString, Spacer
+            User: Any Widget Blueprint (WBP_*, W_*, or full path)
+                    
+        Example - HUD with custom WBP_ProgressBar widgets:
+            widget_batch(
+                widget_name="WBP_HUD",
+                widgets=[
+                    # Container
+                    {"ref": "container", "type": "VerticalBox", 
+                     "slot": {"position": [20, 20], "size": [300, 100]}},
+                     
+                    # Custom progress bar for contamination (using WBP_ProgressBar)
+                    {"ref": "contamination", "type": "WBP_ProgressBar", "name": "ContaminationBar",
+                     "parent_ref": "container", "is_variable": True,
+                     "slot": {"padding": [0, 5, 0, 5]},
+                     "properties": {
+                         "DefaultPercent": 0.0,           # Exposed variable in WBP_ProgressBar
+                         "BarColor": [1, 0.2, 0.2, 1],    # Exposed LinearColor
+                         "Icon": "/Game/UI/T_Contamination"  # Exposed Texture2D reference
+                     }},
+                     
+                    # Battery bar
+                    {"ref": "battery", "type": "WBP_ProgressBar", "name": "BatteryBar",
+                     "parent_ref": "container", "is_variable": True,
+                     "properties": {"DefaultPercent": 1.0, "BarColor": [0.2, 0.8, 1, 1]}}
+                ]
+            )
         """
-        return send_command("widget_add_text_block", {
+        params = {
             "widget_name": widget_name,
-            "text_block_name": text_block_name,
-            "text": text,
-            "position": position or [0.0, 0.0],
-            "size": size or [200.0, 50.0],
-            "font_size": font_size,
-            "color": color or [1.0, 1.0, 1.0, 1.0]
-        })
+            "on_error": on_error,
+            "dry_run": dry_run
+        }
+        
+        if widgets:
+            params["widgets"] = widgets
+        if modify:
+            params["modify"] = modify
+        if remove:
+            params["remove"] = remove
+            
+        return send_command("widget_batch", params)
 
     @mcp.tool()
-    def widget_add_button(
+    def widget_get_info(
         ctx: Context,
         widget_name: str,
-        button_name: str,
-        text: str = "",
-        position: List[float] = None,
-        size: List[float] = None,
-        font_size: int = 12,
-        color: List[float] = None,
-        background_color: List[float] = None
+        child_name: Optional[str] = None,
+        include_tree: bool = False
     ) -> Dict[str, Any]:
         """
-        Add a Button widget to a Widget Blueprint.
+        Get information about a Widget Blueprint or specific child widget.
         
         Args:
-            widget_name: Name of the target Widget Blueprint
-            button_name: Name to give the new Button
-            text: Text to display on the button
-            position: [X, Y] position in the canvas panel
-            size: [Width, Height] of the button
-            font_size: Font size for button text
-            color: [R, G, B, A] text color values (0.0 to 1.0)
-            background_color: [R, G, B, A] button background color values
+            widget_name: Target Widget Blueprint name or path
+            child_name: Optional specific child widget name to get info for
+            include_tree: Include full widget tree structure (default: false)
             
         Returns:
-            Response containing success status and button properties
+            Widget info including:
+            - all_widgets: List of all widgets with name, type, parent
+            - tree: Full widget tree (if include_tree=True)
+            - widget: Specific widget info (if child_name provided)
         """
-        return send_command("widget_add_button", {
+        return send_command("widget_get_info", {
             "widget_name": widget_name,
-            "button_name": button_name,
-            "text": text,
-            "position": position or [0.0, 0.0],
-            "size": size or [200.0, 50.0],
-            "font_size": font_size,
-            "color": color or [1.0, 1.0, 1.0, 1.0],
-            "background_color": background_color or [0.1, 0.1, 0.1, 1.0]
-        })
-
-    @mcp.tool()
-    def widget_bind_event(
-        ctx: Context,
-        widget_name: str,
-        widget_component_name: str,
-        event_name: str,
-        function_name: str = ""
-    ) -> Dict[str, Any]:
-        """
-        Bind an event on a widget component to a function.
-        
-        Args:
-            widget_name: Name of the target Widget Blueprint
-            widget_component_name: Name of the widget component (button, etc.)
-            event_name: Name of the event to bind (OnClicked, etc.)
-            function_name: Name of the function to create/bind to
-            
-        Returns:
-            Response containing success status and binding information
-        """
-        if not function_name:
-            function_name = f"{widget_component_name}_{event_name}"
-        return send_command("widget_bind_event", {
-            "widget_name": widget_name,
-            "widget_component_name": widget_component_name,
-            "event_name": event_name,
-            "function_name": function_name
+            "child_name": child_name or "",
+            "include_tree": include_tree
         })
 
     @mcp.tool()
@@ -152,45 +179,21 @@ def register_widget_tools(mcp: FastMCP):
         z_order: int = 0
     ) -> Dict[str, Any]:
         """
-        Add a Widget Blueprint instance to the viewport.
+        Get info for adding a Widget Blueprint to viewport at runtime.
+        
+        Note: This returns the class path for use in Blueprint nodes.
+        Actual viewport addition requires runtime execution via CreateWidget + AddToViewport.
         
         Args:
-            widget_name: Name of the Widget Blueprint to add
-            z_order: Z-order for the widget (higher numbers appear on top)
+            widget_name: Name of the Widget Blueprint
+            z_order: Z-order for the widget (higher = on top)
             
         Returns:
-            Response containing success status and widget instance information
+            Class path and instructions for runtime addition
         """
         return send_command("widget_add_to_viewport", {
             "widget_name": widget_name,
             "z_order": z_order
         })
 
-    @mcp.tool()
-    def widget_set_text_binding(
-        ctx: Context,
-        widget_name: str,
-        text_block_name: str,
-        binding_property: str,
-        binding_type: str = "Text"
-    ) -> Dict[str, Any]:
-        """
-        Set up a property binding for a Text Block widget.
-        
-        Args:
-            widget_name: Name of the target Widget Blueprint
-            text_block_name: Name of the Text Block to bind
-            binding_property: Name of the property to bind to
-            binding_type: Type of binding (Text, Visibility, etc.)
-            
-        Returns:
-            Response containing success status and binding information
-        """
-        return send_command("widget_set_text_binding", {
-            "widget_name": widget_name,
-            "text_block_name": text_block_name,
-            "binding_property": binding_property,
-            "binding_type": binding_type
-        })
-
-    logger.info("Widget tools registered successfully (6 tools)")
+    logger.info("Widget tools registered successfully (4 tools: widget_create, widget_batch, widget_get_info, widget_add_to_viewport)")

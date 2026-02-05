@@ -2,7 +2,7 @@
 
 General editor utilities: undo, redo, play control, console commands, plugin control, editor focus, and security management.
 
-## Available Tools (9)
+## Available Tools (8)
 
 | Tool | Risk | Description |
 |------|------|-------------|
@@ -11,7 +11,6 @@ General editor utilities: undo, redo, play control, console commands, plugin con
 | `play` | 🟢 SAFE | Control Play In Editor (PIE) |
 | `console` | 🟡 VARIES | Execute console commands (some require token) |
 | `plugin_execute_command` | 🟡 MEDIUM | Execute plugin console commands |
-| `editor_focus_close` | 🟢 SAFE | Close current asset editor |
 | `editor_focus_level` | 🟢 SAFE | Focus Level Editor |
 | `security_whitelist_status` | 🟢 SAFE | View whitelisted operations |
 | `security_clear_whitelist` | 🟢 SAFE | Clear session whitelist |
@@ -223,19 +222,7 @@ MCP tools automatically manage editor focus when `focus_editor=True` (default):
 2. More work on BP_A → Stays open (same asset)
 3. Switch to BP_B → BP_A auto-saved, closed; BP_B opens
 4. Error on BP_B → BP_B stays open (for inspection)
-5. `editor_focus_close()` → Closes current, saves
-
----
-
-## editor_focus_close
-
-Explicitly close the current asset editor, saving changes.
-
-```python
-editor_focus_close()
-```
-
-Use when you want to ensure the current asset is saved and closed before proceeding.
+5. Closing happens automatically when switching assets or using `editor_focus_level()`
 
 ---
 

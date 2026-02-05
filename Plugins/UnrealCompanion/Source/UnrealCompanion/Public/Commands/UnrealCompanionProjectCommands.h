@@ -15,6 +15,12 @@ public:
     TSharedPtr<FJsonObject> HandleCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params);
 
 private:
-    // Specific project command handlers
+    // Legacy input system
     TSharedPtr<FJsonObject> HandleCreateInputMapping(const TSharedPtr<FJsonObject>& Params);
+    
+    // Enhanced Input System
+    TSharedPtr<FJsonObject> HandleCreateInputAction(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleAddToMappingContext(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleListInputActions(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleListMappingContexts(const TSharedPtr<FJsonObject>& Params);
 }; 

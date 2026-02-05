@@ -907,6 +907,11 @@ bool FUnrealCompanionCommonUtils::SetObjectProperty(UObject* Object, const FStri
         ((FFloatProperty*)Property)->SetPropertyValue(PropertyAddr, Value->AsNumber());
         return true;
     }
+    else if (Property->IsA<FDoubleProperty>())
+    {
+        ((FDoubleProperty*)Property)->SetPropertyValue(PropertyAddr, Value->AsNumber());
+        return true;
+    }
     else if (Property->IsA<FStrProperty>())
     {
         ((FStrProperty*)Property)->SetPropertyValue(PropertyAddr, Value->AsString());

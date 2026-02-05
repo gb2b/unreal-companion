@@ -43,30 +43,6 @@ def register_asset_tools(mcp: FastMCP):
         return send_command("asset_create_folder", {"path": path, "focus_editor": focus_editor})
 
     # ===========================================
-    # SINGLE ASSET OPERATIONS
-    # ===========================================
-
-    @mcp.tool()
-    def asset_delete(
-        ctx: Context,
-        path: str,
-        force: bool = False
-    ) -> Dict[str, Any]:
-        """
-        Delete an asset from the Content Browser.
-        
-        Note: For deleting multiple assets, use asset_delete_batch instead.
-        
-        Args:
-            path: Full path of the asset to delete (e.g., "/Game/Blueprints/BP_Test")
-            force: If True, delete even if asset has references (default: False)
-            
-        Returns:
-            Response indicating success or failure
-        """
-        return send_command("asset_delete", {"path": path, "force": force})
-
-    # ===========================================
     # BATCH OPERATIONS
     # ===========================================
 
@@ -242,19 +218,4 @@ def register_asset_tools(mcp: FastMCP):
             "on_error": on_error
         })
 
-    @mcp.tool()
-    def asset_get_supported_formats(ctx: Context) -> Dict[str, Any]:
-        """
-        Get list of supported import formats.
-        
-        Returns:
-            formats: List of supported file formats with descriptions
-            
-        Categories:
-            - 3D Mesh: FBX, GLB, GLTF, OBJ
-            - Texture: PNG, JPG, TGA, EXR
-            - Audio: WAV, OGG
-        """
-        return send_command("asset_get_supported_formats", {})
-
-    logger.info("Asset tools registered successfully (7 tools)")
+    logger.info("Asset tools registered successfully (5 tools: asset_create_folder, asset_modify_batch, asset_delete_batch, asset_import, asset_import_batch)")

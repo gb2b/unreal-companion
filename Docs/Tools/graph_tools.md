@@ -4,24 +4,18 @@ Tools for manipulating Unreal Engine graphs (Blueprint, Material, Widget, Animat
 
 Uses the generic `UEdGraphNode` API which is common to all graph types.
 
-## Available Tools (9)
+## Available Tools (4)
 
 | Tool | Description |
 |------|-------------|
-| `graph_batch` | Unified graph manipulation: nodes, pins, connections (batch) |
-| `graph_node_create` | Create a single node |
-| `graph_node_delete` | Delete one or more nodes |
-| `graph_node_find` | Find nodes in a graph |
-| `graph_node_info` | Get detailed info about a node |
-| `graph_pin_connect` | Connect two pins |
-| `graph_pin_disconnect` | Disconnect pins |
-| `graph_pin_set_value` | Set a pin's default value |
-| `graph_node_search_available` | Search available node types (Blueprint) |
+| `graph_batch` | **Primary tool** - create/remove nodes, connect pins, set values, all in one call |
+| `graph_node_find` | Find existing nodes in a graph (with filtering) |
+| `graph_node_info` | Get detailed info about a node (pins, connections) |
+| `graph_node_search_available` | Discover available node types/functions before adding them |
 
-### When to use which tool?
-
-- **`graph_batch`** - For complex operations with multiple nodes/connections in one call
-- **`graph_node_*`** / **`graph_pin_*`** - For simple single operations (less overhead)
+> **`graph_batch` handles everything:** creating nodes, deleting nodes, connecting pins, 
+> disconnecting pins, setting pin values, enabling/disabling nodes, splitting pins, etc.
+> Use `graph_node_find` and `graph_node_info` for inspection only.
 
 ---
 

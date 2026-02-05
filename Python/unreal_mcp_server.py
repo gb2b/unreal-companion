@@ -305,148 +305,211 @@ logger.info(f"Auto-discovered and registered {num_modules} tool modules")
 
 @mcp.prompt()
 def info():
-    """Information about available Unreal MCP tools and best practices."""
+    """How to use Unreal Companion tools effectively."""
     return """
-    # Unreal MCP Server Tools
-    
-    All tools follow the naming convention: category_action (e.g., asset_list, blueprint_create)
-    
-    ## Asset Tools (asset_*)
-    - `asset_create_folder(path)` - Create folders in Content Browser
-    - `asset_list(path, asset_class, max_results, recursive)` - List assets
-    - `asset_find(name, asset_class)` - Find assets by name
-    - `asset_exists(path)` - Check if asset exists
-    - `asset_folder_exists(path)` - Check if folder exists
-    - `asset_get_info(path)` - Get detailed asset information
-    - `asset_get_bounds(path)` - Get mesh bounds (for placement)
-    - `asset_delete(path, force)` - Delete an asset
-    - `asset_rename(path, new_name)` - Rename an asset
-    - `asset_move(path, destination)` - Move asset to folder
-    - `asset_duplicate(path, new_name, destination)` - Duplicate asset
-    - `asset_save(path)` - Save specific asset
-    - `asset_save_all()` - Save all modified assets
-    
-    ## Blueprint Tools (blueprint_*)
-    - `blueprint_create(name, parent_class, path)` - Create Blueprint
-    - `blueprint_compile(blueprint_name)` - Compile Blueprint
-    - `blueprint_get_info(blueprint_name, info_type)` - Get Blueprint info
-    - `blueprint_get_compilation_messages(blueprint_name)` - Get compile errors
-    - `blueprint_set_parent_class(blueprint_name, parent_class)` - Change parent
-    - `blueprint_set_property(blueprint_name, property_name, value)` - Set property
-    - `blueprint_add_variable(blueprint_name, variable_name, type, sub_type)` - Add variable
-    - `blueprint_remove_variable(blueprint_name, variable_name)` - Remove variable
-    - `blueprint_set_variable_default(blueprint_name, variable_name, value)` - Set default
-    - `blueprint_add_function(blueprint_name, function_name, inputs, outputs)` - Add function
-    - `blueprint_remove_function(blueprint_name, function_name)` - Remove function
-    - `blueprint_add_local_variable(blueprint_name, function_name, var_name, type)` - Add local var
-    - `blueprint_add_event_dispatcher(blueprint_name, dispatcher_name)` - Add dispatcher
-    - `blueprint_add_custom_event(blueprint_name, event_name)` - Add custom event
-    - `blueprint_implement_interface(blueprint_name, interface_name)` - Implement interface
-    - `blueprint_add_component(blueprint_name, component_class, name)` - Add component
-    - `blueprint_remove_component(blueprint_name, component_name)` - Remove component
-    - `blueprint_set_component_property(blueprint_name, component, prop, value)` - Set prop
-    - `blueprint_set_static_mesh(blueprint_name, component, mesh)` - Set mesh
-    - `blueprint_set_physics(blueprint_name, component, simulate, gravity, mass)` - Set physics
-    - `blueprint_list_parent_classes(search_term, category)` - List parent classes
-    
-    ## Node Tools (node_*)
-    - `graph_node_search_available(search_term, class_name)` - Search available nodes
-    - `node_find(blueprint_name, node_type, event_type)` - Find nodes in graph
-    - `node_get_info(blueprint_name, node_id, graph_name)` - Get node details
-    - `node_get_graph_nodes(blueprint_name, graph_name)` - List all nodes
-    - `node_add_event(blueprint_name, event_name, position)` - Add event node
-    - `node_add_input_action(blueprint_name, action_name)` - Add input action
-    - `node_add_function_call(blueprint_name, target, function_name, graph_name)` - Add function
-    - `node_add_get_variable(blueprint_name, variable_name, graph_name)` - Add get node
-    - `node_add_set_variable(blueprint_name, variable_name, graph_name)` - Add set node
-    - `node_add_get_self(blueprint_name)` - Add self reference
-    - `node_add_get_component(blueprint_name, component_name)` - Add component ref
-    - `node_add_branch(blueprint_name, graph_name)` - Add branch node
-    - `node_add_for_each(blueprint_name, graph_name)` - Add foreach node
-    - `node_add_return(blueprint_name, graph_name)` - Add return node
-    - `node_connect(blueprint_name, source_id, source_pin, target_id, target_pin)` - Connect
-    - `node_set_pin_value(blueprint_name, node_id, pin_name, value)` - Set pin value
-    - `node_auto_arrange(blueprint_name, graph_name)` - Auto-arrange nodes
-    
-    ## Widget Tools (widget_*)
-    - `widget_create(name, path, parent_class)` - Create Widget Blueprint
-    - `widget_get_info(widget_path)` - Get widget info
-    - `widget_add_text_block(widget_name, name, text, position, size)` - Add text
-    - `widget_add_button(widget_name, name, text, position, size)` - Add button
-    - `widget_bind_event(widget_name, component, event, function)` - Bind event
-    - `widget_add_to_viewport(widget_name, z_order)` - Add to viewport
-    - `widget_set_text_binding(widget_name, text_block, property, type)` - Bind text
-    
-    ## Material Tools (material_*)
-    - `material_create(name, path)` - Create Material
-    - `material_create_instance(name, parent_material, path)` - Create instance
-    - `material_get_info(material_path)` - Get material info
-    - `material_set_parameter(material_path, param_name, value, type)` - Set parameter
-    
-    ## World Tools (world_*)
-    - `world_get_actors()` - Get all actors in level
-    - `world_find_actors_by_name(pattern)` - Find by name
-    - `world_find_actors_by_tag(tag)` - Find by tag
-    - `world_find_actors_in_radius(center, radius, class_filter)` - Find in radius
-    - `world_get_actor_properties(name)` - Get actor properties
-    - `world_spawn_actor(name, actor_type, location, rotation)` - Spawn actor
-    - `world_spawn_blueprint_actor(blueprint_name, actor_name, location)` - Spawn BP
-    - `world_delete_actor(name)` - Delete actor
-    - `world_set_actor_transform(name, location, rotation, scale)` - Set transform
-    - `world_set_actor_property(name, property, value)` - Set property
-    - `world_duplicate_actor(actor_name, new_location, new_name)` - Duplicate
-    - `world_select_actors(actor_names, add_to_selection)` - Select actors
-    - `world_get_selected_actors()` - Get selection
-    
-    ## Level Tools (level_*)
-    - `level_get_info()` - Get current level info
-    - `level_open(level_path)` - Open level
-    - `level_create(name, path, template)` - Create level
-    - `level_save()` - Save current level
-    - `level_get_streaming_levels()` - Get streaming levels
-    - `level_load_streaming(level_name, make_visible)` - Load streaming level
-    - `level_unload_streaming(level_name)` - Unload streaming level
-    - `level_set_streaming_visibility(level_name, visible)` - Set visibility
-    
-    ## Light Tools (light_*)
-    - `light_spawn(light_type, location, intensity, color, name)` - Spawn light
-    - `light_set_property(actor_name, property_name, value)` - Set light property
-    - `light_build(quality)` - Build lighting
-    
-    ## Viewport Tools (viewport_*)
-    - `viewport_get_camera()` - Get camera transform
-    - `viewport_set_camera(location, rotation)` - Set camera
-    - `viewport_focus_on_actor(actor_name)` - Focus on actor
-    - `viewport_screenshot(width, height, filename)` - Take screenshot
-    - `viewport_trace_from_screen(screen_x, screen_y)` - Trace from screen
-    
-    ## Editor Tools (editor_*)
-    - `editor_undo(steps)` - Undo actions
-    - `editor_redo(steps)` - Redo actions
-    - `editor_save_all()` - Save all
-    
-    ## Python Tools (python_*)
-    - `python_execute(code, timeout)` - Execute Python code (use sparingly!)
-    - `python_execute_file(file_path)` - Execute Python file
-    - `python_list_modules(search_term)` - List available modules
-    
-    ## Project Tools (project_*)
-    - `project_create_input_mapping(action_name, key, input_type)` - Create input
-    
-    ## Meshy 3D Generation Tools (meshy_*)
-    - `meshy_text_to_3d_preview(prompt, art_style, ai_model)` - Generate 3D from text
-    - `meshy_text_to_3d_refine(preview_task_id, texture_prompt)` - Add textures
-    - `meshy_get_task(task_id)` - Check generation status
-    - `meshy_list_tasks(limit)` - List recent generations
-    - `meshy_download_model(task_id, format, save_path)` - Download GLB/FBX/OBJ
-    - `meshy_delete_task(task_id)` - Delete a task
-    - `meshy_rig_character(model_url, input_task_id)` - Auto-rig humanoid/quadruped
-    - `meshy_get_rig_task(task_id)` - Check rigging status
-    - `meshy_animate_character(rig_task_id, animation_type)` - Apply animation
-    - `meshy_get_animation_task(task_id)` - Check animation status
-    - `meshy_list_animations()` - List 500+ available animations
-    
-    Note: Meshy tools require MESHY_API_KEY environment variable.
+# Unreal Companion - Tool Guide
+
+## CRITICAL: Use the RIGHT tool
+
+### To SEARCH or FIND anything → `core_query`
+```python
+core_query(type="asset", action="list", path="/Game/Blueprints")           # List assets
+core_query(type="asset", action="find", pattern="BP_Enemy*")              # Find by name
+core_query(type="asset", action="exists", path="/Game/BP_Player")         # Check existence
+core_query(type="actor", action="list")                                    # List actors in level
+core_query(type="actor", action="find", pattern="Light*")                 # Find actors
+core_query(type="actor", action="find", tag="Enemy")                      # Find by tag
+core_query(type="actor", action="find", center=[0,0,0], radius=1000)     # Find in radius
+core_query(type="node", action="list", blueprint_name="BP_Player")        # List nodes
+core_query(type="folder", action="exists", path="/Game/Maps")             # Check folder
+```
+
+### To GET INFO about anything → `core_get_info`
+```python
+core_get_info(type="blueprint", path="/Game/BP_Player")                    # Blueprint info
+core_get_info(type="asset", path="/Game/Meshes/SM_Rock")                   # Asset info
+core_get_info(type="actor", actor_name="PlayerStart")                      # Actor properties
+core_get_info(type="material", path="/Game/Materials/M_Base")              # Material info
+```
+
+### To SAVE anything → `core_save`
+```python
+core_save(scope="all")                                                      # Save everything
+core_save(scope="level")                                                    # Save current level
+core_save(scope="dirty")                                                    # Save modified only
+core_save(scope="asset", path="/Game/BP_Player")                           # Save one asset
+```
+
+## Main Workflow Tools
+
+### Blueprint Creation
+```python
+blueprint_create(name="BP_Player", parent_class="Character")
+blueprint_create_interface(name="BPI_Damageable", functions=[...])
+blueprint_variable_batch(blueprint_name, operations=[
+    {"action": "add", "name": "Health", "type": "Float", "default_value": 100}
+])
+blueprint_component_batch(blueprint_name, components=[
+    {"ref": "mesh", "class": "StaticMeshComponent"}
+])
+blueprint_function_batch(blueprint_name, operations=[
+    {"action": "add", "name": "TakeDamage", "inputs": [{"name": "Amount", "type": "Float"}]}
+])
+blueprint_add_event_dispatcher(blueprint_name, dispatcher_name="OnDeath")
+blueprint_implement_interface(blueprint_name, interface_name="BPI_Damageable")
+```
+
+### Adding Logic (Nodes) → ALWAYS use `graph_batch`
+```python
+graph_batch(
+    blueprint_name="BP_Player",
+    nodes=[
+        {"ref": "begin", "type": "event", "event_name": "ReceiveBeginPlay"},
+        {"ref": "print", "type": "function_call", "function_name": "PrintString"}
+    ],
+    pin_values=[{"ref": "print", "pin": "InString", "value": "Hello!"}],
+    connections=[
+        {"source_ref": "begin", "source_pin": "Then",
+         "target_ref": "print", "target_pin": "execute"}
+    ]
+)
+```
+Node types: event, custom_event, function_call, branch, sequence, for_each,
+get_variable, set_variable, cast, spawn_actor, timeline, make_struct,
+break_struct, select, switch_int, switch_enum, interface_call, macro, comment, reroute
+
+### Widget UI → use `widget_batch`
+```python
+widget_create(name="WBP_HUD", path="/Game/UI")
+widget_batch(widget_name="WBP_HUD", widgets=[
+    {"ref": "box", "type": "VerticalBox", "slot": {"position": [20, 20]}},
+    # Built-in widget
+    {"ref": "text", "type": "TextBlock", "parent_ref": "box",
+     "properties": {"text": "Score: 0", "font_size": 24}},
+    # Custom User Widget (just use its name!)
+    {"ref": "bar", "type": "WBP_ProgressBar", "name": "HealthBar",
+     "parent_ref": "box", "is_variable": True,
+     "properties": {"DefaultPercent": 1.0, "BarColor": [0, 1, 0, 1]}}
+])
+widget_get_info(widget_name="WBP_HUD", include_tree=True)
+```
+
+### Actors in Level
+```python
+world_spawn_batch(actors=[
+    {"ref": "p1", "blueprint": "BP_Player", "name": "Player1", "location": [0, 0, 100]}
+])
+world_set_batch(actors=[
+    {"name": "Player1", "location": [500, 0, 100], "properties": {"Health": 50}}
+])
+world_delete_batch(actors=["TempActor1", "DebugMarker"])
+world_select_actors(actor_names=["Player1"])
+world_get_selected_actors()
+world_duplicate_actor(actor_name="Enemy1", new_location=[1000, 0, 100])
+```
+
+### Enhanced Input (UE5)
+```python
+project_create_input_action(action_name="IA_Fire", value_type="Digital")
+project_add_to_mapping_context(
+    context_path="/Game/Input/IMC_Default",
+    action_path="/Game/Input/Actions/IA_Fire",
+    key="LeftMouseButton"
+)
+```
+
+### Landscape & Foliage Tools (6)
+```python
+landscape_create(size_x=8, size_y=8, section_size=127, scale=[100, 100, 200])
+landscape_sculpt(actor_name="Landscape", operations=[
+    {"type": "canyon", "center": [0,0], "direction": [0,1], "depth": 0.8, "width": 3000, "radius": 15000, "roughness": 0.5},
+    {"type": "noise", "center": [0,0], "radius": 20000, "frequency": 0.003, "amplitude": 0.4, "octaves": 4},
+    {"type": "crater", "center": [2000, 3000], "radius": 1500, "depth": 0.6, "rim_height": 0.2}
+])
+landscape_import_heightmap(actor_name="Landscape", heightmap_path="/tmp/heightmap.png", scale_z=1.5)
+foliage_add_type(mesh="/Game/Meshes/SM_Rock", scale_min=0.3, scale_max=2.5, align_to_normal=True)
+foliage_scatter(mesh="/Game/Meshes/SM_Rock", center=[0,0,0], radius=15000, count=200, scale_range=[0.5, 2.0], min_distance=100)
+foliage_remove(center=[0,0,0], radius=3000, mesh="/Game/Meshes/SM_Rock")
+```
+
+### Other Tools
+```python
+# Graph inspection (use graph_batch for creating/connecting/deleting nodes)
+graph_node_find(asset_name="BP_Player", node_type="event")
+graph_node_info(asset_name="BP_Player", node_id="GUID")
+graph_node_search_available(search_term="Print")
+
+# Assets
+asset_create_folder(path="/Game/Blueprints/Characters")
+asset_modify_batch(operations=[{"action": "rename", "path": "...", "new_name": "..."}])
+asset_delete_batch(assets=["/Game/Old/BP_Unused"])
+asset_import(source_path="/tmp/model.fbx", destination="/Game/Meshes/")
+
+# Materials
+material_create(name="M_Base")
+material_create_instance(name="MI_Red", parent_material="/Game/M_Base")
+material_set_parameter(material_path, parameter_name, value, parameter_type)
+
+# Lights
+light_spawn(light_type="point", location=[0, 0, 200], intensity=5000)
+
+# Level
+level_create(name="TestLevel")
+level_open(level_path="/Game/Maps/TestLevel")
+level_get_info()
+
+# Editor
+play(action="start")  # or "stop", "pause", "resume"
+console(action="execute", command="stat fps")
+editor_undo(steps=1)
+viewport_screenshot()
+viewport_focus(target="PlayerStart")
+
+# Blueprint config
+blueprint_compile(blueprint_name="BP_Player")
+blueprint_set_property(blueprint_name, property_name, property_value)
+blueprint_set_parent_class(blueprint_name, parent_class)
+blueprint_list_parent_classes(search_term="Actor")
+
+# Python (requires confirmation token)
+python_execute(code="print('hello')")
+
+# Landscape & Foliage (terrain level design)
+landscape_create(size_x=8, size_y=8, scale=[100, 100, 200])
+landscape_sculpt(actor_name="Landscape", operations=[{"type": "canyon", "center": [0,0], "direction": [0,1], "depth": 0.8, "width": 3000, "radius": 15000}])
+landscape_import_heightmap(actor_name="Landscape", heightmap_path="/tmp/h.png")
+landscape_paint_layer(actor_name="Landscape", layer_name="Rock", position=[0,0], radius=3000)
+foliage_scatter(mesh="/Game/SM_Rock", center=[0,0,0], radius=10000, count=200)
+foliage_add_type(mesh="/Game/SM_Rock", scale_min=0.5, scale_max=2.0)
+foliage_remove(center=[0,0,0], radius=3000)
+
+# Geometry (procedural shapes via Geometry Script)
+geometry_create(type="box", name="Wall", location=[0,0,150], width=1000, height=300, depth=50)
+geometry_boolean(target_actor="Terrain", tool_actor="Hole", operation="subtract")
+
+# Splines (paths and mesh scattering)
+spline_create(name="Path", points=[[0,0,0],[2000,1000,0],[4000,500,0]])
+spline_scatter_meshes(spline_actor="Path", mesh="/Game/SM_FencePost", spacing=200)
+
+# Environment (atmosphere, fog, time of day)
+environment_configure(action="setup_atmosphere")
+environment_configure(action="set_time_of_day", time=18.5, sun_color=[1,0.6,0.3])
+environment_configure(action="set_fog", density=0.05, volumetric=True)
+
+# 3D Generation (requires MESHY_API_KEY)
+meshy_text_to_3d_preview(prompt="A fantasy dragon")
+```
+
+## Tool count: 84 tools total
+
+## Rules
+1. Check existence before creating: core_query(type="asset", action="exists")
+2. One batch call > multiple individual calls
+3. Auto-compile is ON - no need for blueprint_compile() after batch ops
+4. Always core_save(scope="all") at the end
+5. Use dry_run=True to validate complex operations first
+6. For nodes: ALWAYS use graph_batch() - it handles create, connect, set values, delete in one call
+7. For widgets: ALWAYS use widget_batch() - it handles add, modify, remove in one call
     """
 
 # Web UI Server launcher

@@ -27,6 +27,7 @@
 #include "K2Node_BreakStruct.h"
 #include "K2Node_Knot.h"
 #include "K2Node_CreateDelegate.h"
+#include "K2Node_CallDelegate.h"
 #include "K2Node_Message.h"
 #include "K2Node_SwitchInteger.h"
 #include "K2Node_SwitchString.h"
@@ -159,6 +160,8 @@ UEdGraphNode* FK2NodeFactory::CreateNode(
         return CreateRerouteNode(Graph, Position);
     if (LowerType == TEXT("create_delegate"))
         return CreateDelegateNode(Graph, Position);
+    if (LowerType == TEXT("call_delegate") || LowerType == TEXT("broadcast_delegate"))
+        return CreateCallDelegateNode(Graph, Params, Position, OutError);
     if (LowerType == TEXT("comment"))
         return CreateCommentNode(Graph, Params, Position);
 
@@ -177,7 +180,7 @@ bool FK2NodeFactory::SupportsNodeType(const FString& NodeType) const
         TEXT("switch_int"), TEXT("switch_string"), TEXT("switch_enum"),
         TEXT("spawn_actor"), TEXT("construct_object"), TEXT("add_component"),
         TEXT("macro"), TEXT("array_function"), TEXT("get_class_defaults"), TEXT("format_text"),
-        TEXT("timeline"), TEXT("reroute"), TEXT("knot"), TEXT("create_delegate"), TEXT("comment")
+        TEXT("timeline"), TEXT("reroute"), TEXT("knot"), TEXT("create_delegate"), TEXT("call_delegate"), TEXT("broadcast_delegate"), TEXT("comment")
     };
 
     return SupportedTypes.Contains(NodeType.ToLower());
@@ -194,7 +197,7 @@ TArray<FString> FK2NodeFactory::GetSupportedNodeTypes() const
         TEXT("switch_int"), TEXT("switch_string"), TEXT("switch_enum"),
         TEXT("spawn_actor"), TEXT("construct_object"), TEXT("add_component"),
         TEXT("macro"), TEXT("array_function"), TEXT("get_class_defaults"), TEXT("format_text"),
-        TEXT("timeline"), TEXT("reroute"), TEXT("knot"), TEXT("create_delegate"), TEXT("comment")
+        TEXT("timeline"), TEXT("reroute"), TEXT("knot"), TEXT("create_delegate"), TEXT("call_delegate"), TEXT("broadcast_delegate"), TEXT("comment")
     };
 }
 
@@ -207,6 +210,8 @@ FString FK2NodeFactory::GetNodeTypeDescription(const FString& NodeType) const
     if (Lower == TEXT("sequence")) return TEXT("Execute multiple outputs in order");
     if (Lower == TEXT("cast")) return TEXT("Cast to a specific class type");
     if (Lower == TEXT("spawn_actor")) return TEXT("Spawn an actor from a class");
+    if (Lower == TEXT("call_delegate") || Lower == TEXT("broadcast_delegate")) return TEXT("Call/Broadcast an Event Dispatcher");
+    if (Lower == TEXT("create_delegate")) return TEXT("Create a delegate reference");
     
     return FString::Printf(TEXT("Blueprint node: %s"), *NodeType);
 }
@@ -224,6 +229,7 @@ TArray<FString> FK2NodeFactory::GetRequiredParams(const FString& NodeType) const
     if (Lower == TEXT("cast")) return {TEXT("target_class")};
     if (Lower == TEXT("make_struct") || Lower == TEXT("break_struct")) return {TEXT("struct_type")};
     if (Lower == TEXT("switch_enum")) return {TEXT("enum_type")};
+    if (Lower == TEXT("call_delegate") || Lower == TEXT("broadcast_delegate")) return {TEXT("delegate_name")};
     
     return {};
 }
@@ -936,6 +942,76 @@ UEdGraphNode* FK2NodeFactory::CreateDelegateNode(UEdGraph* Graph, FVector2D Posi
 {
     UK2Node_CreateDelegate* Node = NewObject<UK2Node_CreateDelegate>(Graph);
     SetupNode(Node, Graph, Position);
+    return Node;
+}
+
+UEdGraphNode* FK2NodeFactory::CreateCallDelegateNode(UEdGraph* Graph, const TSharedPtr<FJsonObject>& Params, FVector2D Position, FString& OutError)
+{
+    // call_delegate / broadcast_delegate: Broadcasts an Event Dispatcher (multicast delegate)
+    // Similar to interface_message, but for local event dispatchers
+    
+    FString DelegateName = Params->GetStringField(TEXT("delegate_name"));
+    if (DelegateName.IsEmpty())
+    {
+        // Also try "dispatcher_name" for convenience
+        DelegateName = Params->GetStringField(TEXT("dispatcher_name"));
+    }
+    
+    if (DelegateName.IsEmpty())
+    {
+        OutError = TEXT("Missing 'delegate_name' or 'dispatcher_name' for call_delegate node");
+        return nullptr;
+    }
+    
+    // Get the Blueprint from the graph
+    UBlueprint* Blueprint = GetBlueprintFromGraph(Graph);
+    if (!Blueprint)
+    {
+        OutError = TEXT("Could not get Blueprint from graph");
+        return nullptr;
+    }
+    
+    // Find the delegate property on the Blueprint's generated class or skeleton class
+    UClass* TargetClass = Blueprint->SkeletonGeneratedClass ? Blueprint->SkeletonGeneratedClass : Blueprint->GeneratedClass;
+    if (!TargetClass)
+    {
+        OutError = TEXT("Blueprint has no generated class");
+        return nullptr;
+    }
+    
+    // Find the multicast delegate property
+    FMulticastDelegateProperty* DelegateProperty = nullptr;
+    for (TFieldIterator<FMulticastDelegateProperty> It(TargetClass); It; ++It)
+    {
+        if (It->GetName().Equals(DelegateName, ESearchCase::IgnoreCase))
+        {
+            DelegateProperty = *It;
+            break;
+        }
+    }
+    
+    if (!DelegateProperty)
+    {
+        OutError = FString::Printf(TEXT("Event Dispatcher '%s' not found on Blueprint '%s'"), *DelegateName, *Blueprint->GetName());
+        return nullptr;
+    }
+    
+    // Create the UK2Node_CallDelegate node
+    UK2Node_CallDelegate* Node = NewObject<UK2Node_CallDelegate>(Graph);
+    
+    // Set the delegate property reference
+    Node->SetFromProperty(DelegateProperty, false, TargetClass);
+    
+    // Setup the node in the graph
+    Node->NodePosX = Position.X;
+    Node->NodePosY = Position.Y;
+    Graph->AddNode(Node, false, false);
+    Node->CreateNewGuid();
+    Node->PostPlacedNewNode();
+    Node->AllocateDefaultPins();
+    
+    UE_LOG(LogK2NodeFactory, Display, TEXT("Created call_delegate node for Event Dispatcher: %s"), *DelegateName);
+    
     return Node;
 }
 

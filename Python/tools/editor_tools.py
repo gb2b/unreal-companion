@@ -292,27 +292,6 @@ def register_editor_tools(mcp: FastMCP):
     # ===========================================
     # FOCUS MANAGEMENT
     # ===========================================
-    # The focus system tracks which asset/graph you're working on.
-    # When you switch to a different asset, the previous one is auto-saved and closed.
-    # This provides a smooth "follow along" experience in the editor.
-
-    @mcp.tool()
-    def editor_focus_close(
-        ctx: Context
-    ) -> Dict[str, Any]:
-        """
-        Close the currently focused asset (save first).
-        
-        Use this when you're done working on an asset and want to clean up.
-        The asset is saved before closing.
-        
-        Note: This is called automatically when you switch to a different asset.
-        You only need to call it explicitly when you're completely done.
-        
-        Returns:
-            Success status and name of closed asset
-        """
-        return send_command("editor_focus_close", {})
 
     @mcp.tool()
     def editor_focus_level(
@@ -379,4 +358,4 @@ def register_editor_tools(mcp: FastMCP):
             "message": "Session whitelist cleared. All operations now require confirmation."
         }
 
-    logger.info("Editor tools registered successfully (9 tools)")
+    logger.info("Editor tools registered successfully (8 tools)")

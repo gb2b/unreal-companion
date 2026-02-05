@@ -23,6 +23,11 @@
 #include "Commands/UnrealCompanionQueryCommands.h"
 #include "Commands/UnrealCompanionPythonCommands.h"
 #include "Commands/UnrealCompanionImportCommands.h"
+#include "Commands/UnrealCompanionLandscapeCommands.h"
+#include "Commands/UnrealCompanionFoliageCommands.h"
+#include "Commands/UnrealCompanionGeometryCommands.h"
+#include "Commands/UnrealCompanionSplineCommands.h"
+#include "Commands/UnrealCompanionEnvironmentCommands.h"
 #include "UnrealCompanionBridge.generated.h"
 
 class FMCPServerRunnable;
@@ -44,6 +49,11 @@ class FMCPServerRunnable;
  * - Light: light_* (lighting)
  * - Viewport: viewport_* (camera control, screenshots)
  * - Project: project_* (project settings)
+ * - Landscape: landscape_* (terrain creation, sculpting, painting)
+ * - Foliage: foliage_* (vegetation scattering)
+ * - Geometry: geometry_* (procedural geometry via Geometry Script)
+ * - Spline: spline_* (spline creation, mesh scattering along splines)
+ * - Environment: environment_* (atmosphere, fog, time of day)
  */
 UCLASS()
 class UNREALCOMPANION_API UUnrealCompanionBridge : public UEditorSubsystem
@@ -91,4 +101,9 @@ private:
 	TSharedPtr<FUnrealCompanionProjectCommands> ProjectCommands;       // project_*
 	TSharedPtr<FUnrealCompanionPythonCommands> PythonCommands;         // python_*
 	TSharedPtr<FUnrealCompanionImportCommands> ImportCommands;         // asset_import*
+	TSharedPtr<FUnrealCompanionLandscapeCommands> LandscapeCommands;     // landscape_*
+	TSharedPtr<FUnrealCompanionFoliageCommands> FoliageCommands;       // foliage_*
+	TSharedPtr<FUnrealCompanionGeometryCommands> GeometryCommands;     // geometry_*
+	TSharedPtr<FUnrealCompanionSplineCommands> SplineCommands;         // spline_*
+	TSharedPtr<FUnrealCompanionEnvironmentCommands> EnvironmentCommands; // environment_*
 }; 

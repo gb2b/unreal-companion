@@ -27,6 +27,11 @@
 #include "Commands/UnrealCompanionQueryCommands.h"
 #include "Commands/UnrealCompanionPythonCommands.h"
 #include "Commands/UnrealCompanionImportCommands.h"
+#include "Commands/UnrealCompanionLandscapeCommands.h"
+#include "Commands/UnrealCompanionFoliageCommands.h"
+#include "Commands/UnrealCompanionGeometryCommands.h"
+#include "Commands/UnrealCompanionSplineCommands.h"
+#include "Commands/UnrealCompanionEnvironmentCommands.h"
 #include "HAL/PlatformTime.h"
 
 // Log category for MCP commands
@@ -52,6 +57,11 @@ UUnrealCompanionBridge::UUnrealCompanionBridge()
     ProjectCommands = MakeShared<FUnrealCompanionProjectCommands>();
     PythonCommands = MakeShared<FUnrealCompanionPythonCommands>();
     ImportCommands = MakeShared<FUnrealCompanionImportCommands>();
+    LandscapeCommands = MakeShared<FUnrealCompanionLandscapeCommands>();
+    FoliageCommands = MakeShared<FUnrealCompanionFoliageCommands>();
+    GeometryCommands = MakeShared<FUnrealCompanionGeometryCommands>();
+    SplineCommands = MakeShared<FUnrealCompanionSplineCommands>();
+    EnvironmentCommands = MakeShared<FUnrealCompanionEnvironmentCommands>();
 }
 
 UUnrealCompanionBridge::~UUnrealCompanionBridge()
@@ -69,6 +79,11 @@ UUnrealCompanionBridge::~UUnrealCompanionBridge()
     ProjectCommands.Reset();
     PythonCommands.Reset();
     ImportCommands.Reset();
+    LandscapeCommands.Reset();
+    FoliageCommands.Reset();
+    GeometryCommands.Reset();
+    SplineCommands.Reset();
+    EnvironmentCommands.Reset();
 }
 
 // Initialize subsystem
@@ -299,11 +314,14 @@ FString UUnrealCompanionBridge::ExecuteCommand(const FString& CommandType, const
             // WIDGET COMMANDS (widget_*)
             // ===========================================
             else if (CommandType == TEXT("widget_create") ||
+                     CommandType == TEXT("widget_batch") ||
+                     CommandType == TEXT("widget_get_info") ||
+                     CommandType == TEXT("widget_add_to_viewport") ||
+                     // Legacy (use widget_batch instead)
                      CommandType == TEXT("widget_add_text_block") ||
                      CommandType == TEXT("widget_add_button") ||
                      CommandType == TEXT("widget_bind_event") ||
-                     CommandType == TEXT("widget_set_text_binding") ||
-                     CommandType == TEXT("widget_add_to_viewport"))
+                     CommandType == TEXT("widget_set_text_binding"))
             {
                 ResultJson = WidgetCommands->HandleCommand(CommandType, Params);
             }
@@ -320,7 +338,14 @@ FString UUnrealCompanionBridge::ExecuteCommand(const FString& CommandType, const
             // ===========================================
             // WORLD COMMANDS (world_*)
             // ===========================================
-            else if (CommandType == TEXT("world_get_actors") || 
+            else if (CommandType == TEXT("world_spawn_batch") ||
+                     CommandType == TEXT("world_set_batch") ||
+                     CommandType == TEXT("world_delete_batch") ||
+                     CommandType == TEXT("world_select_actors") ||
+                     CommandType == TEXT("world_get_selected_actors") ||
+                     CommandType == TEXT("world_duplicate_actor") ||
+                     // Legacy (kept for backwards compatibility)
+                     CommandType == TEXT("world_get_actors") || 
                      CommandType == TEXT("world_find_actors_by_name") ||
                      CommandType == TEXT("world_find_actors_by_tag") ||
                      CommandType == TEXT("world_find_actors_in_radius") ||
@@ -329,13 +354,7 @@ FString UUnrealCompanionBridge::ExecuteCommand(const FString& CommandType, const
                      CommandType == TEXT("world_delete_actor") || 
                      CommandType == TEXT("world_set_actor_transform") ||
                      CommandType == TEXT("world_get_actor_properties") ||
-                     CommandType == TEXT("world_set_actor_property") ||
-                     CommandType == TEXT("world_select_actors") ||
-                     CommandType == TEXT("world_get_selected_actors") ||
-                     CommandType == TEXT("world_duplicate_actor") ||
-                     CommandType == TEXT("world_spawn_batch") ||
-                     CommandType == TEXT("world_set_batch") ||
-                     CommandType == TEXT("world_delete_batch"))
+                     CommandType == TEXT("world_set_actor_property"))
             {
                 ResultJson = WorldCommands->HandleCommand(CommandType, Params);
             }
@@ -379,7 +398,9 @@ FString UUnrealCompanionBridge::ExecuteCommand(const FString& CommandType, const
             // ===========================================
             // PROJECT COMMANDS (project_*)
             // ===========================================
-            else if (CommandType == TEXT("project_create_input_mapping"))
+            else if (CommandType == TEXT("project_create_input_mapping") ||
+                     CommandType == TEXT("project_create_input_action") ||
+                     CommandType == TEXT("project_add_to_mapping_context"))
             {
                 ResultJson = ProjectCommands->HandleCommand(CommandType, Params);
             }
@@ -409,6 +430,48 @@ FString UUnrealCompanionBridge::ExecuteCommand(const FString& CommandType, const
                      CommandType == TEXT("asset_get_supported_formats"))
             {
                 ResultJson = ImportCommands->HandleCommand(CommandType, Params);
+            }
+            // ===========================================
+            // LANDSCAPE COMMANDS (landscape_*)
+            // ===========================================
+            else if (CommandType == TEXT("landscape_create") ||
+                     CommandType == TEXT("landscape_sculpt") ||
+                     CommandType == TEXT("landscape_import_heightmap") ||
+                     CommandType == TEXT("landscape_paint_layer"))
+            {
+                ResultJson = LandscapeCommands->HandleCommand(CommandType, Params);
+            }
+            // ===========================================
+            // FOLIAGE COMMANDS (foliage_*)
+            // ===========================================
+            else if (CommandType == TEXT("foliage_add_type") ||
+                     CommandType == TEXT("foliage_scatter") ||
+                     CommandType == TEXT("foliage_remove"))
+            {
+                ResultJson = FoliageCommands->HandleCommand(CommandType, Params);
+            }
+            // ===========================================
+            // GEOMETRY COMMANDS (geometry_*)
+            // ===========================================
+            else if (CommandType == TEXT("geometry_create") ||
+                     CommandType == TEXT("geometry_boolean"))
+            {
+                ResultJson = GeometryCommands->HandleCommand(CommandType, Params);
+            }
+            // ===========================================
+            // SPLINE COMMANDS (spline_*)
+            // ===========================================
+            else if (CommandType == TEXT("spline_create") ||
+                     CommandType == TEXT("spline_scatter_meshes"))
+            {
+                ResultJson = SplineCommands->HandleCommand(CommandType, Params);
+            }
+            // ===========================================
+            // ENVIRONMENT COMMANDS (environment_*)
+            // ===========================================
+            else if (CommandType == TEXT("environment_configure"))
+            {
+                ResultJson = EnvironmentCommands->HandleCommand(CommandType, Params);
             }
             // Unknown command
             else

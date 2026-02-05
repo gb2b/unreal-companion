@@ -52,6 +52,24 @@ TSharedPtr<FJsonObject> FUnrealCompanionWorldCommands::HandleCommand(const FStri
     {
         return HandleSetActorProperty(Params);
     }
+    else if (CommandType == TEXT("world_select_actors"))
+    {
+        return HandleSelectActors(Params);
+    }
+    else if (CommandType == TEXT("world_get_selected_actors"))
+    {
+        return HandleGetSelectedActors(Params);
+    }
+    else if (CommandType == TEXT("world_duplicate_actor"))
+    {
+        return HandleDuplicateActor(Params);
+    }
+    else if (CommandType == TEXT("world_find_actors_by_tag") ||
+             CommandType == TEXT("world_find_actors_in_radius"))
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(
+            FString::Printf(TEXT("'%s' is deprecated. Use core_query(type=\"actor\", ...) instead."), *CommandType));
+    }
     // =========================================================================
     // BATCH OPERATIONS - With Level Editor focus tracking
     // =========================================================================
@@ -739,6 +757,169 @@ TSharedPtr<FJsonObject> FUnrealCompanionWorldCommands::HandleDeleteBatch(const T
     TArray<TSharedPtr<FJsonValue>> DeletedArray;
     for (const FString& Name : DeletedActors) DeletedArray.Add(MakeShared<FJsonValueString>(Name));
     ResponseData->SetArrayField(TEXT("deleted_actors"), DeletedArray);
+    
+    return ResponseData;
+}
+
+// =========================================================================
+// SELECTION
+// =========================================================================
+
+TSharedPtr<FJsonObject> FUnrealCompanionWorldCommands::HandleSelectActors(const TSharedPtr<FJsonObject>& Params)
+{
+    const TArray<TSharedPtr<FJsonValue>>* NamesArray = nullptr;
+    if (!Params->TryGetArrayField(TEXT("actor_names"), NamesArray) || NamesArray->Num() == 0)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Missing or empty 'actor_names' array"));
+    }
+    
+    bool bAddToSelection = false;
+    Params->TryGetBoolField(TEXT("add_to_selection"), bAddToSelection);
+    
+    USelection* SelectedActors = GEditor->GetSelectedActors();
+    if (!bAddToSelection)
+    {
+        GEditor->SelectNone(true, true, false);
+    }
+    
+    TArray<FString> SelectedNames;
+    TArray<FString> NotFoundNames;
+    
+    for (const TSharedPtr<FJsonValue>& NameValue : *NamesArray)
+    {
+        FString ActorName = NameValue->AsString();
+        AActor* Actor = FindActorByName(ActorName);
+        
+        if (Actor)
+        {
+            GEditor->SelectActor(Actor, true, true, true);
+            SelectedNames.Add(Actor->GetActorLabel());
+        }
+        else
+        {
+            NotFoundNames.Add(ActorName);
+        }
+    }
+    
+    TSharedPtr<FJsonObject> ResponseData = MakeShared<FJsonObject>();
+    ResponseData->SetBoolField(TEXT("success"), true);
+    ResponseData->SetNumberField(TEXT("selected_count"), SelectedNames.Num());
+    ResponseData->SetNumberField(TEXT("not_found_count"), NotFoundNames.Num());
+    
+    TArray<TSharedPtr<FJsonValue>> SelectedArray;
+    for (const FString& Name : SelectedNames) SelectedArray.Add(MakeShared<FJsonValueString>(Name));
+    ResponseData->SetArrayField(TEXT("selected"), SelectedArray);
+    
+    if (NotFoundNames.Num() > 0)
+    {
+        TArray<TSharedPtr<FJsonValue>> NotFoundArray;
+        for (const FString& Name : NotFoundNames) NotFoundArray.Add(MakeShared<FJsonValueString>(Name));
+        ResponseData->SetArrayField(TEXT("not_found"), NotFoundArray);
+    }
+    
+    return ResponseData;
+}
+
+TSharedPtr<FJsonObject> FUnrealCompanionWorldCommands::HandleGetSelectedActors(const TSharedPtr<FJsonObject>& Params)
+{
+    USelection* SelectedActors = GEditor->GetSelectedActors();
+    
+    TArray<TSharedPtr<FJsonValue>> ActorArray;
+    for (int32 i = 0; i < SelectedActors->Num(); i++)
+    {
+        AActor* Actor = Cast<AActor>(SelectedActors->GetSelectedObject(i));
+        if (Actor)
+        {
+            ActorArray.Add(FUnrealCompanionCommonUtils::ActorToJson(Actor));
+        }
+    }
+    
+    TSharedPtr<FJsonObject> ResponseData = MakeShared<FJsonObject>();
+    ResponseData->SetBoolField(TEXT("success"), true);
+    ResponseData->SetNumberField(TEXT("count"), ActorArray.Num());
+    ResponseData->SetArrayField(TEXT("actors"), ActorArray);
+    
+    return ResponseData;
+}
+
+TSharedPtr<FJsonObject> FUnrealCompanionWorldCommands::HandleDuplicateActor(const TSharedPtr<FJsonObject>& Params)
+{
+    FString ActorName;
+    if (!Params->TryGetStringField(TEXT("actor_name"), ActorName))
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Missing 'actor_name' parameter"));
+    }
+    
+    AActor* SourceActor = FindActorByName(ActorName);
+    if (!SourceActor)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(
+            FString::Printf(TEXT("Actor '%s' not found"), *ActorName));
+    }
+    
+    UWorld* World = GEditor->GetEditorWorldContext().World();
+    if (!World)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("No valid world"));
+    }
+    
+    FScopedTransaction Transaction(FText::FromString(TEXT("MCP Duplicate Actor")));
+    
+    // Select the source actor and duplicate via editor
+    GEditor->SelectNone(true, true, false);
+    GEditor->SelectActor(SourceActor, true, true, true);
+    
+    GEditor->edactDuplicateSelected(World->GetCurrentLevel(), false);
+    
+    // The duplicated actor should now be selected
+    AActor* DuplicatedActor = nullptr;
+    USelection* SelectedActors = GEditor->GetSelectedActors();
+    for (int32 i = 0; i < SelectedActors->Num(); i++)
+    {
+        AActor* Selected = Cast<AActor>(SelectedActors->GetSelectedObject(i));
+        if (Selected && Selected != SourceActor)
+        {
+            DuplicatedActor = Selected;
+            break;
+        }
+    }
+    
+    if (!DuplicatedActor)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Failed to duplicate actor"));
+    }
+    
+    // Apply new location if specified
+    const TArray<TSharedPtr<FJsonValue>>* LocationArray = nullptr;
+    if (Params->TryGetArrayField(TEXT("new_location"), LocationArray) && LocationArray->Num() >= 3)
+    {
+        FVector NewLocation(
+            (*LocationArray)[0]->AsNumber(),
+            (*LocationArray)[1]->AsNumber(),
+            (*LocationArray)[2]->AsNumber()
+        );
+        DuplicatedActor->SetActorLocation(NewLocation);
+    }
+    
+    // Apply new name/label if specified
+    FString NewName;
+    if (Params->TryGetStringField(TEXT("new_name"), NewName))
+    {
+        DuplicatedActor->SetActorLabel(NewName);
+    }
+    
+    TSharedPtr<FJsonObject> ResponseData = MakeShared<FJsonObject>();
+    ResponseData->SetBoolField(TEXT("success"), true);
+    ResponseData->SetStringField(TEXT("source"), SourceActor->GetActorLabel());
+    ResponseData->SetStringField(TEXT("duplicated"), DuplicatedActor->GetActorLabel());
+    ResponseData->SetStringField(TEXT("duplicated_name"), DuplicatedActor->GetName());
+    
+    FVector Loc = DuplicatedActor->GetActorLocation();
+    TArray<TSharedPtr<FJsonValue>> LocArray;
+    LocArray.Add(MakeShared<FJsonValueNumber>(Loc.X));
+    LocArray.Add(MakeShared<FJsonValueNumber>(Loc.Y));
+    LocArray.Add(MakeShared<FJsonValueNumber>(Loc.Z));
+    ResponseData->SetArrayField(TEXT("location"), LocArray);
     
     return ResponseData;
 }

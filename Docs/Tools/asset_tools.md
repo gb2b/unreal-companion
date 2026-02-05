@@ -2,17 +2,15 @@
 
 Tools for managing assets and folders in the Content Browser.
 
-## Available Tools (7)
+## Available Tools (5)
 
 | Tool | Description |
 |------|-------------|
 | `asset_create_folder` | Create a folder in Content Browser |
-| `asset_delete` | Delete a single asset |
 | `asset_modify_batch` | Batch rename, move, duplicate assets |
-| `asset_delete_batch` | Delete multiple assets |
-| `asset_import` | Import external file (FBX, GLB, OBJ, PNG) |
+| `asset_delete_batch` | Delete one or multiple assets |
+| `asset_import` | Import external file (FBX, GLB, OBJ, PNG, WAV...) |
 | `asset_import_batch` | Import multiple files at once |
-| `asset_get_supported_formats` | List supported import formats |
 
 > **Note**: For queries (list, find, exists, get_info), use `core_query` and `core_get_info`:
 > - `core_query(type="asset", action="list", path="/Game/...")` - List assets
@@ -23,52 +21,6 @@ Tools for managing assets and folders in the Content Browser.
 
 > **Editor Focus**: All batch operations and folder creation automatically sync the Content Browser.
 > To disable, pass `focus_editor=False`.
-
----
-
-## asset_list
-
-List assets in the Content Browser with optional filters.
-
-```python
-asset_list(
-    path: str = "/Game/",     # Path to search
-    asset_class: str = "",    # Filter by class (Blueprint, StaticMesh, etc.)
-    max_results: int = 100,   # Maximum results
-    recursive: bool = True    # Search subdirectories
-)
-```
-
-**Example:**
-```python
-# List all Blueprints in a folder
-asset_list(path="/Game/Blueprints", asset_class="Blueprint")
-
-# List StaticMeshes
-asset_list(path="/Game/Meshes", asset_class="StaticMesh", max_results=50)
-```
-
----
-
-## asset_get_bounds
-
-Get bounding box of a mesh. Essential for proper actor placement.
-
-```python
-asset_get_bounds(path: str)
-```
-
-**Returns:**
-```json
-{
-  "success": true,
-  "min": [-50, -50, 0],
-  "max": [50, 50, 100],
-  "size": [100, 100, 100],
-  "pivot_offset": [0, 0, 50],
-  "bottom_z": 0
-}
-```
 
 ---
 
@@ -141,7 +93,7 @@ asset_delete_batch(assets=[
 
 ```python
 # 1. Check structure
-asset_list(path="/Game/Blueprints")
+core_query(type="asset", action="list", path="/Game/Blueprints")
 
 # 2. Reorganize assets
 asset_modify_batch(operations=[
@@ -153,7 +105,7 @@ asset_modify_batch(operations=[
 asset_delete_batch(assets=["/Game/Old/BP_Test", "/Game/Old/BP_Temp"])
 
 # 4. Save
-asset_save_all()
+core_save(scope="all")
 ```
 
 ---

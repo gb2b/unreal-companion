@@ -789,10 +789,21 @@ export async function setupProject(projectPath, options = {}) {
     mkdirSync(projectPaths.workflows, { recursive: true });
     mkdirSync(projectPaths.docs, { recursive: true });
     // Create subdirectories for docs (unified output folder)
-    mkdirSync(join(projectPaths.docs, 'concept'), { recursive: true });
-    mkdirSync(join(projectPaths.docs, 'design'), { recursive: true });
-    mkdirSync(join(projectPaths.docs, 'technical'), { recursive: true });
-    mkdirSync(join(projectPaths.docs, 'analysis'), { recursive: true });
+    // These match the output paths defined in workflow.yaml files
+    const docSubdirs = [
+      'concept',     // game-brief
+      'design',      // gdd, level-design
+      'technical',   // architecture
+      'analysis',    // brainstorms
+      'narrative',   // narrative, characters, quests, lore, dialogues
+      'boards',      // mindmaps, moodboards, diagrams
+      'production',  // sprints, stories
+      'art',         // art-direction
+      'audio',       // audio-direction
+    ];
+    for (const subdir of docSubdirs) {
+      mkdirSync(join(projectPaths.docs, subdir), { recursive: true });
+    }
     
     // Create project config (minimal - inherits from global)
     if (!existsSync(projectPaths.config) || force) {

@@ -46,6 +46,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetArrayLibrary.h"
+#include "Kismet/KismetStringLibrary.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphNode_Comment.h"
 
@@ -1996,8 +1997,26 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
         }
     }
 
-    // Create a new multicast delegate signature graph
-    FName SignatureName = FBlueprintEditorUtils::FindUniqueKismetName(Blueprint, DispatcherName + TEXT("__DelegateSignature"));
+    // =========================================================================
+    // NEW APPROACH: Create Event Dispatcher like the editor does it manually
+    // KEY INSIGHT from debug: The graph name must be EXACTLY the same as the
+    // variable name (no __DelegateSignature suffix), and MemberName must be None
+    // =========================================================================
+
+    // The signature graph name must match the dispatcher name exactly
+    FName SignatureName = FName(*DispatcherName);
+    
+    // Check if signature already exists (avoid duplicates)
+    for (UEdGraph* Graph : Blueprint->DelegateSignatureGraphs)
+    {
+        if (Graph && Graph->GetFName() == SignatureName)
+        {
+            return FUnrealCompanionCommonUtils::CreateErrorResponse(
+                FString::Printf(TEXT("Delegate signature graph already exists: %s"), *SignatureName.ToString()));
+        }
+    }
+
+    // Create the delegate signature graph
     UEdGraph* DelegateSignatureGraph = FBlueprintEditorUtils::CreateNewGraph(
         Blueprint,
         SignatureName,
@@ -2010,14 +2029,21 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
         return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Failed to create delegate signature graph"));
     }
 
+    // Add to Blueprint's delegate signature graphs FIRST
     Blueprint->DelegateSignatureGraphs.Add(DelegateSignatureGraph);
 
-    // Create entry node for the signature
+    // Create the FunctionEntry node - this defines the delegate's signature
+    // Use FKismetEditorUtilities pattern for proper initialization
+    const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+    
     FGraphNodeCreator<UK2Node_FunctionEntry> EntryNodeCreator(*DelegateSignatureGraph);
     UK2Node_FunctionEntry* EntryNode = EntryNodeCreator.CreateNode();
     EntryNode->NodePosX = 0;
     EntryNode->NodePosY = 0;
+    // Set the function reference to point to this signature
     EntryNode->FunctionReference.SetSelfMember(SignatureName);
+    // Mark this as a delegate signature entry
+    EntryNode->bIsEditable = true;
     EntryNodeCreator.Finalize();
 
     // Add input parameters to the entry node
@@ -2039,10 +2065,11 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
                 
                 if (ConfigurePinTypeFromString(ParamType, ParamPinType, ErrorMsg))
                 {
+                    // Add the pin to the entry node using the schema
                     TSharedPtr<FUserPinInfo> PinInfo = MakeShared<FUserPinInfo>();
                     PinInfo->PinName = FName(*ParamName);
                     PinInfo->PinType = ParamPinType;
-                    PinInfo->DesiredPinDirection = EGPD_Output;
+                    PinInfo->DesiredPinDirection = EGPD_Output; // Outputs from entry = inputs to delegate
                     if (!DefaultValue.IsEmpty())
                     {
                         PinInfo->PinDefaultValue = DefaultValue;
@@ -2059,7 +2086,7 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
         }
     }
 
-    // Create result node if there are outputs
+    // Handle outputs (rare for event dispatchers, but supported)
     int32 OutputCount = 0;
     if (OutputsArray->Num() > 0)
     {
@@ -2094,29 +2121,29 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
                         ResultNode->UserDefinedPins.Add(PinInfo);
                         OutputCount++;
                     }
-                    else
-                    {
-                        UE_LOG(LogTemp, Warning, TEXT("Could not configure output type for %s: %s"), *ParamName, *ErrorMsg);
-                    }
                 }
             }
         }
         ResultNode->ReconstructNode();
     }
 
+    // Reconstruct entry node to create the pins from UserDefinedPins
     EntryNode->ReconstructNode();
 
-    // Create the variable for the event dispatcher
+    // Create the event dispatcher variable
+    // KEY INSIGHT from debug: MemberName should be None (not set), MemberParent should be nullptr
+    // The compiler finds the signature graph by matching the variable name to graph name
     FEdGraphPinType DelegatePinType;
     DelegatePinType.PinCategory = UEdGraphSchema_K2::PC_MCDelegate;
-    DelegatePinType.PinSubCategoryMemberReference.MemberName = SignatureName;
-    DelegatePinType.PinSubCategoryMemberReference.MemberParent = Blueprint->SkeletonGeneratedClass;
+    // Don't set MemberName or MemberParent - leave as default (None/nullptr)
+    // This matches what the editor does when creating Event Dispatchers manually
 
     bool bSuccess = FBlueprintEditorUtils::AddMemberVariable(Blueprint, FName(*DispatcherName), DelegatePinType);
     
     if (!bSuccess)
     {
         Blueprint->DelegateSignatureGraphs.Remove(DelegateSignatureGraph);
+        FBlueprintEditorUtils::RemoveGraph(Blueprint, DelegateSignatureGraph);
         return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Failed to add event dispatcher variable"));
     }
 
@@ -2125,8 +2152,8 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
     {
         if (Var.VarName == FName(*DispatcherName))
         {
-            // Clear and set appropriate flags
-            Var.PropertyFlags &= ~(CPF_BlueprintAssignable | CPF_BlueprintCallable | CPF_BlueprintAuthorityOnly | CPF_Net | CPF_RepNotify);
+            // Set appropriate property flags for event dispatcher
+            Var.PropertyFlags |= CPF_BlueprintVisible;
             
             if (bBlueprintCallable)
                 Var.PropertyFlags |= CPF_BlueprintCallable;
@@ -2151,6 +2178,7 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleAddEventDis
         }
     }
 
+    // Mark as structurally modified - this triggers recompilation
     FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 
     UE_LOG(LogTemp, Display, TEXT("Created Event Dispatcher: %s (inputs: %d, outputs: %d, callable: %d, assignable: %d)"), 
@@ -3013,17 +3041,64 @@ TSharedPtr<FJsonObject> FUnrealCompanionBlueprintNodeCommands::HandleGetBlueprin
         ResultObj->SetArrayField(TEXT("functions"), FuncsArray);
     }
 
-    // Event Dispatchers
+    // Event Dispatchers - Enhanced debug info
     if (InfoType == TEXT("all") || InfoType == TEXT("dispatchers"))
     {
         TArray<TSharedPtr<FJsonValue>> DispatchersArray;
+        
+        // First, list all delegate signature graphs
         for (UEdGraph* Graph : Blueprint->DelegateSignatureGraphs)
         {
             TSharedPtr<FJsonObject> DispObj = MakeShared<FJsonObject>();
-            DispObj->SetStringField(TEXT("name"), Graph->GetFName().ToString());
+            DispObj->SetStringField(TEXT("graph_name"), Graph->GetFName().ToString());
+            
+            // Get nodes in the graph
+            TArray<TSharedPtr<FJsonValue>> NodesArray;
+            for (UEdGraphNode* Node : Graph->Nodes)
+            {
+                TSharedPtr<FJsonObject> NodeObj = MakeShared<FJsonObject>();
+                NodeObj->SetStringField(TEXT("class"), Node->GetClass()->GetName());
+                NodeObj->SetStringField(TEXT("name"), Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+                
+                // For FunctionEntry nodes, get UserDefinedPins
+                if (UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(Node))
+                {
+                    TArray<TSharedPtr<FJsonValue>> PinsArray;
+                    for (const TSharedPtr<FUserPinInfo>& Pin : EntryNode->UserDefinedPins)
+                    {
+                        TSharedPtr<FJsonObject> PinObj = MakeShared<FJsonObject>();
+                        PinObj->SetStringField(TEXT("name"), Pin->PinName.ToString());
+                        PinObj->SetStringField(TEXT("type"), Pin->PinType.PinCategory.ToString());
+                        PinObj->SetStringField(TEXT("direction"), Pin->DesiredPinDirection == EGPD_Output ? TEXT("Output") : TEXT("Input"));
+                        PinsArray.Add(MakeShared<FJsonValueObject>(PinObj));
+                    }
+                    NodeObj->SetArrayField(TEXT("user_defined_pins"), PinsArray);
+                }
+                
+                NodesArray.Add(MakeShared<FJsonValueObject>(NodeObj));
+            }
+            DispObj->SetArrayField(TEXT("nodes"), NodesArray);
             DispatchersArray.Add(MakeShared<FJsonValueObject>(DispObj));
         }
-        ResultObj->SetArrayField(TEXT("event_dispatchers"), DispatchersArray);
+        
+        // Also list delegate variables from NewVariables
+        TArray<TSharedPtr<FJsonValue>> DelegateVarsArray;
+        for (const FBPVariableDescription& Var : Blueprint->NewVariables)
+        {
+            if (Var.VarType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate)
+            {
+                TSharedPtr<FJsonObject> VarObj = MakeShared<FJsonObject>();
+                VarObj->SetStringField(TEXT("name"), Var.VarName.ToString());
+                VarObj->SetStringField(TEXT("member_name"), Var.VarType.PinSubCategoryMemberReference.MemberName.ToString());
+                VarObj->SetStringField(TEXT("member_parent"), Var.VarType.PinSubCategoryMemberReference.MemberParent ? 
+                    Var.VarType.PinSubCategoryMemberReference.MemberParent->GetName() : TEXT("None"));
+                VarObj->SetNumberField(TEXT("property_flags"), static_cast<int64>(Var.PropertyFlags));
+                DelegateVarsArray.Add(MakeShared<FJsonValueObject>(VarObj));
+            }
+        }
+        
+        ResultObj->SetArrayField(TEXT("delegate_signature_graphs"), DispatchersArray);
+        ResultObj->SetArrayField(TEXT("delegate_variables"), DelegateVarsArray);
     }
 
     // Components
@@ -4996,6 +5071,8 @@ UEdGraphNode* FUnrealCompanionBlueprintNodeCommands::CreateNodeByType(
             TArray<UClass*> LibraryClasses = {
                 UKismetSystemLibrary::StaticClass(),
                 UKismetMathLibrary::StaticClass(),
+                UKismetArrayLibrary::StaticClass(),
+                UKismetStringLibrary::StaticClass(),
                 UGameplayStatics::StaticClass()
             };
             
@@ -5003,6 +5080,22 @@ UEdGraphNode* FUnrealCompanionBlueprintNodeCommands::CreateNodeByType(
             {
                 Function = LibClass->FindFunctionByName(FName(*FunctionName));
                 if (Function) break;
+            }
+        }
+        
+        // If still not found, try variations of the name (for math operations)
+        // UE5 uses Double instead of Float for math functions
+        if (!Function && FunctionName.Contains(TEXT("Float")))
+        {
+            FString DoubleName = FunctionName.Replace(TEXT("Float"), TEXT("Double"));
+            for (UClass* LibClass : {UKismetMathLibrary::StaticClass()})
+            {
+                Function = LibClass->FindFunctionByName(FName(*DoubleName));
+                if (Function) 
+                {
+                    UE_LOG(LogUnrealCompanion, Display, TEXT("Function '%s' not found, using '%s' instead"), *FunctionName, *DoubleName);
+                    break;
+                }
             }
         }
         

@@ -103,6 +103,7 @@ private:
     UEdGraphNode* CreateTimelineNode(UEdGraph* Graph, const TSharedPtr<FJsonObject>& Params, FVector2D Position);
     UEdGraphNode* CreateRerouteNode(UEdGraph* Graph, FVector2D Position);
     UEdGraphNode* CreateDelegateNode(UEdGraph* Graph, FVector2D Position);
+    UEdGraphNode* CreateCallDelegateNode(UEdGraph* Graph, const TSharedPtr<FJsonObject>& Params, FVector2D Position, FString& OutError);
     UEdGraphNode* CreateCommentNode(UEdGraph* Graph, const TSharedPtr<FJsonObject>& Params, FVector2D Position);
 
     // =========================================================================

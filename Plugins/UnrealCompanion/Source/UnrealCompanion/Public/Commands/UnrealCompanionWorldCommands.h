@@ -38,6 +38,11 @@ private:
     TSharedPtr<FJsonObject> HandleGetActorProperties(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetActorProperty(const TSharedPtr<FJsonObject>& Params);
     
+    // Selection & duplication
+    TSharedPtr<FJsonObject> HandleSelectActors(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleGetSelectedActors(const TSharedPtr<FJsonObject>& Params);
+    TSharedPtr<FJsonObject> HandleDuplicateActor(const TSharedPtr<FJsonObject>& Params);
+    
     // Batch operations
     TSharedPtr<FJsonObject> HandleSpawnBatch(const TSharedPtr<FJsonObject>& Params);
     TSharedPtr<FJsonObject> HandleSetBatch(const TSharedPtr<FJsonObject>& Params);

@@ -29,6 +29,7 @@ public class UnrealCompanion : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
+				"EnhancedInput",  // For Enhanced Input System (Input Actions, Mapping Contexts)
 				"Networking",
 				"Sockets",
 				"HTTP",
@@ -52,10 +53,17 @@ public class UnrealCompanion : ModuleRules
 				"BlueprintGraph",
 				"Projects",
 				"AssetRegistry",
-				"PythonScriptPlugin",  // For python_execute commands
+					"PythonScriptPlugin",  // For python_execute commands
 				"AnimGraph",           // For Animation Blueprint graphs
 				"AnimGraphRuntime",    // For Animation graph runtime types
-				"MaterialEditor"       // For Material graph nodes
+				"MaterialEditor",      // For Material graph nodes
+				"Landscape",           // For ALandscape, ULandscapeInfo (runtime)
+				"Foliage",             // For AInstancedFoliageActor, UFoliageType (runtime)
+				"GeometryCore",        // For FDynamicMesh3 core types
+				"GeometryScriptingCore", // For UGeometryScriptLibrary_* functions
+				"GeometryFramework",   // For UDynamicMesh, ADynamicMeshActor
+				"DynamicMesh",         // For DynamicMeshComponent
+				"MeshDescription"      // For mesh data types
 			}
 		);
 		
@@ -96,10 +104,12 @@ public class UnrealCompanion : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"PropertyEditor",      // For widget property editing
-					"ToolMenus",           // For editor UI
-					"BlueprintEditorLibrary", // For Blueprint utilities
-					"UMGEditor"           // For WidgetBlueprint.h and other UMG editor functionality
+				"PropertyEditor",      // For widget property editing
+				"ToolMenus",           // For editor UI
+				"BlueprintEditorLibrary", // For Blueprint utilities
+				"UMGEditor",           // For WidgetBlueprint.h and other UMG editor functionality
+				"LandscapeEditor",     // For FLandscapeEditDataInterface (editor-only)
+				"GeometryScriptingEditor" // For Geometry Script editor utilities
 				}
 			);
 		}
