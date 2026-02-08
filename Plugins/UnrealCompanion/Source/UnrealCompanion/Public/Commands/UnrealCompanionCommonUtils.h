@@ -14,7 +14,9 @@ class UK2Node_CallFunction;
 class UK2Node_VariableGet;
 class UK2Node_VariableSet;
 class UK2Node_InputAction;
+class UK2Node_EnhancedInputAction;
 class UK2Node_Self;
+class UInputAction;
 class UFunction;
 
 /**
@@ -115,6 +117,7 @@ public:
     static UK2Node_VariableGet* CreateVariableGetNode(UEdGraph* Graph, UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position);
     static UK2Node_VariableSet* CreateVariableSetNode(UEdGraph* Graph, UBlueprint* Blueprint, const FString& VariableName, const FVector2D& Position);
     static UK2Node_InputAction* CreateInputActionNode(UEdGraph* Graph, const FString& ActionName, const FVector2D& Position);
+    static UK2Node_EnhancedInputAction* CreateEnhancedInputActionNode(UEdGraph* Graph, const FString& ActionName, const FVector2D& Position);
     static UK2Node_Self* CreateSelfReferenceNode(UEdGraph* Graph, const FVector2D& Position);
     static bool ConnectGraphNodes(UEdGraph* Graph, UEdGraphNode* SourceNode, const FString& SourcePinName, 
                                 UEdGraphNode* TargetNode, const FString& TargetPinName);

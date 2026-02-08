@@ -32,4 +32,7 @@ private:
     static TSharedPtr<FJsonObject> GetInfoNode(const TSharedPtr<FJsonObject>& Params);
     static TSharedPtr<FJsonObject> GetInfoActor(const TSharedPtr<FJsonObject>& Params);
     static TSharedPtr<FJsonObject> GetInfoMaterial(const TSharedPtr<FJsonObject>& Params);
+    static TSharedPtr<FJsonObject> GetInfoNiagara(const TSharedPtr<FJsonObject>& Params);
+    static TSharedPtr<FJsonObject> GetInfoAnimBlueprint(const TSharedPtr<FJsonObject>& Params);
+    static TSharedPtr<FJsonObject> GetInfoBehaviorTree(const TSharedPtr<FJsonObject>& Params);
 };

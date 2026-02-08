@@ -20,6 +20,32 @@
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Materials/MaterialInstance.h"
+// Niagara includes
+#include "NiagaraSystem.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraRendererProperties.h"
+#include "NiagaraSpriteRendererProperties.h"
+#include "NiagaraRibbonRendererProperties.h"
+#include "NiagaraMeshRendererProperties.h"
+// Animation Blueprint includes
+#include "Animation/AnimBlueprint.h"
+#include "AnimGraphNode_Base.h"
+#include "AnimGraphNode_StateMachineBase.h"
+#include "AnimationStateMachineGraph.h"
+#include "AnimStateNodeBase.h"
+#include "AnimStateNode.h"
+#include "AnimStateTransitionNode.h"
+#include "AnimationGraph.h"
+// Behavior Tree includes
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BTNode.h"
+#include "BehaviorTree/BTCompositeNode.h"
+#include "BehaviorTree/BTTaskNode.h"
+#include "BehaviorTree/BTDecorator.h"
+#include "BehaviorTree/BTService.h"
+#include "BehaviorTree/BehaviorTreeTypes.h"
+#include "BehaviorTree/BlackboardData.h"
 
 TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::HandleCommand(const FString& CommandType, const TSharedPtr<FJsonObject>& Params)
 {
@@ -476,6 +502,18 @@ TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::HandleGetInfo(const TShar
     {
         return GetInfoMaterial(Params);
     }
+    else if (Type == TEXT("niagara"))
+    {
+        return GetInfoNiagara(Params);
+    }
+    else if (Type == TEXT("anim_blueprint"))
+    {
+        return GetInfoAnimBlueprint(Params);
+    }
+    else if (Type == TEXT("behavior_tree"))
+    {
+        return GetInfoBehaviorTree(Params);
+    }
     
     return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Unknown get_info type: %s"), *Type));
 }
@@ -887,6 +925,400 @@ TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::GetInfoMaterial(const TSh
     {
         ResultObj->SetBoolField(TEXT("is_instance"), false);
     }
+    
+    return ResultObj;
+}
+
+// ============================================================================
+// GET_INFO - Niagara System
+// ============================================================================
+
+TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::GetInfoNiagara(const TSharedPtr<FJsonObject>& Params)
+{
+    FString Path = Params->GetStringField(TEXT("path"));
+    if (Path.IsEmpty())
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Missing path for niagara get_info"));
+    }
+    
+    UObject* Asset = UEditorAssetLibrary::LoadAsset(Path);
+    if (!Asset)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Asset not found: %s"), *Path));
+    }
+    
+    UNiagaraSystem* NiagaraSystem = Cast<UNiagaraSystem>(Asset);
+    if (!NiagaraSystem)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Asset is not a NiagaraSystem: %s (class: %s)"), *Path, *Asset->GetClass()->GetName()));
+    }
+    
+    TSharedPtr<FJsonObject> ResultObj = MakeShareable(new FJsonObject());
+    ResultObj->SetBoolField(TEXT("success"), true);
+    ResultObj->SetStringField(TEXT("type"), TEXT("niagara"));
+    ResultObj->SetStringField(TEXT("path"), Path);
+    ResultObj->SetStringField(TEXT("name"), NiagaraSystem->GetName());
+    ResultObj->SetStringField(TEXT("class"), NiagaraSystem->GetClass()->GetName());
+    
+    // Emitters
+    TArray<TSharedPtr<FJsonValue>> EmittersArray;
+    bool bHasGPUEmitters = false;
+    
+    const TArray<FNiagaraEmitterHandle>& EmitterHandles = NiagaraSystem->GetEmitterHandles();
+    for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+    {
+        TSharedPtr<FJsonObject> EmitterObj = MakeShareable(new FJsonObject());
+        EmitterObj->SetStringField(TEXT("name"), Handle.GetName().ToString());
+        EmitterObj->SetBoolField(TEXT("enabled"), Handle.GetIsEnabled());
+        EmitterObj->SetStringField(TEXT("unique_name"), Handle.GetUniqueInstanceName());
+        
+        // Get emitter data
+        FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData();
+        if (EmitterData)
+        {
+            // Sim target
+            ENiagaraSimTarget SimTarget = EmitterData->SimTarget;
+            EmitterObj->SetStringField(TEXT("sim_target"), SimTarget == ENiagaraSimTarget::GPUComputeSim ? TEXT("GPU") : TEXT("CPU"));
+            if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+            {
+                bHasGPUEmitters = true;
+            }
+            
+            // Renderers
+            TArray<TSharedPtr<FJsonValue>> RenderersArray;
+            for (UNiagaraRendererProperties* Renderer : EmitterData->GetRenderers())
+            {
+                if (!Renderer) continue;
+                
+                TSharedPtr<FJsonObject> RendererObj = MakeShareable(new FJsonObject());
+                RendererObj->SetStringField(TEXT("class"), Renderer->GetClass()->GetName());
+                RendererObj->SetBoolField(TEXT("enabled"), Renderer->GetIsEnabled());
+                
+                // Identify renderer type
+                if (Cast<UNiagaraSpriteRendererProperties>(Renderer))
+                {
+                    RendererObj->SetStringField(TEXT("type"), TEXT("Sprite"));
+                    UNiagaraSpriteRendererProperties* SpriteRenderer = Cast<UNiagaraSpriteRendererProperties>(Renderer);
+                    if (SpriteRenderer->Material)
+                    {
+                        RendererObj->SetStringField(TEXT("material"), SpriteRenderer->Material->GetPathName());
+                    }
+                }
+                else if (Cast<UNiagaraRibbonRendererProperties>(Renderer))
+                {
+                    RendererObj->SetStringField(TEXT("type"), TEXT("Ribbon"));
+                    UNiagaraRibbonRendererProperties* RibbonRenderer = Cast<UNiagaraRibbonRendererProperties>(Renderer);
+                    if (RibbonRenderer->Material)
+                    {
+                        RendererObj->SetStringField(TEXT("material"), RibbonRenderer->Material->GetPathName());
+                    }
+                }
+                else if (Cast<UNiagaraMeshRendererProperties>(Renderer))
+                {
+                    RendererObj->SetStringField(TEXT("type"), TEXT("Mesh"));
+                }
+                else
+                {
+                    RendererObj->SetStringField(TEXT("type"), Renderer->GetClass()->GetName());
+                }
+                
+                RenderersArray.Add(MakeShareable(new FJsonValueObject(RendererObj)));
+            }
+            EmitterObj->SetArrayField(TEXT("renderers"), RenderersArray);
+        }
+        
+        EmittersArray.Add(MakeShareable(new FJsonValueObject(EmitterObj)));
+    }
+    
+    ResultObj->SetArrayField(TEXT("emitters"), EmittersArray);
+    ResultObj->SetNumberField(TEXT("emitter_count"), EmitterHandles.Num());
+    ResultObj->SetBoolField(TEXT("has_gpu_emitters"), bHasGPUEmitters);
+    
+    // User parameters
+    TArray<TSharedPtr<FJsonValue>> UserParamsArray;
+    auto ExposedVars = NiagaraSystem->GetExposedParameters().ReadParameterVariables();
+    for (const auto& Var : ExposedVars)
+    {
+        TSharedPtr<FJsonObject> ParamObj = MakeShareable(new FJsonObject());
+        ParamObj->SetStringField(TEXT("name"), Var.GetName().ToString());
+        ParamObj->SetStringField(TEXT("type"), Var.GetType().GetName());
+        UserParamsArray.Add(MakeShareable(new FJsonValueObject(ParamObj)));
+    }
+    ResultObj->SetArrayField(TEXT("user_parameters"), UserParamsArray);
+    
+    return ResultObj;
+}
+
+// ============================================================================
+// GET_INFO - Animation Blueprint
+// ============================================================================
+
+TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::GetInfoAnimBlueprint(const TSharedPtr<FJsonObject>& Params)
+{
+    FString Path = Params->GetStringField(TEXT("path"));
+    if (Path.IsEmpty())
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Missing path for anim_blueprint get_info"));
+    }
+    
+    UObject* Asset = UEditorAssetLibrary::LoadAsset(Path);
+    if (!Asset)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Asset not found: %s"), *Path));
+    }
+    
+    UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(Asset);
+    if (!AnimBP)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Asset is not an AnimBlueprint: %s (class: %s)"), *Path, *Asset->GetClass()->GetName()));
+    }
+    
+    TSharedPtr<FJsonObject> ResultObj = MakeShareable(new FJsonObject());
+    ResultObj->SetBoolField(TEXT("success"), true);
+    ResultObj->SetStringField(TEXT("type"), TEXT("anim_blueprint"));
+    ResultObj->SetStringField(TEXT("path"), Path);
+    ResultObj->SetStringField(TEXT("name"), AnimBP->GetName());
+    ResultObj->SetStringField(TEXT("parent_class"), AnimBP->ParentClass ? AnimBP->ParentClass->GetName() : TEXT("None"));
+    
+    // Skeleton
+    if (AnimBP->TargetSkeleton)
+    {
+        ResultObj->SetStringField(TEXT("skeleton"), AnimBP->TargetSkeleton->GetPathName());
+    }
+    
+    // Variables
+    TArray<TSharedPtr<FJsonValue>> VarArray;
+    for (const FBPVariableDescription& Var : AnimBP->NewVariables)
+    {
+        TSharedPtr<FJsonObject> VarObj = MakeShareable(new FJsonObject());
+        VarObj->SetStringField(TEXT("name"), Var.VarName.ToString());
+        VarObj->SetStringField(TEXT("type"), Var.VarType.PinCategory.ToString());
+        VarArray.Add(MakeShareable(new FJsonValueObject(VarObj)));
+    }
+    ResultObj->SetArrayField(TEXT("variables"), VarArray);
+    
+    // Anim graphs - find state machines
+    TArray<TSharedPtr<FJsonValue>> StateMachinesArray;
+    
+    for (UEdGraph* Graph : AnimBP->FunctionGraphs)
+    {
+        if (!Graph) continue;
+        
+        // Look for state machine nodes
+        for (UEdGraphNode* Node : Graph->Nodes)
+        {
+            UAnimGraphNode_StateMachineBase* SMNode = Cast<UAnimGraphNode_StateMachineBase>(Node);
+            if (!SMNode) continue;
+            
+            TSharedPtr<FJsonObject> SMObj = MakeShareable(new FJsonObject());
+            SMObj->SetStringField(TEXT("name"), SMNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+            SMObj->SetStringField(TEXT("graph"), Graph->GetName());
+            
+            // Get the state machine graph
+            UAnimationStateMachineGraph* SMGraph = SMNode->EditorStateMachineGraph;
+            if (SMGraph)
+            {
+                // States
+                TArray<TSharedPtr<FJsonValue>> StatesArray;
+                TArray<TSharedPtr<FJsonValue>> TransitionsArray;
+                
+                for (UEdGraphNode* SMSubNode : SMGraph->Nodes)
+                {
+                    if (!SMSubNode) continue;
+                    
+                    // State nodes
+                    UAnimStateNode* StateNode = Cast<UAnimStateNode>(SMSubNode);
+                    if (StateNode)
+                    {
+                        TSharedPtr<FJsonObject> StateObj = MakeShareable(new FJsonObject());
+                        StateObj->SetStringField(TEXT("name"), StateNode->GetStateName());
+                        StateObj->SetStringField(TEXT("node_id"), SMSubNode->NodeGuid.ToString());
+                        StatesArray.Add(MakeShareable(new FJsonValueObject(StateObj)));
+                        continue;
+                    }
+                    
+                    // Transition nodes
+                    UAnimStateTransitionNode* TransNode = Cast<UAnimStateTransitionNode>(SMSubNode);
+                    if (TransNode)
+                    {
+                        TSharedPtr<FJsonObject> TransObj = MakeShareable(new FJsonObject());
+                        if (TransNode->GetPreviousState())
+                        {
+                            TransObj->SetStringField(TEXT("from"), TransNode->GetPreviousState()->GetStateName());
+                        }
+                        if (TransNode->GetNextState())
+                        {
+                            TransObj->SetStringField(TEXT("to"), TransNode->GetNextState()->GetStateName());
+                        }
+                        TransObj->SetStringField(TEXT("node_id"), SMSubNode->NodeGuid.ToString());
+                        TransitionsArray.Add(MakeShareable(new FJsonValueObject(TransObj)));
+                        continue;
+                    }
+                }
+                
+                SMObj->SetArrayField(TEXT("states"), StatesArray);
+                SMObj->SetArrayField(TEXT("transitions"), TransitionsArray);
+                SMObj->SetNumberField(TEXT("state_count"), StatesArray.Num());
+                SMObj->SetNumberField(TEXT("transition_count"), TransitionsArray.Num());
+            }
+            
+            StateMachinesArray.Add(MakeShareable(new FJsonValueObject(SMObj)));
+        }
+    }
+    
+    ResultObj->SetArrayField(TEXT("state_machines"), StateMachinesArray);
+    
+    // All graphs summary
+    TArray<TSharedPtr<FJsonValue>> GraphsArray;
+    for (UEdGraph* Graph : AnimBP->FunctionGraphs)
+    {
+        if (!Graph) continue;
+        TSharedPtr<FJsonObject> GraphObj = MakeShareable(new FJsonObject());
+        GraphObj->SetStringField(TEXT("name"), Graph->GetName());
+        GraphObj->SetNumberField(TEXT("node_count"), Graph->Nodes.Num());
+        GraphsArray.Add(MakeShareable(new FJsonValueObject(GraphObj)));
+    }
+    for (UEdGraph* Graph : AnimBP->UbergraphPages)
+    {
+        if (!Graph) continue;
+        TSharedPtr<FJsonObject> GraphObj = MakeShareable(new FJsonObject());
+        GraphObj->SetStringField(TEXT("name"), Graph->GetName());
+        GraphObj->SetStringField(TEXT("type"), TEXT("EventGraph"));
+        GraphObj->SetNumberField(TEXT("node_count"), Graph->Nodes.Num());
+        GraphsArray.Add(MakeShareable(new FJsonValueObject(GraphObj)));
+    }
+    ResultObj->SetArrayField(TEXT("graphs"), GraphsArray);
+    
+    return ResultObj;
+}
+
+// ============================================================================
+// GET_INFO - Behavior Tree
+// ============================================================================
+
+TSharedPtr<FJsonObject> FUnrealCompanionQueryCommands::GetInfoBehaviorTree(const TSharedPtr<FJsonObject>& Params)
+{
+    FString Path = Params->GetStringField(TEXT("path"));
+    if (Path.IsEmpty())
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(TEXT("Missing path for behavior_tree get_info"));
+    }
+    
+    UObject* Asset = UEditorAssetLibrary::LoadAsset(Path);
+    if (!Asset)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Asset not found: %s"), *Path));
+    }
+    
+    UBehaviorTree* BT = Cast<UBehaviorTree>(Asset);
+    if (!BT)
+    {
+        return FUnrealCompanionCommonUtils::CreateErrorResponse(FString::Printf(TEXT("Asset is not a BehaviorTree: %s (class: %s)"), *Path, *Asset->GetClass()->GetName()));
+    }
+    
+    TSharedPtr<FJsonObject> ResultObj = MakeShareable(new FJsonObject());
+    ResultObj->SetBoolField(TEXT("success"), true);
+    ResultObj->SetStringField(TEXT("type"), TEXT("behavior_tree"));
+    ResultObj->SetStringField(TEXT("path"), Path);
+    ResultObj->SetStringField(TEXT("name"), BT->GetName());
+    
+    // Blackboard asset
+    if (BT->BlackboardAsset)
+    {
+        ResultObj->SetStringField(TEXT("blackboard"), BT->BlackboardAsset->GetPathName());
+        ResultObj->SetStringField(TEXT("blackboard_name"), BT->BlackboardAsset->GetName());
+    }
+    
+    // Traverse the tree recursively
+    TArray<TSharedPtr<FJsonValue>> NodesArray;
+    int32 NodeCount = 0;
+    int32 MaxDepth = 0;
+    
+    // Helper lambda to recursively build node info
+    TFunction<void(UBTCompositeNode*, int32, const FString&)> TraverseTree;
+    TraverseTree = [&](UBTCompositeNode* CompositeNode, int32 Depth, const FString& ParentId)
+    {
+        if (!CompositeNode) return;
+        if (Depth > MaxDepth) MaxDepth = Depth;
+        
+        // Add the composite node itself
+        FString NodeId = FString::Printf(TEXT("node_%d"), NodeCount++);
+        {
+            TSharedPtr<FJsonObject> NodeObj = MakeShareable(new FJsonObject());
+            NodeObj->SetStringField(TEXT("id"), NodeId);
+            NodeObj->SetStringField(TEXT("class"), CompositeNode->GetClass()->GetName());
+            NodeObj->SetStringField(TEXT("node_name"), CompositeNode->GetNodeName());
+            NodeObj->SetStringField(TEXT("category"), TEXT("composite"));
+            NodeObj->SetNumberField(TEXT("depth"), Depth);
+            if (!ParentId.IsEmpty())
+            {
+                NodeObj->SetStringField(TEXT("parent_id"), ParentId);
+            }
+            
+            // Children IDs will be filled as we traverse
+            TArray<TSharedPtr<FJsonValue>> ChildIds;
+            for (int32 i = 0; i < CompositeNode->Children.Num(); i++)
+            {
+                ChildIds.Add(MakeShareable(new FJsonValueString(FString::Printf(TEXT("node_%d_child_%d"), NodeCount - 1, i))));
+            }
+            
+            // Children count
+            NodeObj->SetNumberField(TEXT("children_count"), CompositeNode->Children.Num());
+            
+            NodesArray.Add(MakeShareable(new FJsonValueObject(NodeObj)));
+        }
+        
+        // Traverse children
+        for (const FBTCompositeChild& Child : CompositeNode->Children)
+        {
+            if (Child.ChildTask)
+            {
+                // Task node (leaf)
+                FString TaskId = FString::Printf(TEXT("node_%d"), NodeCount++);
+                TSharedPtr<FJsonObject> TaskObj = MakeShareable(new FJsonObject());
+                TaskObj->SetStringField(TEXT("id"), TaskId);
+                TaskObj->SetStringField(TEXT("class"), Child.ChildTask->GetClass()->GetName());
+                TaskObj->SetStringField(TEXT("node_name"), Child.ChildTask->GetNodeName());
+                TaskObj->SetStringField(TEXT("category"), TEXT("task"));
+                TaskObj->SetNumberField(TEXT("depth"), Depth + 1);
+                TaskObj->SetStringField(TEXT("parent_id"), NodeId);
+                
+                // Decorators on task
+                TArray<TSharedPtr<FJsonValue>> TaskDecoratorsArray;
+                for (UBTDecorator* Decorator : Child.Decorators)
+                {
+                    if (!Decorator) continue;
+                    TSharedPtr<FJsonObject> DecObj = MakeShareable(new FJsonObject());
+                    DecObj->SetStringField(TEXT("class"), Decorator->GetClass()->GetName());
+                    DecObj->SetStringField(TEXT("node_name"), Decorator->GetNodeName());
+                    TaskDecoratorsArray.Add(MakeShareable(new FJsonValueObject(DecObj)));
+                }
+                if (TaskDecoratorsArray.Num() > 0)
+                {
+                    TaskObj->SetArrayField(TEXT("decorators"), TaskDecoratorsArray);
+                }
+                
+                NodesArray.Add(MakeShareable(new FJsonValueObject(TaskObj)));
+                
+                if (Depth + 1 > MaxDepth) MaxDepth = Depth + 1;
+            }
+            
+            if (Child.ChildComposite)
+            {
+                TraverseTree(Child.ChildComposite, Depth + 1, NodeId);
+            }
+        }
+    };
+    
+    // Start traversal from root
+    if (BT->RootNode)
+    {
+        TraverseTree(BT->RootNode, 0, TEXT(""));
+    }
+    
+    ResultObj->SetArrayField(TEXT("nodes"), NodesArray);
+    ResultObj->SetNumberField(TEXT("node_count"), NodeCount);
+    ResultObj->SetNumberField(TEXT("tree_depth"), MaxDepth);
     
     return ResultObj;
 }

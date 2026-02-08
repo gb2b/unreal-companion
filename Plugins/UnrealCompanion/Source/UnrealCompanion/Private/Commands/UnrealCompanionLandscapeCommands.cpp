@@ -387,7 +387,7 @@ TSharedPtr<FJsonObject> FUnrealCompanionLandscapeCommands::HandleSculptLandscape
         OperationsCompleted++;
     }
 
-    // Force update all landscape components
+    // Step 1: Update visual heightmap for all components (this was proven to work)
     for (const auto& Pair : LandscapeInfo->XYtoComponentMap)
     {
         ULandscapeComponent* Comp = Pair.Value;
@@ -398,8 +398,18 @@ TSharedPtr<FJsonObject> FUnrealCompanionLandscapeCommands::HandleSculptLandscape
         }
     }
 
-    // Notify the landscape of the change
+    // Step 2: Commit visual changes first
     Landscape->PostEditChange();
+
+    // Step 3: Now rebuild collision from the committed heightmap data
+    // This must happen AFTER PostEditChange so heightmap textures are finalized
+    Landscape->RecreateCollisionComponents();
+
+    // Step 4: Force viewport redraw
+    if (GEditor)
+    {
+        GEditor->RedrawLevelEditingViewports(true);
+    }
 
     // Build response
     TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
@@ -548,7 +558,7 @@ TSharedPtr<FJsonObject> FUnrealCompanionLandscapeCommands::HandleImportHeightmap
         LandscapeExtent.Max.X, LandscapeExtent.Max.Y, HeightmapData.GetData(), 0, true);
     LandscapeEdit.Flush();
 
-    // Force update all landscape components
+    // Step 1: Update visual heightmap
     for (const auto& Pair : LandscapeInfo->XYtoComponentMap)
     {
         ULandscapeComponent* Comp = Pair.Value;
@@ -558,7 +568,18 @@ TSharedPtr<FJsonObject> FUnrealCompanionLandscapeCommands::HandleImportHeightmap
             Comp->UpdateComponentToWorld();
         }
     }
+
+    // Step 2: Commit visual changes first
     Landscape->PostEditChange();
+
+    // Step 3: Rebuild collision AFTER visual commit
+    Landscape->RecreateCollisionComponents();
+
+    // Step 4: Force viewport redraw
+    if (GEditor)
+    {
+        GEditor->RedrawLevelEditingViewports(true);
+    }
 
     TSharedPtr<FJsonObject> ResultObj = MakeShared<FJsonObject>();
     ResultObj->SetBoolField(TEXT("success"), true);

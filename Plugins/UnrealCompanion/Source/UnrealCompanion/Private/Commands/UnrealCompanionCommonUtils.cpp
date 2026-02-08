@@ -9,6 +9,8 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_InputAction.h"
+#include "K2Node_EnhancedInputAction.h"
+#include "InputAction.h"
 #include "K2Node_Self.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -668,6 +670,76 @@ UK2Node_InputAction* FUnrealCompanionCommonUtils::CreateInputActionNode(UEdGraph
     InputActionNode->AllocateDefaultPins();
     
     return InputActionNode;
+}
+
+UK2Node_EnhancedInputAction* FUnrealCompanionCommonUtils::CreateEnhancedInputActionNode(UEdGraph* Graph, const FString& ActionName, const FVector2D& Position)
+{
+    if (!Graph)
+    {
+        return nullptr;
+    }
+    
+    // Find the UInputAction asset by name or path
+    UInputAction* InputActionAsset = nullptr;
+    
+    // Try loading by full path first (e.g., "/Game/Input/Actions/IA_Fire")
+    FString SearchPath = ActionName;
+    if (!SearchPath.StartsWith(TEXT("/")))
+    {
+        // Try common paths
+        TArray<FString> SearchPaths = {
+            FString::Printf(TEXT("/Game/Input/Actions/%s"), *ActionName),
+            FString::Printf(TEXT("/Game/Input/%s"), *ActionName),
+            FString::Printf(TEXT("/Game/%s"), *ActionName)
+        };
+        
+        for (const FString& Path : SearchPaths)
+        {
+            InputActionAsset = LoadObject<UInputAction>(nullptr, *Path);
+            if (InputActionAsset)
+            {
+                break;
+            }
+        }
+    }
+    else
+    {
+        InputActionAsset = LoadObject<UInputAction>(nullptr, *SearchPath);
+    }
+    
+    // If still not found, search the asset registry
+    if (!InputActionAsset)
+    {
+        FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+        TArray<FAssetData> AssetList;
+        AssetRegistryModule.Get().GetAssetsByClass(UInputAction::StaticClass()->GetClassPathName(), AssetList);
+        
+        for (const FAssetData& AssetData : AssetList)
+        {
+            if (AssetData.AssetName.ToString() == ActionName)
+            {
+                InputActionAsset = Cast<UInputAction>(AssetData.GetAsset());
+                break;
+            }
+        }
+    }
+    
+    if (!InputActionAsset)
+    {
+        UE_LOG(LogTemp, Error, TEXT("CreateEnhancedInputActionNode: Could not find UInputAction asset '%s'"), *ActionName);
+        return nullptr;
+    }
+    
+    UK2Node_EnhancedInputAction* Node = NewObject<UK2Node_EnhancedInputAction>(Graph);
+    Node->InputAction = InputActionAsset;
+    Node->NodePosX = Position.X;
+    Node->NodePosY = Position.Y;
+    Graph->AddNode(Node, true);
+    Node->CreateNewGuid();
+    Node->PostPlacedNewNode();
+    Node->AllocateDefaultPins();
+    
+    return Node;
 }
 
 UK2Node_Self* FUnrealCompanionCommonUtils::CreateSelfReferenceNode(UEdGraph* Graph, const FVector2D& Position)

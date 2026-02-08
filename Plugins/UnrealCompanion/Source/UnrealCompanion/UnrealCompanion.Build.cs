@@ -54,8 +54,10 @@ public class UnrealCompanion : ModuleRules
 				"Projects",
 				"AssetRegistry",
 					"PythonScriptPlugin",  // For python_execute commands
-				"AnimGraph",           // For Animation Blueprint graphs
-				"AnimGraphRuntime",    // For Animation graph runtime types
+			"AnimGraph",           // For Animation Blueprint graphs
+			"AnimGraphRuntime",    // For Animation graph runtime types
+			"AIModule",            // For Behavior Tree reading (UBehaviorTree, UBTNode, etc.)
+			"GameplayTasks",       // Required dependency for AIModule
 				"MaterialEditor",      // For Material graph nodes
 				"Landscape",           // For ALandscape, ULandscapeInfo (runtime)
 				"Foliage",             // For AInstancedFoliageActor, UFoliageType (runtime)
@@ -109,7 +111,9 @@ public class UnrealCompanion : ModuleRules
 				"BlueprintEditorLibrary", // For Blueprint utilities
 				"UMGEditor",           // For WidgetBlueprint.h and other UMG editor functionality
 				"LandscapeEditor",     // For FLandscapeEditDataInterface (editor-only)
-				"GeometryScriptingEditor" // For Geometry Script editor utilities
+				"GeometryScriptingEditor", // For Geometry Script editor utilities
+				"InputBlueprintNodes", // For UK2Node_EnhancedInputAction (Enhanced Input event nodes)
+			"BehaviorTreeEditor"   // For Behavior Tree editor graph nodes
 				}
 			);
 		}

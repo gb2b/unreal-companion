@@ -157,7 +157,11 @@ def register_graph_tools(mcp: FastMCP):
         Node Types (Blueprint-specific):
             # Events & Flow
             - event: event_name (ReceiveBeginPlay, ReceiveTick, etc.)
-            - input_action: action_name
+            - input_action: action_name - Enhanced Input Action event (UE5)
+                Output exec pins: Started, Ongoing, Triggered, Completed, Canceled
+                Also outputs: ActionValue, ElapsedSeconds, TriggeredSeconds
+                Requires a UInputAction asset (e.g., IA_Fire, IA_Jump)
+                Falls back to legacy K2Node_InputAction if asset not found
             - custom_event: event_name
             - branch: (no params) - If/Then/Else
             - sequence: num_outputs (default: 2) - Execute in order

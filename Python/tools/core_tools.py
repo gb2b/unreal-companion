@@ -153,8 +153,9 @@ def register_core_tools(mcp: FastMCP):
                   node_get_info, world_get_actor_properties, material_get_info
         
         Args:
-            type: Entity type - "asset", "blueprint", "node", "actor", "material"
-            path: Asset/Blueprint/Material path
+            type: Entity type - "asset", "blueprint", "node", "actor", "material",
+                  "niagara", "anim_blueprint", "behavior_tree"
+            path: Asset/Blueprint/Material/Niagara/AnimBP/BehaviorTree path
             info_type: For blueprints - "all", "variables", "functions", "components", "interfaces"
             blueprint_name: For nodes - target blueprint
             node_id: For nodes - node GUID
@@ -179,6 +180,21 @@ def register_core_tools(mcp: FastMCP):
             
             # Get material info
             core_get_info(type="material", path="/Game/Materials/M_Base")
+            
+            # Get Niagara system info (emitters, renderers, user parameters)
+            core_get_info(type="niagara", path="/Game/FX/N_LaserGun")
+            # Returns: emitters[] (name, enabled, sim_target, renderers[]),
+            #          user_parameters[] (name, type), emitter_count, has_gpu_emitters
+            
+            # Get Animation Blueprint info (state machines, states, transitions)
+            core_get_info(type="anim_blueprint", path="/Game/Animations/ABP_Character")
+            # Returns: skeleton, variables[], state_machines[] (states[], transitions[]),
+            #          graphs[] (name, node_count)
+            
+            # Get Behavior Tree info (nodes hierarchy, decorators, services)
+            core_get_info(type="behavior_tree", path="/Game/AI/BT_Enemy")
+            # Returns: blackboard, nodes[] (id, class, category, depth, parent_id,
+            #          decorators[], services[]), node_count, tree_depth
         """
         params = {"type": type}
         

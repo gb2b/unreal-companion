@@ -32,6 +32,7 @@
 #include "Commands/UnrealCompanionGeometryCommands.h"
 #include "Commands/UnrealCompanionSplineCommands.h"
 #include "Commands/UnrealCompanionEnvironmentCommands.h"
+#include "Commands/UnrealCompanionNiagaraCommands.h"
 #include "HAL/PlatformTime.h"
 
 // Log category for MCP commands
@@ -62,6 +63,7 @@ UUnrealCompanionBridge::UUnrealCompanionBridge()
     GeometryCommands = MakeShared<FUnrealCompanionGeometryCommands>();
     SplineCommands = MakeShared<FUnrealCompanionSplineCommands>();
     EnvironmentCommands = MakeShared<FUnrealCompanionEnvironmentCommands>();
+    NiagaraCommands = MakeShared<FUnrealCompanionNiagaraCommands>();
 }
 
 UUnrealCompanionBridge::~UUnrealCompanionBridge()
@@ -84,6 +86,7 @@ UUnrealCompanionBridge::~UUnrealCompanionBridge()
     GeometryCommands.Reset();
     SplineCommands.Reset();
     EnvironmentCommands.Reset();
+    NiagaraCommands.Reset();
 }
 
 // Initialize subsystem
@@ -472,6 +475,15 @@ FString UUnrealCompanionBridge::ExecuteCommand(const FString& CommandType, const
             else if (CommandType == TEXT("environment_configure"))
             {
                 ResultJson = EnvironmentCommands->HandleCommand(CommandType, Params);
+            }
+            // ===========================================
+            // NIAGARA COMMANDS (niagara_*)
+            // ===========================================
+            else if (CommandType == TEXT("niagara_emitter_batch") ||
+                     CommandType == TEXT("niagara_param_batch") ||
+                     CommandType == TEXT("niagara_spawn"))
+            {
+                ResultJson = NiagaraCommands->HandleCommand(CommandType, Params);
             }
             // Unknown command
             else

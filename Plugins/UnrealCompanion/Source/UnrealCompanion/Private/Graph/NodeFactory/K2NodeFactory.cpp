@@ -12,6 +12,8 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_InputAction.h"
+#include "K2Node_EnhancedInputAction.h"
+#include "InputAction.h"
 #include "K2Node_Self.h"
 #include "K2Node_CustomEvent.h"
 #include "K2Node_FunctionEntry.h"
@@ -421,6 +423,15 @@ UEdGraphNode* FK2NodeFactory::CreateInputActionNode(UEdGraph* Graph, const TShar
         return nullptr;
     }
     
+    // Try Enhanced Input first (UE5 standard)
+    UK2Node_EnhancedInputAction* EnhancedNode = FUnrealCompanionCommonUtils::CreateEnhancedInputActionNode(Graph, ActionName, Position);
+    if (EnhancedNode)
+    {
+        return EnhancedNode;
+    }
+    
+    // Fallback to legacy input action if Enhanced Input asset not found
+    UE_LOG(LogTemp, Warning, TEXT("Enhanced Input Action '%s' not found, falling back to legacy input action"), *ActionName);
     return FUnrealCompanionCommonUtils::CreateInputActionNode(Graph, ActionName, Position);
 }
 

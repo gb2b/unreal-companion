@@ -28,6 +28,7 @@
 #include "Commands/UnrealCompanionGeometryCommands.h"
 #include "Commands/UnrealCompanionSplineCommands.h"
 #include "Commands/UnrealCompanionEnvironmentCommands.h"
+#include "Commands/UnrealCompanionNiagaraCommands.h"
 #include "UnrealCompanionBridge.generated.h"
 
 class FMCPServerRunnable;
@@ -54,6 +55,7 @@ class FMCPServerRunnable;
  * - Geometry: geometry_* (procedural geometry via Geometry Script)
  * - Spline: spline_* (spline creation, mesh scattering along splines)
  * - Environment: environment_* (atmosphere, fog, time of day)
+ * - Niagara: niagara_* (emitter manipulation, parameters, spawning)
  */
 UCLASS()
 class UNREALCOMPANION_API UUnrealCompanionBridge : public UEditorSubsystem
@@ -106,4 +108,5 @@ private:
 	TSharedPtr<FUnrealCompanionGeometryCommands> GeometryCommands;     // geometry_*
 	TSharedPtr<FUnrealCompanionSplineCommands> SplineCommands;         // spline_*
 	TSharedPtr<FUnrealCompanionEnvironmentCommands> EnvironmentCommands; // environment_*
+	TSharedPtr<FUnrealCompanionNiagaraCommands> NiagaraCommands;       // niagara_*
 }; 
