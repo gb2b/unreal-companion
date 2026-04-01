@@ -1,26 +1,26 @@
 ---
 name: add-mcp-tool
-description: Guide pas à pas pour créer un nouveau MCP tool (Python + C++ + route + doc + tests)
+description: Step-by-step guide for creating a new MCP tool end-to-end (Python + C++ + Bridge route + docs + tests). Use this whenever adding a tool, creating a command, or when the user mentions 'new tool', 'add tool', or 'create tool' — even for simple additions.
 ---
 
-# Ajouter un MCP Tool
+# Add an MCP Tool
 
-Guide complet pour créer un nouveau tool MCP de bout en bout.
+Complete guide for creating a new MCP tool end-to-end.
 
-## Prérequis
+## Prerequisites
 
-- Connaître la catégorie du tool (blueprint, world, graph, etc.)
-- Connaître l'action (create, delete, batch, etc.)
-- Le nom sera : `{category}_{action}` (snake_case)
+- Know the tool category (blueprint, world, graph, etc.)
+- Know the action (create, delete, batch, etc.)
+- The name will be: `{category}_{action}` (snake_case)
 
-## Étapes
+## Steps
 
-### 1. Python — Fonction tool
+### 1. Python — Tool function
 
-Fichier : `Python/tools/{category}_tools.py`
+File: `Python/tools/{category}_tools.py`
 
-Si le fichier de catégorie existe déjà, ajouter la fonction dedans.
-Si c'est une nouvelle catégorie, créer le fichier — l'auto-discovery chargera automatiquement tout fichier `*_tools.py` avec une fonction `register_*_tools(mcp)`.
+If the category file already exists, add the function inside it.
+If it's a new category, create the file — auto-discovery will automatically load any `*_tools.py` file with a `register_*_tools(mcp)` function.
 
 ```python
 @mcp.tool()
@@ -28,14 +28,14 @@ async def category_action(
     required_param: str,
     optional_param: int = None
 ) -> str:
-    """Description courte du tool.
+    """Short description of the tool.
 
     Args:
-        required_param: Description du paramètre
-        optional_param: Description (default: None = non utilisé)
+        required_param: Parameter description
+        optional_param: Description (default: None = unused)
 
     Returns:
-        JSON string avec les détails du résultat
+        JSON string with result details
 
     Example:
         category_action(required_param="value")
@@ -48,18 +48,18 @@ async def category_action(
     return json.dumps(result, indent=2)
 ```
 
-**Règles strictes :**
-- Pas de `Any`, `Union`, `Optional[T]`, `T | None`
-- Utiliser `x: T = None` pour les optionnels
-- Docstring obligatoire avec Args, Returns, Example
-- Le nom de la fonction = le nom de la commande C++ = le nom MCP
+**Strict rules:**
+- No `Any`, `Union`, `Optional[T]`, `T | None`
+- Use `x: T = None` for optionals
+- Docstring required with Args, Returns, Example
+- Function name = C++ command name = MCP name
 
 ### 2. C++ — Header
 
-Fichier : `Plugins/UnrealCompanion/Source/UnrealCompanion/Public/Commands/UnrealCompanion{Category}Commands.h`
+File: `Plugins/UnrealCompanion/Source/UnrealCompanion/Public/Commands/UnrealCompanion{Category}Commands.h`
 
-Si la classe de commandes existe déjà, ajouter la méthode privée.
-Sinon créer la classe :
+If the command class already exists, add the private method.
+Otherwise create the class:
 
 ```cpp
 #pragma once
@@ -76,9 +76,9 @@ private:
 };
 ```
 
-### 3. C++ — Implémentation
+### 3. C++ — Implementation
 
-Fichier : `Plugins/UnrealCompanion/Source/UnrealCompanion/Private/Commands/UnrealCompanion{Category}Commands.cpp`
+File: `Plugins/UnrealCompanion/Source/UnrealCompanion/Private/Commands/UnrealCompanion{Category}Commands.cpp`
 
 ```cpp
 FString FUnrealCompanion{Category}Commands::HandleCommand(
@@ -92,11 +92,11 @@ FString FUnrealCompanion{Category}Commands::HandleCommand(
 }
 ```
 
-### 4. C++ — Route dans Bridge.cpp (CRITIQUE)
+### 4. C++ — Route in Bridge.cpp (CRITICAL)
 
-Fichier : `Plugins/UnrealCompanion/Source/UnrealCompanion/Private/UnrealCompanionBridge.cpp`
+File: `Plugins/UnrealCompanion/Source/UnrealCompanion/Private/UnrealCompanionBridge.cpp`
 
-Dans la fonction `ExecuteCommand()`, ajouter :
+In the `ExecuteCommand()` function, add:
 
 ```cpp
 else if (Command.StartsWith(TEXT("category_")))
@@ -105,36 +105,36 @@ else if (Command.StartsWith(TEXT("category_")))
 }
 ```
 
-**C'est le piège n.1 : oublier cette route = "Unknown command" côté Python.**
+**This is trap #1: forgetting this route = "Unknown command" on the Python side.**
 
 ### 5. Documentation
 
-Fichier : `Docs/Tools/{category}_tools.md`
+File: `Docs/Tools/{category}_tools.md`
 
-Ajouter la section pour le nouveau tool avec :
-- Nom et description
-- Paramètres (required/optional)
-- Exemple d'appel
-- Exemple de réponse
+Add the section for the new tool with:
+- Name and description
+- Parameters (required/optional)
+- Call example
+- Response example
 
 ### 6. Tests
 
-Vérifier que les tests existants passent :
+Verify existing tests pass:
 ```bash
 cd Python && uv run pytest tests/ -v
 ```
 
-Les tests `test_tools_format.py` valident automatiquement :
-- Que la docstring existe
-- Que les types sont corrects (pas de Any/Union)
-- Que le naming suit la convention
+The `test_tools_format.py` tests automatically validate:
+- That the docstring exists
+- That types are correct (no Any/Union)
+- That naming follows the convention
 
-### 7. Checklist finale
+### 7. Final checklist
 
-- [ ] Fonction Python avec types corrects et docstring
-- [ ] Header C++ avec HandleCommand + méthode privée
-- [ ] Implémentation C++
-- [ ] Route dans UnrealCompanionBridge.cpp
-- [ ] Documentation dans Docs/Tools/
-- [ ] Tests passent
-- [ ] Naming cohérent : Python function = C++ command = MCP name
+- [ ] Python function with correct types and docstring
+- [ ] C++ header with HandleCommand + private method
+- [ ] C++ implementation
+- [ ] Route in UnrealCompanionBridge.cpp
+- [ ] Documentation in Docs/Tools/
+- [ ] Tests pass
+- [ ] Consistent naming: Python function = C++ command = MCP name

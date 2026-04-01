@@ -1,102 +1,102 @@
 ---
 name: debug-bridge
-description: Diagnostic de la communication TCP entre le serveur Python MCP et le plugin C++ Unreal
+description: Diagnose TCP communication issues between the Python MCP server and the C++ Unreal plugin. Use whenever there are connection errors, 'unknown command' responses, timeouts, or any MCP tool that fails to execute — even if the user just says 'it doesn't work'.
 ---
 
 # Debug Bridge TCP
 
-Guide de diagnostic pour les problèmes de communication entre le serveur Python MCP et le plugin C++ dans Unreal Engine.
+Diagnostic guide for communication problems between the Python MCP server and the C++ plugin in Unreal Engine.
 
-## Symptômes courants
+## Common symptoms
 
-| Symptôme | Cause probable | Section |
-|----------|---------------|---------|
-| "Connection refused" | Plugin UE pas lancé | Étape 1 |
-| "Unknown command" | Route manquante dans Bridge.cpp | Étape 3 |
-| Timeout | GameThread bloqué | Étape 4 |
-| Réponse JSON invalide | Erreur dans le handler C++ | Étape 5 |
-| "Connection reset" | Plugin crashé | Étape 6 |
+| Symptom | Probable cause | Section |
+|---------|---------------|---------|
+| "Connection refused" | UE plugin not running | Step 1 |
+| "Unknown command" | Missing route in Bridge.cpp | Step 3 |
+| Timeout | GameThread blocked | Step 4 |
+| Invalid JSON response | Error in C++ handler | Step 5 |
+| "Connection reset" | Plugin crashed | Step 6 |
 
-## Étape 1 : Vérifier que le plugin UE tourne
+## Step 1: Verify the UE plugin is running
 
-Le plugin écoute sur le port TCP 55557.
+The plugin listens on TCP port 55557.
 
 ```bash
-# Vérifier si quelque chose écoute sur 55557
+# Check if something is listening on 55557
 lsof -i :55557
-# ou
+# or
 netstat -an | grep 55557
 ```
 
-Si rien n'écoute :
-- Ouvrir Unreal Editor
-- Vérifier que le plugin UnrealCompanion est activé (Edit → Plugins)
-- Chercher "LogMCPBridge" dans Output Log pour les erreurs de démarrage
+If nothing is listening:
+- Open Unreal Editor
+- Verify the UnrealCompanion plugin is enabled (Edit → Plugins)
+- Search "LogMCPBridge" in Output Log for startup errors
 
-## Étape 2 : Vérifier les logs Python
+## Step 2: Check Python logs
 
 ```bash
 tail -f ~/.unreal_mcp/unreal_mcp.log
 ```
 
-Chercher :
-- `Connection refused` → plugin pas lancé
-- `Timeout` → commande prend trop de temps
-- `Error parsing response` → réponse C++ malformée
+Look for:
+- `Connection refused` → plugin not running
+- `Timeout` → command taking too long
+- `Error parsing response` → malformed C++ response
 
-## Étape 3 : Vérifier la route (cause n.1 des "Unknown command")
+## Step 3: Verify the route (cause #1 of "Unknown command")
 
 ```bash
-# Chercher la commande dans Bridge.cpp
+# Search for the command in Bridge.cpp
 grep -n "category_action" Plugins/UnrealCompanion/Source/UnrealCompanion/Private/UnrealCompanionBridge.cpp
 ```
 
-Si pas trouvé → la route manque dans `ExecuteCommand()`. C'est le piège le plus fréquent.
+If not found → the route is missing in `ExecuteCommand()`. This is the most frequent trap.
 
-Vérifier aussi que le `Command.StartsWith()` est correct et que le bon handler est appelé.
+Also verify that the `Command.StartsWith()` is correct and that the right handler is being called.
 
-## Étape 4 : Diagnostiquer un timeout
+## Step 4: Diagnose a timeout
 
-Le timeout signifie que la commande C++ prend trop de temps :
-- La commande s'exécute sur le GameThread via FTickableGameObject
-- Si le GameThread est bloqué (breakpoint, modal dialog, loading), tout timeout
+A timeout means the C++ command is taking too long:
+- The command runs on the GameThread via FTickableGameObject
+- If the GameThread is blocked (breakpoint, modal dialog, loading), everything times out
 
-Vérifier dans UE Output Log (filtre `LogMCPBridge`) :
-- La commande est-elle reçue ? ("Received command: ...")
-- Le handler est-il appelé ? (ajouter des UE_LOG si nécessaire)
-- Y a-t-il un crash/exception ?
+Check in UE Output Log (filter `LogMCPBridge`):
+- Is the command being received? ("Received command: ...")
+- Is the handler being called? (add UE_LOG if needed)
+- Is there a crash/exception?
 
-## Étape 5 : Diagnostiquer une réponse invalide
+## Step 5: Diagnose an invalid response
 
-Si le JSON retourné par C++ est malformé :
-1. Ajouter un `UE_LOG` avant le return du handler pour voir la réponse
-2. Vérifier que `FJsonSerializer::Serialize` est utilisé correctement
-3. Vérifier qu'il n'y a pas de caractères non-UTF8 dans la réponse
+If the JSON returned by C++ is malformed:
+1. Add a `UE_LOG` before the handler return to inspect the response
+2. Verify that `FJsonSerializer::Serialize` is used correctly
+3. Check there are no non-UTF8 characters in the response
 
-## Étape 6 : Plugin crashé
+## Step 6: Plugin crashed
 
-Si la connexion est reset :
-1. Vérifier le crash log UE (Saved/Crashes/)
-2. Vérifier Output Log pour les derniers messages avant le crash
-3. Causes fréquentes :
-   - Accès à un UObject détruit (dangling pointer)
-   - Opération non-GameThread sur un UObject
-   - Out of memory sur une opération trop large
+If the connection is reset:
+1. Check the UE crash log (Saved/Crashes/)
+2. Check Output Log for the last messages before the crash
+3. Common causes:
+   - Access to a destroyed UObject (dangling pointer)
+   - Non-GameThread operation on a UObject
+   - Out of memory on an oversized operation
 
-## Arbre de décision
+## Decision tree
 
 ```
-Problème de communication
-├── Connexion impossible ?
-│   ├── Port 55557 pas ouvert → Lancer UE + activer plugin
-│   └── Port ouvert mais refuse → Redémarrer le plugin
-├── "Unknown command" ?
-│   └── Route manquante dans Bridge.cpp → Ajouter la route
-├── Timeout ?
-│   ├── GameThread bloqué → Vérifier UE pas en mode modal
-│   └── Handler trop lent → Optimiser ou rendre async
-├── Réponse invalide ?
-│   └── JSON malformé → Vérifier FJsonSerializer usage
-└── Connexion coupée ?
-    └── Plugin crashé → Vérifier crash logs
+Communication problem
+├── Cannot connect?
+│   ├── Port 55557 not open → Launch UE + enable plugin
+│   └── Port open but refused → Restart the plugin
+├── "Unknown command"?
+│   └── Missing route in Bridge.cpp → Add the route
+├── Timeout?
+│   ├── GameThread blocked → Check UE is not in modal mode
+│   └── Handler too slow → Optimize or make async
+├── Invalid response?
+│   └── Malformed JSON → Check FJsonSerializer usage
+└── Connection dropped?
+    └── Plugin crashed → Check crash logs
 ```

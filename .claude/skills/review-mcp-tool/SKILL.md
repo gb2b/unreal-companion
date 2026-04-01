@@ -1,78 +1,78 @@
 ---
 name: review-mcp-tool
-description: Audit qualité d'un MCP tool existant — vérifie les 5 couches (Python, header, impl, route, doc)
+description: Audit an existing MCP tool for quality across all 5 layers (Python, C++ header, C++ impl, Bridge route, docs). Use this whenever reviewing tools, checking tool quality, debugging 'unknown command' errors, or when the user says 'review', 'audit', or 'check tool'.
 ---
 
-# Review un MCP Tool
+# Review an MCP Tool
 
-Audit complet d'un tool MCP existant pour vérifier qualité, cohérence et complétude.
+Complete audit of an existing MCP tool to verify quality, consistency, and completeness.
 
 ## Usage
 
-Donner le nom du tool à auditer (ex: `blueprint_create`) ou la catégorie entière (ex: `blueprint`).
+Provide the name of the tool to audit (e.g. `blueprint_create`) or the entire category (e.g. `blueprint`).
 
-## Checklist d'audit
+## Audit checklist
 
-### 1. Existence dans les 5 couches
+### 1. Existence across all 5 layers
 
-Pour chaque tool `{category}_{action}` :
+For each tool `{category}_{action}`:
 
-- [ ] **Python** : fonction existe dans `Python/tools/{category}_tools.py`
-- [ ] **Header C++** : méthode déclarée dans `Public/Commands/UnrealCompanion{Category}Commands.h`
-- [ ] **Impl C++** : méthode implémentée dans `Private/Commands/UnrealCompanion{Category}Commands.cpp`
-- [ ] **Route** : commande routée dans `Private/UnrealCompanionBridge.cpp` ExecuteCommand()
-- [ ] **Doc** : documenté dans `Docs/Tools/{category}_tools.md`
+- [ ] **Python**: function exists in `Python/tools/{category}_tools.py`
+- [ ] **C++ Header**: method declared in `Public/Commands/UnrealCompanion{Category}Commands.h`
+- [ ] **C++ Impl**: method implemented in `Private/Commands/UnrealCompanion{Category}Commands.cpp`
+- [ ] **Route**: command routed in `Private/UnrealCompanionBridge.cpp` ExecuteCommand()
+- [ ] **Doc**: documented in `Docs/Tools/{category}_tools.md`
 
-### 2. Qualité Python
+### 2. Python quality
 
-- [ ] Pas de types `Any`, `Union`, `Optional[T]`, `T | None`
-- [ ] Utilise `x: T = None` pour les optionnels
-- [ ] Docstring présente avec Args, Returns, Example
-- [ ] Nom de fonction = convention `category_action`
-- [ ] Retourne `json.dumps(result, indent=2)`
+- [ ] No `Any`, `Union`, `Optional[T]`, `T | None` types
+- [ ] Uses `x: T = None` for optionals
+- [ ] Docstring present with Args, Returns, Example
+- [ ] Function name follows `category_action` convention
+- [ ] Returns `json.dumps(result, indent=2)`
 
-### 3. Cohérence naming
+### 3. Naming consistency
 
-- [ ] Nom Python = nom C++ HandleCommand = nom MCP
-- [ ] Category prefix cohérent dans les 5 couches
+- [ ] Python name = C++ HandleCommand name = MCP name
+- [ ] Category prefix consistent across all 5 layers
 
 ### 4. Documentation
 
-- [ ] Paramètres documentés (required vs optional)
-- [ ] Exemple d'appel
-- [ ] Exemple de réponse
-- [ ] Pas de tools legacy/supprimés dans la doc
+- [ ] Parameters documented (required vs optional)
+- [ ] Call example
+- [ ] Response example
+- [ ] No legacy/deleted tools in the doc
 
-### 5. Sécurité
+### 5. Security
 
-- [ ] Si le tool est dangereux : risk level assigné dans `Python/utils/security.py`
-- [ ] Si CRITICAL/HIGH : token flow implémenté
-- [ ] Si MEDIUM/LOW : whitelist flow implémenté
+- [ ] If the tool is dangerous: risk level assigned in `Python/utils/security.py`
+- [ ] If CRITICAL/HIGH: token flow implemented
+- [ ] If MEDIUM/LOW: whitelist flow implemented
 
 ### 6. Tests
 
-- [ ] `uv run pytest tests/ -v` passe
-- [ ] Le tool est couvert par les tests de format/naming
+- [ ] `uv run pytest tests/ -v` passes
+- [ ] The tool is covered by format/naming tests
 
-## Rapport
+## Report
 
-Produire un rapport avec :
-- **Score** : X/6 catégories OK
-- **Problèmes trouvés** : liste avec sévérité (CRITICAL, WARNING, INFO)
-- **Actions recommandées** : liste priorisée de corrections
+Produce a report with:
+- **Score**: X/6 categories OK
+- **Issues found**: list with severity (CRITICAL, WARNING, INFO)
+- **Recommended actions**: prioritized list of fixes
 
-## Commandes utiles
+## Useful commands
 
 ```bash
-# Vérifier l'existence Python
+# Check Python existence
 grep -n "async def {tool_name}" Python/tools/{category}_tools.py
 
-# Vérifier la route Bridge
+# Check Bridge route
 grep -n "{tool_name}" Plugins/UnrealCompanion/Source/UnrealCompanion/Private/UnrealCompanionBridge.cpp
 
-# Vérifier la doc
+# Check doc
 grep -n "{tool_name}" Docs/Tools/{category}_tools.md
 
-# Lancer les tests
+# Run tests
 cd Python && uv run pytest tests/ -v
 ```
