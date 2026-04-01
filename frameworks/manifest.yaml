@@ -1,0 +1,36 @@
+version: "1.0.0"
+lastUpdated: "2026-04-02"
+description: "BMGD (Breakthrough Method for Game Development) templates for Unreal Companion"
+
+components:
+  workflows:
+    version: "1.0.0"
+    count: 25
+    phases:
+      - 1-preproduction
+      - 2-design
+      - 3-technical
+      - 4-production
+      - quick-flow
+      - tools
+  agents:
+    version: "1.0.0"
+    count: 9
+  skills:
+    version: "1.0.0"
+    count: 12
+  rules-templates:
+    version: "1.0.0"
+    formats:
+      - cursor
+      - claude-code
+      - windsurf
+      - vscode-copilot
+      - generic
+  project:
+    version: "1.0.0"
+    files:
+      - config.yaml
+      - project-context.md
+      - workflow-status.yaml
+      - memories.yaml

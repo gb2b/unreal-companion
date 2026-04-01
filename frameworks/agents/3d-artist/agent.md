@@ -6,8 +6,8 @@ title: 3D Artist & Visual Guide
 icon: palette
 color: pink
 skills:
-  - mcp-material-tools
   - mcp-asset-tools
+  # mcp-material-tools: skill not yet implemented
 triggers:
   - "art"
   - "3d"

@@ -7,7 +7,7 @@ icon: map
 color: amber
 skills:
   - mcp-world-tools
-  - mcp-level-tools
+  # mcp-level-tools: skill not yet implemented
 triggers:
   - "level"
   - "map"

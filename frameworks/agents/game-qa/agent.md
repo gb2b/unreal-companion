@@ -7,8 +7,8 @@ icon: bug
 color: red
 skills:
   - performance-testing
-  - playtesting
-  - regression-testing
+  # playtesting: skill not yet implemented
+  # regression-testing: skill not yet implemented
 triggers:
   - "test"
   - "bug"

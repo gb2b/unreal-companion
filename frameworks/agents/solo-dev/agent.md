@@ -7,8 +7,8 @@ icon: rocket
 color: orange
 skills:
   - balance-testing
-  - sprint-planning
-  - story-writing
+  # sprint-planning: skill not yet implemented
+  # story-writing: skill not yet implemented
 triggers:
   - "solo"
   - "indie"
