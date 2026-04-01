@@ -39,7 +39,7 @@ Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.yml).
 ### Submitting Code
 
 1. Create a branch from `main`
-2. Make your changes following project conventions (see `AGENTS.md`)
+2. Make your changes following project conventions (see `CLAUDE.md`)
 3. Test your changes
 4. Submit a Pull Request
 

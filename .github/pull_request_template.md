@@ -31,7 +31,7 @@
 
 ## Checklist
 
-- [ ] Code follows project conventions (see `AGENTS.md`)
+- [ ] Code follows project conventions (see `CLAUDE.md`)
 - [ ] Self-reviewed the code
 - [ ] Updated documentation if needed
 - [ ] No personal paths or hardcoded values
