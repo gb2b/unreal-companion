@@ -1,5 +1,18 @@
 # Unreal Companion - {{project_name}}
 
+This project uses **Unreal Companion** with the BMGD (Breakthrough Method for Game Development) methodology.
+
+## Unreal Engine Integration
+
+This project connects to Unreal Engine via MCP tools (87 tools available).
+
+- Tools run through: AI → Python MCP Server (TCP:55557) → C++ Plugin → Unreal Editor
+- Use `core_query` to search assets and actors
+- Use `graph_batch` to add Blueprint logic
+- Use `world_spawn_batch` to place actors
+- Always use `/Game/` prefix for asset paths
+- Vectors are arrays: `[x, y, z]` (Z-up, left-handed, cm/kg/degrees)
+
 {{> core/workflow-instructions}}
 
 ## VS Code Copilot-Specific
