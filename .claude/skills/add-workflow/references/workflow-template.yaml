@@ -1,0 +1,23 @@
+# Template for a new BMGD workflow
+# Copy this file and fill in the values
+
+id: my-workflow
+name: My Workflow Name
+description: Brief description of what this workflow produces
+phase: 2-design  # 1-preproduction, 2-design, 3-technical, 4-production, quick-flow, tools
+agent: game-designer  # Which agent runs this workflow
+partyMode: false  # Allow multiple agents to participate?
+
+# Optional: documents required from previous workflows
+inputDocuments:
+  - type: game-brief
+    required: true
+
+# Steps in order of execution
+steps:
+  - id: step-01-init
+    name: Initialize & Load Context
+  - id: step-02-content
+    name: Main Content
+  - id: step-03-review
+    name: Review & Complete
