@@ -59,7 +59,7 @@ This fork significantly extends the original project:
 
 | Feature | Description |
 |---------|-------------|
-| **67 Tools** | Comprehensive Unreal Editor control |
+| **87 Tools** | Comprehensive Unreal Editor control |
 | **Batch Operations** | Multiple operations in one call (nodes, actors, components) |
 | **Universal Graph API** | Same tools for Blueprint, Material, Niagara, Animation graphs |
 | **Python Execution** | Run any Python code in Unreal context (with security) |
@@ -79,7 +79,7 @@ See [SECURITY.md](SECURITY.md) for details.
 ```
 unreal-companion/
 ├── Python/                     # MCP Server (FastMCP)
-│   ├── tools/                  # Tool modules (67 tools)
+│   ├── tools/                  # Tool modules (87 tools)
 │   │   ├── core_tools.py       # Query, info, save
 │   │   ├── blueprint_tools.py  # Blueprint creation/config
 │   │   ├── graph_tools.py      # Graph manipulation (all types)
@@ -316,7 +316,7 @@ The `graph_batch` tool works with:
 | `python_*` | 3 | Python execution |
 | `project_*` | 1 | Input mappings |
 
-**Total: 67 tools**
+**Total: 87 tools**
 See [Docs/Tools/](Docs/Tools/) for detailed documentation.
 
 ## 🖥️ Web UI (Optional)
