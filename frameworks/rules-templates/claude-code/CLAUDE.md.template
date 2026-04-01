@@ -1,12 +1,51 @@
-# CLAUDE.md - {{project_name}}
+# {{project_name}} — Unreal Companion
+
+This project uses **Unreal Companion** with the BMGD (Breakthrough Method for Game Development) methodology.
+
+## Quick Start
+
+To start or continue a workflow:
+```
+"Execute the game-brief workflow"
+"Continue where we left off"
+"Show me the project status"
+```
+
+## Project Files
+
+| File | Purpose |
+|------|---------|
+| `.unreal-companion/config.yaml` | Project settings and preferences |
+| `.unreal-companion/project-context.md` | Current vision, key documents, next steps |
+| `.unreal-companion/workflow-status.yaml` | Active workflows and progress |
+| `.unreal-companion/memories.yaml` | Persistent project memories |
+| `.unreal-companion/docs/` | All generated documents |
+
+## Unreal Engine Integration
+
+This project connects to Unreal Engine via MCP tools (87 tools available).
+
+- Tools run through: Claude → Python MCP Server (TCP:55557) → C++ Plugin → Unreal Editor
+- Use `core_query` to search assets and actors
+- Use `graph_batch` to add Blueprint logic
+- Use `world_spawn_batch` to place actors
+- Always use `/Game/` prefix for asset paths
+- Vectors are arrays: `[x, y, z]` (Z-up, left-handed, cm/kg/degrees)
 
 {{> core/workflow-instructions}}
 
 ## Claude Code-Specific
 
 ### Skills
-Skills are in `~/.claude/skills/`. Use them for specialized knowledge.
+Skills are in `~/.unreal-companion/skills/` (BMGD skills) and `~/.claude/skills/` (Claude Code skills).
 
-### Agent Greeting Example
-If `agents.primary: "game-designer"`, load Zelda's persona and greet:
-> "Hey {user_name}! Let's explore new adventures! 🎲"
+### Resolution Order
+
+When looking for workflows, agents, or skills:
+1. `.unreal-companion/` (project-level overrides)
+2. `~/.unreal-companion/custom/` (user customizations)
+3. `~/.unreal-companion/defaults/` (installed defaults)
+
+### Agent Personas
+
+Load the agent persona from `~/.unreal-companion/agents/defaults/{agent-id}/agent.md` and adopt their communication style, expressions, and expertise.
