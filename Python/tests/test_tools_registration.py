@@ -176,7 +176,7 @@ class TestToolNamingConsistency:
             "core_tools": "core_",
             "editor_tools": ["console", "editor_", "plugin_", "security_", "play"],  # Multiple allowed
             "graph_tools": "graph_",
-            "landscape_tools": "landscape_",
+            "landscape_tools": ["landscape_", "foliage_", "geometry_", "spline_", "environment_"],
             "level_tools": "level_",
             "light_tools": "light_",
             "material_tools": "material_",

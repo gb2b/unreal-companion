@@ -201,10 +201,13 @@ class TestToolCount:
                 tools = get_tool_functions(filepath)
                 total_tools += len(tools)
         
-        # We expect 87 tools as documented
-        assert total_tools == 87, (
-            f"Expected 87 tools, found {total_tools}. "
-            "Update documentation if tool count changed."
+        # We expect 76 tools detected by AST parsing.
+        # Note: meshy_tools.py registers 11 tools dynamically (not via @mcp.tool decorator),
+        # so total MCP tools is 87 but AST-detectable tools is 76.
+        assert total_tools == 76, (
+            f"Expected 76 AST-detectable tools, found {total_tools}. "
+            "Update this count if tools were added/removed. "
+            "Total MCP tools including dynamic registration is 87."
         )
     
     def test_per_file_tool_count(self):
