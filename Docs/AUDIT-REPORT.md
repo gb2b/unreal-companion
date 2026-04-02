@@ -1,46 +1,30 @@
 # Audit Complet - UnrealCompanion Plugin
 **Date :** 3 février 2026  
-**Scope :** C++ (16 fichiers), Python (15 fichiers), Documentation (15 fichiers), Bridge routing
+**Last verified:** 2 avril 2026  
+**Scope :** C++ (21 fichiers), Python (20 modules), Documentation (20 fichiers), Bridge routing
 
 ---
 
 ## 1. BUGS CRITIQUES (bloquants)
 
 ### BUG-001 : Bridge - Nouvelles commandes Widget non routées
-**Sévérité : CRITIQUE**
+**Sévérité : CRITIQUE** — **RESOLVED (février 2026)**
 
-`widget_batch` et `widget_get_info` sont implémentés côté C++ (`UnrealCompanionUMGCommands.cpp`) et exposés côté Python (`widget_tools.py`), mais **ne sont PAS routés dans le Bridge** (`UnrealCompanionBridge.cpp` ligne 301-309).
-
-```cpp
-// Bridge actuel - IL MANQUE widget_batch et widget_get_info
-else if (CommandType == TEXT("widget_create") ||
-         CommandType == TEXT("widget_add_text_block") ||
-         CommandType == TEXT("widget_add_button") ||
-         CommandType == TEXT("widget_bind_event") ||
-         CommandType == TEXT("widget_set_text_binding") ||
-         CommandType == TEXT("widget_add_to_viewport"))
-```
-
-**Fix :** Ajouter `widget_batch` et `widget_get_info` à cette liste.
+`widget_batch` et `widget_get_info` ont été ajoutés au routing Bridge. Les 4 commandes Widget (create, batch, get_info, add_to_viewport) + 4 legacy sont correctement routées.
 
 ---
 
 ### BUG-002 : Bridge - Nouvelles commandes Enhanced Input non routées
-**Sévérité : CRITIQUE**
+**Sévérité : CRITIQUE** — **RESOLVED (février 2026)**
 
-`project_create_input_action`, `project_add_to_mapping_context`, `project_list_input_actions`, `project_list_mapping_contexts` sont implémentés côté C++ et Python, mais le Bridge ne route que `project_create_input_mapping` (ligne 382).
-
-```cpp
-// Bridge actuel - 1 seule commande routée sur 5
-else if (CommandType == TEXT("project_create_input_mapping"))
-```
-
-**Fix :** Ajouter les 4 commandes manquantes.
+Les 3 commandes projet actives (`project_create_input_mapping`, `project_create_input_action`, `project_add_to_mapping_context`) sont correctement routées dans le Bridge.
 
 ---
 
 ### BUG-003 : WorldCommands - 5 commandes routées mais non dispatchées
-**Sévérité : CRITIQUE**
+**Sévérité : CRITIQUE** — **RESOLVED (février 2026)**
+
+Les handlers `world_select_actors`, `world_get_selected_actors`, `world_duplicate_actor` ont été ajoutés dans HandleCommand. Les legacy `find_by_tag` et `find_in_radius` sont routées et renvoient un message de redirection vers `core_query`.
 
 Le Bridge route ces commandes vers `WorldCommands->HandleCommand()`, mais le `HandleCommand` de `UnrealCompanionWorldCommands.cpp` ne les dispatch PAS :
 
@@ -261,7 +245,7 @@ Le Bridge route vers `GraphCommands` (correct), mais le code legacy est toujours
 | WorldCommands | 3 (spawn_batch, set_batch, delete_batch) | 8 | 11 |
 | **Total** | **~58** | **~60** | **~121** |
 
-### 6.2 Tools Python MCP (89 tools)
+### 6.2 Tools Python MCP (87 tools across 20 modules)
 
 | Fichier | Tools actifs | Deprecated | Total |
 |---------|-------------|------------|-------|
@@ -279,6 +263,11 @@ Le Bridge route vers `GraphCommands` (correct), mais le code legacy est toujours
 | viewport_tools.py | 4 | 0 | 4 |
 | widget_tools.py | 4 | 4 | 8 |
 | world_tools.py | 6 | 0 | 6 |
+| landscape_tools.py | 4 | 0 | 4 |
+| foliage_tools.py | 3 | 0 | 3 |
+| geometry_tools.py | 2 | 0 | 2 |
+| spline_tools.py | 2 | 0 | 2 |
+| environment_tools.py | 1 | 0 | 1 |
 | **Total** | **81** | **4** | **85** |
 
 ### 6.3 Documentation (15 fichiers)
