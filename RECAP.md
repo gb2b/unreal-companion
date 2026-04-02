@@ -1,7 +1,16 @@
 # RECAP - Refonte Architecture Frameworks
 
-**Date:** 27 janvier 2026  
-**Status:** Plan validé, implémentation à faire
+**Date:** 27 janvier 2026 (updated 2 avril 2026)  
+**Status:** Framework structure implemented. Agent environment refonte completed (April 2026).
+
+> **April 2026 update:** The agent environment has been fully reworked:
+> - 6 hierarchical CLAUDE.md files (root + Python + C++ + web-ui + CLI + frameworks)
+> - 21 Claude Code dev skills in `.claude/skills/`
+> - `frameworks/manifest.yaml` added for template versioning
+> - Broken agent→skill references fixed (6 agents)
+> - All IDE rule templates updated (87 tools)
+> - AGENTS.md, .clinerules, .windsurfrules removed (generated at install)
+> - See `docs/superpowers/specs/2026-04-02-agent-environment-design.md` for full spec
 
 ---
 
