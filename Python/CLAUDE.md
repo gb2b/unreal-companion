@@ -1,6 +1,6 @@
 # Python MCP Server
 
-MCP (Model Context Protocol) server based on FastMCP. Exposes 87 tools organized into 16 modules.
+MCP (Model Context Protocol) server based on FastMCP. Exposes 87 tools organized into 20 modules.
 
 ## Structure
 
@@ -18,7 +18,11 @@ Python/
 │   ├── widget_tools.py        # widget_* (4 tools)
 │   ├── asset_tools.py         # asset_* (5 tools)
 │   ├── viewport_tools.py      # viewport_* (4 tools)
-│   ├── landscape_tools.py     # landscape_* (12 tools)
+│   ├── landscape_tools.py     # landscape_* (4 tools)
+│   ├── foliage_tools.py       # foliage_* (3 tools)
+│   ├── geometry_tools.py      # geometry_* (2 tools)
+│   ├── spline_tools.py        # spline_* (2 tools)
+│   ├── environment_tools.py   # environment_* (1 tool)
 │   ├── meshy_tools.py         # meshy_* (11 tools — external 3D API)
 │   ├── material_tools.py      # material_* (3 tools)
 │   ├── light_tools.py         # light_* (3 tools)

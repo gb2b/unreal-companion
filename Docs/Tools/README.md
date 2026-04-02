@@ -61,6 +61,12 @@ Complete reference for all 87 MCP tools.
 | Register foliage type | `foliage_add_type` | `foliage_add_type(mesh="/Game/Meshes/SM_Rock", scale_min=0.5, scale_max=2.0)` |
 | Scatter foliage | `foliage_scatter` | `foliage_scatter(mesh="/Game/Meshes/SM_Rock", center=[0,0,0], radius=10000, count=200)` |
 | Remove foliage | `foliage_remove` | `foliage_remove(center=[0,0,0], radius=3000)` |
+| Paint landscape layer | `landscape_paint_layer` | `landscape_paint_layer(actor_name="Landscape", layer_name="Rock", position=[0,0])` |
+| Create geometry | `geometry_create` | `geometry_create(type="box", name="Wall", location=[0,0,0], width=1000)` |
+| Boolean geometry ops | `geometry_boolean` | `geometry_boolean(target_actor="Wall", tool_actor="Hole", operation="subtract")` |
+| Create spline path | `spline_create` | `spline_create(name="Path", points=[[0,0,0],[1000,0,0]])` |
+| Scatter meshes along spline | `spline_scatter_meshes` | `spline_scatter_meshes(spline_actor="Path", mesh="/Game/SM_Post", spacing=200)` |
+| Setup atmosphere | `environment_configure` | `environment_configure(action="setup_atmosphere")` |
 
 ### I want to ADD things to a Blueprint
 
@@ -193,6 +199,11 @@ widget_batch(
 | [Python](python_tools.md) | 3 | Python execution (requires confirmation) |
 | [Meshy](meshy_tools.md) | 11 | AI 3D generation, rigging, animation |
 | [Niagara](niagara_tools.md) | 3 | Particle systems |
+| [Landscape](landscape_tools.md) | 4 | Terrain creation, sculpting, heightmap import, painting |
+| [Foliage](foliage_tools.md) | 3 | Foliage type registration and scattering |
+| [Geometry](geometry_tools.md) | 2 | Procedural geometry and boolean operations |
+| [Spline](spline_tools.md) | 2 | Spline creation and mesh scattering along paths |
+| [Environment](environment_tools.md) | 1 | Atmosphere, fog, time of day |
 
 ---
 

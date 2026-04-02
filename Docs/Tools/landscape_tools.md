@@ -1,17 +1,15 @@
-# Landscape & Foliage Tools
+# Landscape Tools
 
-Tools for terrain creation/sculpting and foliage scattering.
+Tools for terrain creation, sculpting, heightmap import, and layer painting.
 
-## Available Tools (6)
+## Available Tools (4)
 
 | Tool | Description |
 |------|-------------|
 | `landscape_create` | Create a new Landscape (flat terrain) |
 | `landscape_sculpt` | Sculpt terrain with batch operations (raise, lower, canyon, crater...) |
 | `landscape_import_heightmap` | Import a heightmap image onto a landscape |
-| `foliage_add_type` | Register and configure a foliage type for a mesh |
-| `foliage_scatter` | Scatter foliage instances in an area with ground-snapping |
-| `foliage_remove` | Remove foliage instances within a radius |
+| `landscape_paint_layer` | Paint a material layer on the landscape |
 
 ---
 
@@ -169,96 +167,28 @@ landscape_import_heightmap(
 
 ---
 
-## foliage_add_type
+## landscape_paint_layer
 
-Register a StaticMesh as a foliage type with configuration.
+Paint a material layer on the landscape.
 
 ```python
-foliage_add_type(
-    mesh: str,                      # StaticMesh path
-    scale_min: float = 0.8,         # Min random scale
-    scale_max: float = 1.2,         # Max random scale
-    align_to_normal: bool = False,  # Align to surface
-    random_yaw: bool = True,        # Random rotation
-    random_pitch_angle: float = 0,  # Max pitch offset degrees
-    ground_slope_angle: [min, max], # Valid slope range
-    cull_distance: [start, end],    # Fade distance
-    cast_shadow: bool = True
+landscape_paint_layer(
+    actor_name: str,       # Target landscape
+    layer_name: str,       # Material layer name
+    position: [X, Y],      # World coordinates for paint center
+    radius: float = 5000,  # Paint radius
+    strength: float = 1.0  # Paint strength 0.0-1.0
 )
 ```
 
 ```python
-# Register rocks
-foliage_add_type(mesh="/Game/Meshes/SM_Rock",
-                scale_min=0.3, scale_max=2.5, align_to_normal=True)
-
-# Register distant vegetation (no shadows for performance)
-foliage_add_type(mesh="/Game/Meshes/SM_Grass",
-                scale_min=0.5, scale_max=1.0,
-                cull_distance=[3000, 5000], cast_shadow=False)
-```
-
----
-
-## foliage_scatter
-
-Scatter foliage instances in an area with automatic ground-snapping.
-
-```python
-foliage_scatter(
-    mesh: str,                      # StaticMesh path
-    center: [X, Y, Z],             # Center of scatter area
-    count: int = 100,              # Number of instances (1-10000)
-    radius: float = 5000,          # Circular scatter radius
-    box: [minX, minY, maxX, maxY], # OR rectangular scatter area
-    scale_range: [min, max],       # Random scale range
-    align_to_normal: bool = False, # Align to surface
-    random_yaw: bool = True,       # Random rotation
-    min_distance: float = 0        # Min spacing between instances
+landscape_paint_layer(
+    actor_name="Landscape",
+    layer_name="Rock",
+    position=[0, 0],
+    radius=3000,
+    strength=0.8
 )
-```
-
-How it works:
-1. Generates random 2D positions within radius/box
-2. Raycasts downward to find ground surface
-3. Checks min_distance constraint
-4. Places instance aligned to surface (if align_to_normal)
-5. Applies random scale and yaw
-
-```python
-# Scatter 200 rocks with spacing
-foliage_scatter(mesh="/Game/Meshes/SM_Rock",
-               center=[0, 0, 0], radius=15000, count=200,
-               scale_range=[0.5, 2.0], align_to_normal=True,
-               min_distance=100)
-
-# Scatter crystals in a specific area
-foliage_scatter(mesh="/Game/Meshes/SM_Crystal",
-               center=[0, 0, -500], radius=8000, count=50,
-               scale_range=[0.3, 1.0], min_distance=200)
-```
-
----
-
-## foliage_remove
-
-Remove foliage instances within a radius, optionally filtered by mesh.
-
-```python
-foliage_remove(
-    center: [X, Y, Z],    # Center of removal area
-    radius: float = 5000,  # Removal radius
-    mesh: str = None       # Optional: only remove this mesh type
-)
-```
-
-```python
-# Remove all foliage in area (clear a landing zone)
-foliage_remove(center=[0, 0, 0], radius=3000)
-
-# Remove only rocks, keep crystals
-foliage_remove(center=[0, 0, 0], radius=5000,
-              mesh="/Game/Meshes/SM_Rock")
 ```
 
 ---

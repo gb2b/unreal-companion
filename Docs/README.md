@@ -73,7 +73,11 @@ These are the most powerful tools:
 | `light_*` | 3 | [Light Tools](Tools/light_tools.md) |
 | `material_*` | 3 | [Material Tools](Tools/material_tools.md) |
 | `python_*` | 3 | [Python Tools](Tools/python_tools.md) |
-| `landscape_*` / `foliage_*` | 6 | [Landscape Tools](Tools/landscape_tools.md) |
+| `landscape_*` | 4 | [Landscape Tools](Tools/landscape_tools.md) |
+| `foliage_*` | 3 | [Foliage Tools](Tools/foliage_tools.md) |
+| `geometry_*` | 2 | [Geometry Tools](Tools/geometry_tools.md) |
+| `spline_*` | 2 | [Spline Tools](Tools/spline_tools.md) |
+| `environment_*` | 1 | [Environment Tools](Tools/environment_tools.md) |
 | `niagara_*` | 3 | [Niagara Tools](Tools/niagara_tools.md) |
 | `project_*` | 2 | [Project Tools](Tools/project_tools.md) |
 
