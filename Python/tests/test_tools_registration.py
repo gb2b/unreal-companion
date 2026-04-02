@@ -93,8 +93,8 @@ class TestToolsPackageInit:
         
         functions = get_all_register_functions()
         
-        # Should have 14 tool modules
-        assert len(functions) == 14
+        # Should have 16 tool modules
+        assert len(functions) == 16
         
         # All should be callable
         for module_name, func in functions:
@@ -145,8 +145,8 @@ class TestToolRegistration:
         mock_mcp = self.create_mock_mcp()
         count = register_all_tools(mock_mcp)
         
-        # Should register all 14 modules
-        assert count == 14
+        # Should register all 16 modules
+        assert count == 16
 
     def test_total_tools_registered(self):
         """Verify total number of tools matches expected count."""
@@ -155,9 +155,9 @@ class TestToolRegistration:
         mock_mcp = self.create_mock_mcp()
         register_all_tools(mock_mcp)
         
-        # Should have 81 tools total
-        assert len(mock_mcp._registered_tools) == 81, (
-            f"Expected 81 tools, got {len(mock_mcp._registered_tools)}: "
+        # Should have 87 tools total
+        assert len(mock_mcp._registered_tools) == 87, (
+            f"Expected 87 tools, got {len(mock_mcp._registered_tools)}: "
             f"{mock_mcp._registered_tools}"
         )
 
@@ -176,10 +176,12 @@ class TestToolNamingConsistency:
             "core_tools": "core_",
             "editor_tools": ["console", "editor_", "plugin_", "security_", "play"],  # Multiple allowed
             "graph_tools": "graph_",
+            "landscape_tools": "landscape_",
             "level_tools": "level_",
             "light_tools": "light_",
             "material_tools": "material_",
             "meshy_tools": "meshy_",
+            "niagara_tools": "niagara_",
             "project_tools": "project_",
             "python_tools": "python_",
             "viewport_tools": "viewport_",

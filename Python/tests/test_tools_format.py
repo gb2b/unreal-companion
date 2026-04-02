@@ -201,9 +201,9 @@ class TestToolCount:
                 tools = get_tool_functions(filepath)
                 total_tools += len(tools)
         
-        # We expect 70 tools as documented
-        assert total_tools == 70, (
-            f"Expected 70 tools, found {total_tools}. "
+        # We expect 87 tools as documented
+        assert total_tools == 87, (
+            f"Expected 87 tools, found {total_tools}. "
             "Update documentation if tool count changed."
         )
     
