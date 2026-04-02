@@ -9,6 +9,10 @@ icon: "file-plus"
 color: "teal"
 estimated_time: "5 min"
 quick_action: true
+agents:
+  primary: "scrum-master"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - brief

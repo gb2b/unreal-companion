@@ -9,6 +9,10 @@ icon: "flask"
 color: "lime"
 estimated_time: "5 min"
 quick_action: true
+agents:
+  primary: "solo-dev"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - brief

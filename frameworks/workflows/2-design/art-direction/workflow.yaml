@@ -2,7 +2,10 @@ id: art-direction
 version: "1.0"
 name: "Art Direction"
 description: "Define your game's visual identity, style, and aesthetics"
-agent: "art-director"
+agents:
+  primary: "3d-artist"
+  alternatives: []
+  party_mode: false
 estimated_time: "45-60 min"
 category: "document"
 behavior: "one-shot"

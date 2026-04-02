@@ -8,6 +8,10 @@ ui_visible: true
 icon: "refresh-cw"
 color: "orange"
 estimated_time: "10 min"
+agents:
+  primary: "scrum-master"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - sprint

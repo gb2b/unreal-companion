@@ -9,6 +9,10 @@ icon: "search"
 color: "slate"
 estimated_time: "5 min"
 quick_action: true
+agents:
+  primary: "game-dev"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - architecture

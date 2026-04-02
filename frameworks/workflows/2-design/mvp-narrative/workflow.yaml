@@ -10,6 +10,10 @@ color: "amber"
 suggested_after: ["game-brief"]
 document_order: 7
 estimated_time: "15 min"
+agents:
+  primary: "game-designer"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - brief

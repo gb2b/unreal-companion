@@ -9,6 +9,10 @@ icon: "bar-chart"
 color: "green"
 estimated_time: "3 min"
 quick_action: true
+agents:
+  primary: "scrum-master"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - tasks

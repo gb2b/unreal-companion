@@ -2,7 +2,10 @@ id: level-design
 version: "1.0"
 name: "Level Design"
 description: "Plan your game's levels, progression, and spatial design"
-agent: "level-designer"
+agents:
+  primary: "level-designer"
+  alternatives: []
+  party_mode: false
 estimated_time: "45-60 min"
 category: "document"
 behavior: "one-shot"

@@ -2,7 +2,10 @@ id: sprint-planning
 version: "1.0"
 name: "Sprint Planning"
 description: "Plan your next development sprint with clear, actionable tasks"
-agent: "game-designer"
+agents:
+  primary: "scrum-master"
+  alternatives: []
+  party_mode: false
 estimated_time: "15 min"
 category: "agile"
 behavior: "repeatable"

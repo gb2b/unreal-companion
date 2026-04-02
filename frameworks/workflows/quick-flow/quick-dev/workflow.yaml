@@ -9,6 +9,10 @@ icon: "zap"
 color: "yellow"
 estimated_time: "2 min"
 quick_action: true
+agents:
+  primary: "game-dev"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - architecture

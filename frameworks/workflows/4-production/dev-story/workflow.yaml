@@ -9,6 +9,10 @@ icon: "git-branch"
 color: "indigo"
 estimated_time: "8 min"
 quick_action: true
+agents:
+  primary: "game-dev"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - gdd

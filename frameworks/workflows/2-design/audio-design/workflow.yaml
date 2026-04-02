@@ -2,7 +2,10 @@ id: audio-design
 version: "1.0"
 name: "Audio Design"
 description: "Define your game's soundscape, music, and audio experience"
-agent: "audio-director"
+agents:
+  primary: "game-designer"
+  alternatives: []
+  party_mode: false
 estimated_time: "30-45 min"
 category: "document"
 behavior: "one-shot"

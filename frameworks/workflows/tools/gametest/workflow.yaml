@@ -8,6 +8,10 @@ ui_visible: true
 icon: "gamepad"
 color: "red"
 estimated_time: "10 min"
+agents:
+  primary: "game-qa"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - gdd

@@ -8,6 +8,10 @@ ui_visible: true
 icon: "image"
 color: "rose"
 estimated_time: "8 min"
+agents:
+  primary: "3d-artist"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - brief

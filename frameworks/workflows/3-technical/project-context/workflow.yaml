@@ -8,6 +8,10 @@ ui_visible: false
 estimated_time: "10 min"
 auto_trigger: true
 agent_use: true
+agents:
+  primary: "game-architect"
+  alternatives: []
+  party_mode: false
 
 context_required: []
 

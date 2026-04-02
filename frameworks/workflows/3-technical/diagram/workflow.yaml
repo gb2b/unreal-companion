@@ -8,6 +8,10 @@ ui_visible: true
 icon: "git-merge"
 color: "sky"
 estimated_time: "5 min"
+agents:
+  primary: "game-architect"
+  alternatives: []
+  party_mode: false
 
 context_required:
   - architecture

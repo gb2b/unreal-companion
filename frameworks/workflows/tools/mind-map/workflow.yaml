@@ -8,6 +8,10 @@ ui_visible: true
 icon: "network"
 color: "fuchsia"
 estimated_time: "5 min"
+agents:
+  primary: "game-designer"
+  alternatives: []
+  party_mode: false
 
 context_required: []
 
