@@ -31,6 +31,9 @@
 #include "Commands/UnrealCompanionNiagaraCommands.h"
 #include "UnrealCompanionBridge.generated.h"
 
+// Command handler function type for registry
+using FCommandHandlerFunc = TFunction<TSharedPtr<FJsonObject>(const FString&, const TSharedPtr<FJsonObject>&)>;
+
 class FMCPServerRunnable;
 
 /**
@@ -109,4 +112,10 @@ private:
 	TSharedPtr<FUnrealCompanionSplineCommands> SplineCommands;         // spline_*
 	TSharedPtr<FUnrealCompanionEnvironmentCommands> EnvironmentCommands; // environment_*
 	TSharedPtr<FUnrealCompanionNiagaraCommands> NiagaraCommands;       // niagara_*
-}; 
+
+	// Command registry: maps command name → handler function
+	TMap<FString, FCommandHandlerFunc> CommandRegistry;
+
+	// Register all commands in the registry
+	void RegisterCommands();
+};
