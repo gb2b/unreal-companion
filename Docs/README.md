@@ -74,6 +74,7 @@ These are the most powerful tools:
 | `material_*` | 3 | [Material Tools](Tools/material_tools.md) |
 | `python_*` | 3 | [Python Tools](Tools/python_tools.md) |
 | `landscape_*` / `foliage_*` | 6 | [Landscape Tools](Tools/landscape_tools.md) |
+| `niagara_*` | 3 | [Niagara Tools](Tools/niagara_tools.md) |
 | `project_*` | 2 | [Project Tools](Tools/project_tools.md) |
 
 ## Key Rules

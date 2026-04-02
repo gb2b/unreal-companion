@@ -1,6 +1,6 @@
 # UnrealCompanion Tools Reference
 
-Complete reference for all 78 MCP tools.
+Complete reference for all 87 MCP tools.
 
 ---
 
@@ -192,6 +192,7 @@ widget_batch(
 | [Material](material_tools.md) | 3 | Materials |
 | [Python](python_tools.md) | 3 | Python execution (requires confirmation) |
 | [Meshy](meshy_tools.md) | 11 | AI 3D generation, rigging, animation |
+| [Niagara](niagara_tools.md) | 3 | Particle systems |
 
 ---
 

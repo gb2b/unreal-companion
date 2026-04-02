@@ -394,7 +394,7 @@ grep "FAILED\|ERROR" ~/.unreal_mcp/unreal_mcp.log
 
 ### Adding New Tools
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) or `.cursor/rules/create-tool.mdc` for the complete guide.
+See [CONTRIBUTING.md](CONTRIBUTING.md) or use the `/add-mcp-tool` skill in Claude Code for a step-by-step guide.
 
 Quick checklist:
 

@@ -45,7 +45,7 @@ Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.yml).
 
 ## Adding New Tools
 
-See `.cursor/rules/create-tool.mdc` for the step-by-step guide.
+See the `/add-mcp-tool` skill in Claude Code for a detailed step-by-step guide, or follow the checklist below.
 
 Quick checklist:
 1. Python: `Python/tools/category_tools.py`
