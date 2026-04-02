@@ -7,7 +7,7 @@ icon: palette
 color: pink
 skills:
   - mcp-asset-tools
-  # mcp-material-tools: skill not yet implemented
+  - mcp-material-tools
 triggers:
   - "art"
   - "3d"

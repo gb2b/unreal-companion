@@ -9,7 +9,7 @@ skills:
   - balance-testing
   - progression-design
   - core-loop-design
-  # player-psychology: skill not yet implemented
+  - player-psychology
 triggers:
   - "game design"
   - "mechanics"

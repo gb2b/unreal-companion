@@ -6,8 +6,8 @@ title: Scrum Master
 icon: users
 color: teal
 skills:
-  # sprint-planning: skill not yet implemented
-  # story-writing: skill not yet implemented
+  - sprint-planning
+  - story-writing
 triggers:
   - "sprint"
   - "planning"
