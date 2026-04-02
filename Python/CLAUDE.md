@@ -1,15 +1,15 @@
 # Python MCP Server
 
-Serveur MCP (Model Context Protocol) basé sur FastMCP. Expose 87 tools organisés en 16 modules.
+MCP (Model Context Protocol) server based on FastMCP. Exposes 87 tools organized into 16 modules.
 
 ## Structure
 
 ```
 Python/
-├── unreal_mcp_server.py      # Point d'entrée FastMCP + logging
-├── pyproject.toml             # Dépendances (mcp, fastmcp, uvicorn, fastapi)
+├── unreal_mcp_server.py      # FastMCP entry point + logging
+├── pyproject.toml             # Dependencies (mcp, fastmcp, uvicorn, fastapi)
 ├── tools/
-│   ├── __init__.py            # Auto-discovery : tout fichier *_tools.py est chargé
+│   ├── __init__.py            # Auto-discovery: any *_tools.py file is loaded
 │   ├── core_tools.py          # query, info, save (3 tools)
 │   ├── blueprint_tools.py     # blueprint_* (13 tools)
 │   ├── graph_tools.py         # graph_* (4 tools)
@@ -19,15 +19,15 @@ Python/
 │   ├── asset_tools.py         # asset_* (5 tools)
 │   ├── viewport_tools.py      # viewport_* (4 tools)
 │   ├── landscape_tools.py     # landscape_* (12 tools)
-│   ├── meshy_tools.py         # meshy_* (11 tools — API 3D externe)
+│   ├── meshy_tools.py         # meshy_* (11 tools — external 3D API)
 │   ├── material_tools.py      # material_* (3 tools)
 │   ├── light_tools.py         # light_* (3 tools)
 │   ├── level_tools.py         # level_* (3 tools)
 │   ├── niagara_tools.py       # niagara_* (3 tools)
 │   ├── project_tools.py       # project_* (2 tools)
-│   └── python_tools.py        # python_* (3 tools — avec sécurité)
+│   └── python_tools.py        # python_* (3 tools — with security)
 ├── utils/
-│   └── security.py            # Tokens cryptographiques, whitelist session
+│   └── security.py            # Cryptographic tokens, session whitelist
 └── tests/                     # pytest
     ├── test_tools_format.py
     ├── test_tools_registration.py
@@ -36,23 +36,23 @@ Python/
     └── test_helpers.py
 ```
 
-## Auto-discovery des tools
+## Tool Auto-Discovery
 
-Les tools sont auto-découverts : tout fichier `*_tools.py` dans `tools/` avec une fonction `register_*_tools(mcp)` est automatiquement chargé au démarrage. Pas besoin d'import manuel.
+Tools are auto-discovered: any `*_tools.py` file in `tools/` with a `register_*_tools(mcp)` function is automatically loaded at startup. No manual import needed.
 
-Pour ajouter un nouveau module de tools :
-1. Créer `tools/{category}_tools.py`
-2. Définir `register_{category}_tools(mcp)` dedans
-3. C'est tout — l'auto-discovery fait le reste
+To add a new tools module:
+1. Create `tools/{category}_tools.py`
+2. Define `register_{category}_tools(mcp)` inside it
+3. That's it — auto-discovery handles the rest
 
-## Conventions Python
+## Python Conventions
 
-### Types strictes
-- **Interdit** : `Any`, `Union`, `Optional[T]`, `T | None`
-- **Utiliser** : `x: T = None` pour les paramètres optionnels
-- Raison : le schéma MCP est généré depuis les type hints, `Any`/`Union` cassent le schéma
+### Strict Types
+- **Forbidden**: `Any`, `Union`, `Optional[T]`, `T | None`
+- **Use**: `x: T = None` for optional parameters
+- Reason: the MCP schema is generated from type hints, `Any`/`Union` break the schema
 
-### Docstrings obligatoires
+### Required Docstrings
 ```python
 @mcp.tool()
 async def category_action(
@@ -73,27 +73,27 @@ async def category_action(
     """
 ```
 
-## Communication TCP
+## TCP Communication
 
-Le serveur communique avec le plugin C++ via TCP sur le port 55557.
-Chaque commande est un JSON envoyé via socket, la réponse est un JSON.
+The server communicates with the C++ plugin via TCP on port 55557.
+Each command is a JSON sent via socket, and the response is a JSON.
 
-Format d'envoi :
+Send format:
 ```json
 {"command": "category_action", "params": {"key": "value"}}
 ```
 
-Format de réponse :
+Response format:
 ```json
 {"success": true, "result": {...}}
 ```
 
 ## Batch Operations
 
-Les tools batch (`graph_batch`, `blueprint_variable_batch`, `blueprint_component_batch`, `world_spawn_batch`) supportent :
+Batch tools (`graph_batch`, `blueprint_variable_batch`, `blueprint_component_batch`, `world_spawn_batch`) support:
 
-| Paramètre | Valeurs | Default |
-|-----------|---------|---------|
+| Parameter | Values | Default |
+|-----------|--------|---------|
 | `on_error` | `"rollback"`, `"continue"`, `"stop"` | `"rollback"` |
 | `dry_run` | `true`, `false` | `false` |
 | `verbosity` | `"minimal"`, `"normal"`, `"full"` | `"normal"` |
@@ -103,17 +103,17 @@ Les tools batch (`graph_batch`, `blueprint_variable_batch`, `blueprint_component
 
 ```bash
 cd Python
-uv run pytest tests/ -v          # Tous les tests
-uv run pytest tests/ -q          # Résumé court
-uv run pytest tests/test_tools_format.py -v  # Un fichier spécifique
+uv run pytest tests/ -v          # All tests
+uv run pytest tests/ -q          # Short summary
+uv run pytest tests/test_tools_format.py -v  # A specific file
 ```
 
-## Pièges courants
+## Common Pitfalls
 
-- **Pin names case-sensitive** : utiliser `graph_node_info` pour trouver les noms exacts
-- **Oubli du préfixe `/Game/`** : tous les asset paths doivent commencer par `/Game/`
-- **Types dans les docstrings** : si le type hint est faux, le schéma MCP sera faux côté client
-- **Connexion TCP** : si le plugin UE n'est pas lancé, les tools retournent une erreur de connexion
+- **Pin names are case-sensitive**: use `graph_node_info` to find exact names
+- **Missing `/Game/` prefix**: all asset paths must start with `/Game/`
+- **Types in docstrings**: if the type hint is wrong, the MCP schema will be wrong on the client side
+- **TCP connection**: if the UE plugin is not running, tools return a connection error
 
 ## Logs
 
@@ -121,4 +121,4 @@ uv run pytest tests/test_tools_format.py -v  # Un fichier spécifique
 tail -f ~/.unreal_mcp/unreal_mcp.log
 ```
 
-Logs rotatifs : max 5MB, 3 backups (`unreal_mcp.log`, `.log.1`, `.log.2`, `.log.3`).
+Rotating logs: max 5MB, 3 backups (`unreal_mcp.log`, `.log.1`, `.log.2`, `.log.3`).

@@ -1,16 +1,16 @@
 # C++ Plugin — UnrealCompanion
 
-Plugin Unreal Engine 5.7+ qui reçoit les commandes MCP via TCP et les exécute dans l'éditeur.
+Unreal Engine 5.7+ plugin that receives MCP commands via TCP and executes them in the editor.
 
 ## Architecture
 
 ```
 TCP:55557
     ↓
-UnrealCompanionBridge (serveur TCP + routing)
-    ↓ ExecuteCommand() — if/else par nom de commande
-CommandHandler (1 par catégorie : Asset, Blueprint, Graph, World, ...)
-    ↓ HandleCommand() — dispatch interne
+UnrealCompanionBridge (TCP server + routing)
+    ↓ ExecuteCommand() — if/else by command name
+CommandHandler (1 per category: Asset, Blueprint, Graph, World, ...)
+    ↓ HandleCommand() — internal dispatch
 Unreal Engine API (GameThread)
 ```
 
@@ -19,10 +19,10 @@ Unreal Engine API (GameThread)
 ```
 Source/UnrealCompanion/
 ├── Private/
-│   ├── UnrealCompanionBridge.cpp    # CRITIQUE — TCP server + routing
-│   ├── UnrealCompanionModule.cpp    # Initialisation du module
-│   ├── MCPServerRunnable.cpp        # Thread TCP
-│   ├── Commands/                    # 1 fichier par catégorie
+│   ├── UnrealCompanionBridge.cpp    # CRITICAL — TCP server + routing
+│   ├── UnrealCompanionModule.cpp    # Module initialization
+│   ├── MCPServerRunnable.cpp        # TCP thread
+│   ├── Commands/                    # 1 file per category
 │   │   ├── UnrealCompanionAssetCommands.cpp
 │   │   ├── UnrealCompanionBlueprintCommands.cpp
 │   │   ├── UnrealCompanionGraphCommands.cpp
@@ -46,10 +46,10 @@ Source/UnrealCompanion/
 │   │   ├── UnrealCompanionEnvironmentCommands.cpp
 │   │   └── UnrealCompanionCommonUtils.cpp
 │   └── Graph/
-│       ├── NodeFactory/             # Factories pour K2, Material, Niagara, Animation
-│       └── PinOperations.cpp        # Opérations sur les pins
+│       ├── NodeFactory/             # Factories for K2, Material, Niagara, Animation
+│       └── PinOperations.cpp        # Pin operations
 ├── Public/
-│   ├── Commands/                    # Headers correspondants
+│   ├── Commands/                    # Corresponding headers
 │   ├── Graph/
 │   ├── UnrealCompanionBridge.h
 │   ├── UnrealCompanionModule.h
@@ -57,7 +57,7 @@ Source/UnrealCompanion/
 └── UnrealCompanion.Build.cs         # Build configuration
 ```
 
-## Ajouter une commande
+## Adding a Command
 
 ### 1. Header (`Public/Commands/UnrealCompanion{Category}Commands.h`)
 
@@ -76,7 +76,7 @@ private:
 };
 ```
 
-### 2. Implémentation (`Private/Commands/UnrealCompanion{Category}Commands.cpp`)
+### 2. Implementation (`Private/Commands/UnrealCompanion{Category}Commands.cpp`)
 
 ```cpp
 FString FUnrealCompanionCategoryCommands::HandleCommand(
@@ -93,14 +93,14 @@ FString FUnrealCompanionCategoryCommands::HandleCommand(
 FString FUnrealCompanionCategoryCommands::HandleSpecificAction(
     const TSharedPtr<FJsonObject>& Params)
 {
-    // Implémenter sur le GameThread
-    // Retourner JSON string
+    // Implement on the GameThread
+    // Return JSON string
 }
 ```
 
-### 3. Route dans Bridge.cpp (CRITIQUE)
+### 3. Route in Bridge.cpp (CRITICAL)
 
-Dans `UnrealCompanionBridge.cpp`, fonction `ExecuteCommand()`, ajouter :
+In `UnrealCompanionBridge.cpp`, function `ExecuteCommand()`, add:
 
 ```cpp
 else if (Command.StartsWith(TEXT("category_")))
@@ -109,17 +109,17 @@ else if (Command.StartsWith(TEXT("category_")))
 }
 ```
 
-**LE PIEGE N.1 : oublier cette route = "Unknown command" côté Python.**
+**PITFALL #1: forgetting this route = "Unknown command" on the Python side.**
 
-## Conventions C++
+## C++ Conventions
 
-- Formatter : `.clang-format` à la racine
-- Strings : `FString`, pas `std::string`
-- Pointeurs : `TSharedPtr<>`, `TWeakPtr<>`, pas de raw pointers
-- JSON : `TSharedPtr<FJsonObject>`, `FJsonSerializer`
-- Thread safety : les commandes s'exécutent sur le GameThread via `FTickableGameObject`
-- Logging : `UE_LOG(LogMCPBridge, Log, TEXT("..."))`
+- Formatter: `.clang-format` at the root
+- Strings: `FString`, not `std::string`
+- Pointers: `TSharedPtr<>`, `TWeakPtr<>`, no raw pointers
+- JSON: `TSharedPtr<FJsonObject>`, `FJsonSerializer`
+- Thread safety: commands execute on the GameThread via `FTickableGameObject`
+- Logging: `UE_LOG(LogMCPBridge, Log, TEXT("..."))`
 
 ## Logs
 
-Dans Unreal Editor : Output Log → filtre `LogMCPBridge`
+In Unreal Editor: Output Log → filter `LogMCPBridge`

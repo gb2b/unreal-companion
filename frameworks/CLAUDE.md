@@ -1,53 +1,53 @@
-# Frameworks — Méthode BMGD
+# Frameworks — BMGD Method
 
-Source de vérité pour les templates déployés chez l'utilisateur. Ce dossier n'est **JAMAIS lu au runtime** — son contenu est copié vers `~/.unreal-companion/` par le CLI ou le web-ui lors de l'installation.
+Source of truth for templates deployed to users. This folder is **NEVER read at runtime** — its content is copied to `~/.unreal-companion/` by the CLI or web-ui during installation.
 
 ## Structure
 
 ```
 frameworks/
-├── manifest.yaml              # Version des templates
-├── agents/                    # 9 agents avec personas gaming
+├── manifest.yaml              # Template version
+├── agents/                    # 9 agents with gaming personas
 │   ├── game-designer/         # "Zelda" — design, GDD
-│   ├── game-architect/        # "Solid" — architecture technique
+│   ├── game-architect/        # "Solid" — technical architecture
 │   ├── level-designer/        # "Lara" — level design
-│   ├── 3d-artist/             # "Navi" — art 3D
-│   ├── game-dev/              # "Ada" — développement
-│   ├── solo-dev/              # "Indie" — prototypage rapide
-│   ├── unreal-agent/          # "Epic" — expert UE (mode Editor)
+│   ├── 3d-artist/             # "Navi" — 3D art
+│   ├── game-dev/              # "Ada" — development
+│   ├── solo-dev/              # "Indie" — rapid prototyping
+│   ├── unreal-agent/          # "Epic" — UE expert (Editor mode)
 │   ├── game-qa/               # QA testing
-│   └── scrum-master/          # Gestion agile
-├── workflows/                 # Organisés par phase
+│   └── scrum-master/          # Agile management
+├── workflows/                 # Organized by phase
 │   ├── 1-preproduction/       # brainstorming, game-brief
 │   ├── 2-design/              # gdd, narrative, art-direction, level-design
 │   ├── 3-technical/           # game-architecture, project-context
 │   ├── 4-production/          # sprint-planning, dev-story, code-review
 │   ├── quick-flow/            # quick-prototype, quick-dev
 │   └── tools/                 # mind-map, mood-board, gametest
-├── skills/                    # Skills BMGD (réutilisables par les agents)
+├── skills/                    # BMGD skills (reusable by agents)
 │   ├── mcp-core-tools/
 │   ├── mcp-blueprint-tools/
 │   ├── balance-testing/
 │   ├── progression-design/
 │   ├── advanced-elicitation/
 │   └── ...
-├── rules-templates/           # Templates pour générer les fichiers IDE
+├── rules-templates/           # Templates for generating IDE files
 │   ├── cursor/                # *.mdc.template
 │   ├── claude-code/           # CLAUDE.md.template
 │   ├── windsurf/              # rules.md.template
 │   ├── vscode-copilot/        # *.instructions.md.template
 │   ├── generic/               # AGENTS.md.template
-│   └── core/                  # workflow-instructions.md (commun)
-├── project/                   # Templates d'initialisation projet
+│   └── core/                  # workflow-instructions.md (shared)
+├── project/                   # Project initialization templates
 │   ├── config.yaml
 │   ├── project-context.md
 │   ├── workflow-status.yaml
 │   └── memories.yaml
-└── teams/                     # Définitions d'équipes
+└── teams/                     # Team definitions
     └── team-gamedev/
 ```
 
-## Formats de fichiers
+## File Formats
 
 ### Agent (`agent.md`)
 ```yaml
@@ -77,35 +77,35 @@ steps:
   # ...
 ```
 
-Chaque step est un fichier `steps/step-{nn}-{name}.md` avec :
-- Mandatory execution rules (ne pas skip, ne pas optimiser)
-- Contenu interactif (questions à l'utilisateur)
-- Menu de progression : [A] Accepter, [P] Feedback, [C] Continuer, [AE] Advanced Elicitation
+Each step is a `steps/step-{nn}-{name}.md` file with:
+- Mandatory execution rules (do not skip, do not optimize)
+- Interactive content (questions for the user)
+- Progress menu: [A] Accept, [P] Feedback, [C] Continue, [AE] Advanced Elicitation
 
-### Skill BMGD (`SKILL.md`)
+### BMGD Skill (`SKILL.md`)
 ```yaml
 ---
 name: balance-testing
 description: Game balance analysis methodologies
 ---
-# Contenu du skill...
+# Skill content...
 ```
 
-## Modifier un workflow
+## Modifying a Workflow
 
-1. Éditer les fichiers dans `frameworks/workflows/{phase}/{id}/`
-2. Tester le chargement : `npx unreal-companion` → vérifier que le workflow apparaît
-3. Mettre à jour `manifest.yaml` si changement significatif
-4. L'utilisateur recevra la mise à jour via `npx unreal-companion upgrade`
+1. Edit the files in `frameworks/workflows/{phase}/{id}/`
+2. Test loading: `npx unreal-companion` → verify the workflow appears
+3. Update `manifest.yaml` if the change is significant
+4. Users will receive the update via `npx unreal-companion upgrade`
 
-## Modifier un agent
+## Modifying an Agent
 
-1. Éditer `frameworks/agents/{id}/agent.md`
-2. Vérifier que les skills référencés existent dans `frameworks/skills/`
-3. Mettre à jour `manifest.yaml`
+1. Edit `frameworks/agents/{id}/agent.md`
+2. Verify that referenced skills exist in `frameworks/skills/`
+3. Update `manifest.yaml`
 
-## Distinction doc "méta" vs doc "produit"
+## Distinction between "meta" doc and "product" doc
 
-- Ce dossier `frameworks/` = doc "produit" (pour les utilisateurs d'Unreal Companion)
-- Les CLAUDE.md du repo = doc "méta" (pour les développeurs d'Unreal Companion)
-- Le template `rules-templates/claude-code/CLAUDE.md.template` est déployé dans le **projet de l'utilisateur**, pas dans ce repo
+- This `frameworks/` folder = "product" doc (for Unreal Companion users)
+- The CLAUDE.md files in the repo = "meta" doc (for Unreal Companion developers)
+- The `rules-templates/claude-code/CLAUDE.md.template` template is deployed in the **user's project**, not in this repo

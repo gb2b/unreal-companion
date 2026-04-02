@@ -1,15 +1,15 @@
 # CLI — Unreal Companion
 
-CLI Node.js pour installer, configurer, et utiliser Unreal Companion.
+Node.js CLI to install, configure, and use Unreal Companion.
 
-## Commandes
+## Commands
 
 ```bash
-npx unreal-companion              # Entry point intelligent (install → health → menu)
-npx unreal-companion --web        # Lancer le Web UI
-npx unreal-companion --status     # Status détaillé
-npx unreal-companion upgrade      # Mise à jour
-npx unreal-companion workflow <id> # Exécuter un workflow
+npx unreal-companion              # Smart entry point (install → health → menu)
+npx unreal-companion --web        # Launch the Web UI
+npx unreal-companion --status     # Detailed status
+npx unreal-companion upgrade      # Update
+npx unreal-companion workflow <id> # Run a workflow
 ```
 
 ## Structure
@@ -17,74 +17,74 @@ npx unreal-companion workflow <id> # Exécuter un workflow
 ```
 cli/
 ├── bin/
-│   └── unreal-companion.js       # Entry point npm/npx
+│   └── unreal-companion.js       # npm/npx entry point
 ├── src/
 │   ├── commands/
 │   │   ├── main.js               # Install → health check → action menu
-│   │   ├── upgrade.js            # Mise à jour frameworks + IDE rules
-│   │   └── workflow.js           # Exécution de workflows
+│   │   ├── upgrade.js            # Update frameworks + IDE rules
+│   │   └── workflow.js           # Workflow execution
 │   └── utils/
-│       └── installer.js          # LE COEUR — install, init, IDE rules
-└── package.json                  # (hérite du root package.json)
+│       └── installer.js          # THE CORE — install, init, IDE rules
+└── package.json                  # (inherits from root package.json)
 ```
 
-## installer.js — Le coeur
+## installer.js — The Core
 
-### Fonctions principales
+### Main Functions
 
-| Fonction | Rôle |
+| Function | Role |
 |----------|------|
-| `installGlobalDefaults()` | Copie `frameworks/` → `~/.unreal-companion/` |
-| `setupProject(projectPath)` | Crée `{project}/.unreal-companion/` |
-| `generateProjectIDERules()` | Génère les fichiers IDE (.mdc, CLAUDE.md, .windsurfrules) |
-| `getSourcePaths()` | Localise `frameworks/` dans le package |
+| `installGlobalDefaults()` | Copies `frameworks/` → `~/.unreal-companion/` |
+| `setupProject(projectPath)` | Creates `{project}/.unreal-companion/` |
+| `generateProjectIDERules()` | Generates IDE files (.mdc, CLAUDE.md, .windsurfrules) |
+| `getSourcePaths()` | Locates `frameworks/` in the package |
 
-### Flow d'installation
+### Installation Flow
 
 ```
-frameworks/                          # Source dans le package
+frameworks/                          # Source in the package
     ↓ installGlobalDefaults()
-~/.unreal-companion/                 # Installation globale
-    ├── defaults/                    # Copie read-only (écrasé à l'upgrade)
+~/.unreal-companion/                 # Global installation
+    ├── defaults/                    # Read-only copy (overwritten on upgrade)
     │   ├── workflows/
     │   ├── agents/
     │   └── skills/
-    ├── custom/                      # Customisations user (jamais écrasé)
-    ├── manifest.yaml                # Version installée
-    └── projects.json                # Registre des projets
+    ├── custom/                      # User customizations (never overwritten)
+    ├── manifest.yaml                # Installed version
+    └── projects.json                # Project registry
     ↓ setupProject()
-{project}/.unreal-companion/         # Initialisation projet
-    ├── config.yaml                  # Config projet
-    ├── workflow-status.yaml         # Progression workflows
-    ├── project-context.md           # Contexte auto-updated
-    ├── memories.yaml                # Mémoires persistantes
-    └── output/                      # Documents générés
+{project}/.unreal-companion/         # Project initialization
+    ├── config.yaml                  # Project config
+    ├── workflow-status.yaml         # Workflow progress
+    ├── project-context.md           # Auto-updated context
+    ├── memories.yaml                # Persistent memories
+    └── output/                      # Generated documents
         ├── concept/
         ├── design/
         ├── technical/
         └── ...
 ```
 
-### Résolution au runtime
+### Runtime Resolution
 
-Le CLI (et le web-ui) résolvent dans cet ordre :
-1. `{project}/.unreal-companion/` (override projet)
-2. `~/.unreal-companion/custom/` (override user)
-3. `~/.unreal-companion/defaults/` (installé)
-4. Rien → proposer `npx unreal-companion install`
+The CLI (and web-ui) resolve in this order:
+1. `{project}/.unreal-companion/` (project override)
+2. `~/.unreal-companion/custom/` (user override)
+3. `~/.unreal-companion/defaults/` (installed)
+4. Nothing → prompt `npx unreal-companion install`
 
 ### getSourcePaths()
 
-Cherche `frameworks/` dans :
-1. `cli/../../frameworks/` (mode dev)
+Searches for `frameworks/` in:
+1. `cli/../../frameworks/` (dev mode)
 2. `cli/../../../../frameworks/` (npm install)
 3. `process.cwd()/frameworks/` (fallback)
 
-## Génération des rules IDE
+## IDE Rules Generation
 
-Le CLI génère les fichiers pour chaque IDE depuis `frameworks/rules-templates/` :
+The CLI generates files for each IDE from `frameworks/rules-templates/`:
 
-| IDE | Fichier généré | Template source |
+| IDE | Generated file | Source template |
 |-----|---------------|-----------------|
 | Cursor | `.cursor/rules/companion/*.mdc` | `rules-templates/cursor/*.mdc.template` |
 | Claude Code | `.claude/CLAUDE.md` | `rules-templates/claude-code/CLAUDE.md.template` |
@@ -95,10 +95,10 @@ Le CLI génère les fichiers pour chaque IDE depuis `frameworks/rules-templates/
 
 ```bash
 npm run test:cli
-# ou
+# or
 node --test cli/src/**/*.test.js
 ```
 
-## Dépendances
+## Dependencies
 
-chalk, commander, inquirer, ora, semver, yaml — voir root `package.json`.
+chalk, commander, inquirer, ora, semver, yaml — see root `package.json`.

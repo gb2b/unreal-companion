@@ -1,11 +1,11 @@
 # Web UI — Unreal Companion Studio
 
-Interface web pour interagir avec les agents BMGD, exécuter des workflows, et gérer les projets Unreal.
+Web interface for interacting with BMGD agents, running workflows, and managing Unreal projects.
 
 ## Stack
 
-| Couche | Technologie |
-|--------|-------------|
+| Layer | Technology |
+|-------|------------|
 | Frontend | React 18 + Vite + TypeScript + Tailwind CSS |
 | State | Zustand (13 stores) |
 | Backend | FastAPI (Python) |
@@ -13,43 +13,43 @@ Interface web pour interagir avec les agents BMGD, exécuter des workflows, et g
 | Real-time | WebSocket |
 | Port | HTTP 3179 |
 
-## Lancement
+## Running
 
 ```bash
 cd web-ui
-npm run dev:all     # Frontend + Backend (recommandé)
-npm run dev:api     # Backend seul (uvicorn --reload)
-npm run dev         # Frontend seul (Vite)
+npm run dev:all     # Frontend + Backend (recommended)
+npm run dev:api     # Backend only (uvicorn --reload)
+npm run dev         # Frontend only (Vite)
 ```
 
-**JAMAIS `python main.py`** — toujours `npm run dev:api` (uvicorn --reload auto-reloads).
+**NEVER `python main.py`** — always use `npm run dev:api` (uvicorn --reload auto-reloads).
 
-## Structure Frontend
+## Frontend Structure
 
 ```
 src/
-├── components/          # 17+ composants React
-│   ├── Chat/            # Chat multi-agents
-│   ├── Logs/            # Logs MCP real-time
-│   ├── Projects/        # Gestion de projets
-│   ├── Context/         # Fichiers de contexte
-│   ├── Agents/          # Sélection/config agents
-│   └── Viewport/        # Contrôle viewport UE
+├── components/          # 17+ React components
+│   ├── Chat/            # Multi-agent chat
+│   ├── Logs/            # Real-time MCP logs
+│   ├── Projects/        # Project management
+│   ├── Context/         # Context files
+│   ├── Agents/          # Agent selection/config
+│   └── Viewport/        # UE viewport control
 ├── stores/              # 13 Zustand stores
 │   ├── chatStore.ts
 │   ├── projectStore.ts
 │   ├── agentStore.ts
 │   └── ...
-├── services/            # Clients API
+├── services/            # API clients
 ├── hooks/               # Custom React hooks
 ├── types/               # TypeScript types
-├── i18n/                # Internationalisation
-├── lib/                 # Utilitaires
+├── i18n/                # Internationalization
+├── lib/                 # Utilities
 ├── App.tsx              # Root
-└── main.tsx             # Entry Vite
+└── main.tsx             # Vite entry point
 ```
 
-## Structure Backend
+## Backend Structure
 
 ```
 server/
@@ -58,45 +58,45 @@ server/
 ├── core/
 │   ├── database.py      # SQLite init
 │   ├── logging.py       # Logger + middleware
-│   └── env_manager.py   # Gestion .env
+│   └── env_manager.py   # .env management
 ├── api/                 # 19 routes (FastAPI routers)
 │   ├── chat.py          # Chat/conversations
-│   ├── agents.py        # Agents BMGD
-│   ├── workflows.py     # Exécution workflows
-│   ├── projects.py      # Gestion projets
-│   ├── context.py       # Fichiers de contexte
-│   ├── llm.py           # Intégration Claude API
-│   ├── status.py        # Status système
-│   ├── viewport.py      # Contrôle viewport
-│   ├── meshy.py         # Génération 3D
-│   ├── skills.py        # Skills disponibles
-│   ├── websocket_routes.py  # WebSocket real-time
+│   ├── agents.py        # BMGD agents
+│   ├── workflows.py     # Workflow execution
+│   ├── projects.py      # Project management
+│   ├── context.py       # Context files
+│   ├── llm.py           # Claude API integration
+│   ├── status.py        # System status
+│   ├── viewport.py      # Viewport control
+│   ├── meshy.py         # 3D generation
+│   ├── skills.py        # Available skills
+│   ├── websocket_routes.py  # Real-time WebSocket
 │   └── ...
-├── services/            # 21 services (logique métier)
+├── services/            # 21 services (business logic)
 ├── models/              # SQLAlchemy models
 ├── repositories/        # Data access layer
 └── tests/               # pytest
 ```
 
-## Architecture en couches (Backend)
+## Layered Architecture (Backend)
 
 ```
 Route (api/*.py) → Service (services/*.py) → Repository (repositories/*.py) → Model (models/*.py)
 ```
 
-- **Route** : validation HTTP, appel au service, formatage réponse
-- **Service** : logique métier, orchestration
-- **Repository** : accès données (SQLite, fichiers)
-- **Model** : schéma SQLAlchemy
+- **Route**: HTTP validation, service call, response formatting
+- **Service**: business logic, orchestration
+- **Repository**: data access (SQLite, files)
+- **Model**: SQLAlchemy schema
 
-## Chargement des frameworks
+## Framework Loading
 
-Le backend charge workflows, agents et skills depuis `~/.unreal-companion/` (installé) :
-- `unified_loader.py` résout : projet local → user custom → user defaults
-- Si rien n'est installé → proposer l'installation
-- Le web-ui peut aussi installer (`~/.unreal-companion/`) et initialiser des projets
+The backend loads workflows, agents, and skills from `~/.unreal-companion/` (installed):
+- `unified_loader.py` resolves: local project → user custom → user defaults
+- If nothing is installed → prompt to install
+- The web-ui can also install (`~/.unreal-companion/`) and initialize projects
 
-Le web-ui et le CLI sont des portes d'entrée équivalentes vers le même état.
+The web-ui and the CLI are equivalent entry points to the same state.
 
 ## Tests
 
