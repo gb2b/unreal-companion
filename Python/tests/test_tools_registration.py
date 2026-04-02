@@ -65,6 +65,22 @@ class TestToolModulesImport:
         from tools.world_tools import register_world_tools
         assert callable(register_world_tools)
 
+    def test_import_foliage_tools(self):
+        from tools.foliage_tools import register_foliage_tools
+        assert callable(register_foliage_tools)
+
+    def test_import_geometry_tools(self):
+        from tools.geometry_tools import register_geometry_tools
+        assert callable(register_geometry_tools)
+
+    def test_import_spline_tools(self):
+        from tools.spline_tools import register_spline_tools
+        assert callable(register_spline_tools)
+
+    def test_import_environment_tools(self):
+        from tools.environment_tools import register_environment_tools
+        assert callable(register_environment_tools)
+
 
 class TestToolsPackageInit:
     """Test the tools/__init__.py package functionality."""
@@ -93,8 +109,8 @@ class TestToolsPackageInit:
         
         functions = get_all_register_functions()
         
-        # Should have 16 tool modules
-        assert len(functions) == 16
+        # Should have 20 tool modules
+        assert len(functions) == 20
         
         # All should be callable
         for module_name, func in functions:
@@ -145,8 +161,8 @@ class TestToolRegistration:
         mock_mcp = self.create_mock_mcp()
         count = register_all_tools(mock_mcp)
         
-        # Should register all 16 modules
-        assert count == 16
+        # Should register all 20 modules
+        assert count == 20
 
     def test_total_tools_registered(self):
         """Verify total number of tools matches expected count."""
@@ -176,7 +192,11 @@ class TestToolNamingConsistency:
             "core_tools": "core_",
             "editor_tools": ["console", "editor_", "plugin_", "security_", "play"],  # Multiple allowed
             "graph_tools": "graph_",
-            "landscape_tools": ["landscape_", "foliage_", "geometry_", "spline_", "environment_"],
+            "landscape_tools": "landscape_",
+            "foliage_tools": "foliage_",
+            "geometry_tools": "geometry_",
+            "spline_tools": "spline_",
+            "environment_tools": "environment_",
             "level_tools": "level_",
             "light_tools": "light_",
             "material_tools": "material_",
