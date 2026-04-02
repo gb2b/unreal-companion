@@ -311,7 +311,10 @@ def _parse_frontmatter(content: str) -> tuple:
     import re
     match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
     if match:
-        frontmatter = yaml.safe_load(match.group(1))
+        try:
+            frontmatter = yaml.safe_load(match.group(1))
+        except Exception:
+            return None, content
         body = content[match.end():]
         return frontmatter, body
     return None, content

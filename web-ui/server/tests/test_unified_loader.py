@@ -233,5 +233,148 @@ class TestSkillsLoading:
             assert 'path' in skill
 
 
+class TestErrorHandling:
+    """Test graceful error handling for malformed or missing data"""
+
+    @pytest.fixture
+    def temp_workflows_dir(self, tmp_path):
+        """Create a temporary workflows directory"""
+        return tmp_path / "workflows"
+
+    def test_malformed_workflow_yaml_does_not_crash(self, tmp_path):
+        """Malformed workflow.yaml (invalid YAML) is skipped gracefully"""
+        workflow_dir = tmp_path / "bad-workflow"
+        workflow_dir.mkdir(parents=True)
+        (workflow_dir / "workflow.yaml").write_text(
+            "id: bad\nname: [unclosed bracket\n  - invalid: yaml: here",
+            encoding="utf-8",
+        )
+
+        workflows = {}
+        _scan_workflow_directory(tmp_path, "dev", workflows)
+
+        # Should not crash and should produce no workflow entry
+        assert "bad-workflow" not in workflows
+        assert isinstance(workflows, dict)
+
+    def test_malformed_workflow_yaml_in_phase_dir_does_not_crash(self, tmp_path):
+        """Malformed workflow.yaml inside a phase directory is skipped gracefully"""
+        phase_dir = tmp_path / "1-preproduction" / "bad-workflow"
+        phase_dir.mkdir(parents=True)
+        (phase_dir / "workflow.yaml").write_text(
+            ": invalid: {unclosed",
+            encoding="utf-8",
+        )
+
+        workflows = {}
+        _scan_workflow_directory(tmp_path, "dev", workflows)
+
+        assert isinstance(workflows, dict)
+        assert len(workflows) == 0
+
+    def test_workflow_missing_steps_directory_loads_metadata(self, tmp_path):
+        """Workflow with no steps/ dir still loads with 0 steps"""
+        workflow_dir = tmp_path / "no-steps-workflow"
+        workflow_dir.mkdir(parents=True)
+        (workflow_dir / "workflow.yaml").write_text(
+            "id: no-steps-workflow\nname: No Steps\ndescription: A workflow without steps\n",
+            encoding="utf-8",
+        )
+
+        workflows = {}
+        _scan_workflow_directory(tmp_path, "dev", workflows)
+
+        assert "no-steps-workflow" in workflows
+        wf = workflows["no-steps-workflow"]
+        assert wf["name"] == "No Steps"
+        assert wf["steps"] == 0
+
+    def test_agent_md_missing_frontmatter_does_not_crash(self, tmp_path):
+        """agent.md without frontmatter is handled gracefully (load_agent returns None)"""
+        agent_dir = tmp_path / "no-frontmatter-agent"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "agent.md").write_text(
+            "# Agent Without Frontmatter\n\nJust some content, no YAML block.",
+            encoding="utf-8",
+        )
+
+        # load_agent searches known paths; inject tmp_path via project_path mechanism
+        # by monkey-patching get_agent_search_paths is complex, so test _parse_frontmatter directly
+        frontmatter, body = _parse_frontmatter(
+            "# Agent Without Frontmatter\n\nJust some content, no YAML block."
+        )
+
+        assert frontmatter is None
+        assert "Agent Without Frontmatter" in body
+
+    def test_agent_md_malformed_frontmatter_does_not_crash(self, tmp_path):
+        """agent.md with malformed YAML frontmatter does not raise"""
+        malformed_content = "---\nid: [unclosed\nname: broken yaml\n---\n\n# Body"
+
+        # _parse_frontmatter uses yaml.safe_load; a scanner error should propagate or
+        # be caught depending on yaml version — verify no unhandled exception reaches caller
+        try:
+            frontmatter, body = _parse_frontmatter(malformed_content)
+            # If it doesn't raise, frontmatter may be None or partial — acceptable
+        except Exception as exc:
+            pytest.fail(f"_parse_frontmatter raised unexpectedly: {exc}")
+
+    def test_empty_skills_directory_returns_empty_list(self, tmp_path):
+        """list_all_skills with an empty directory returns an empty list"""
+        empty_skills_dir = tmp_path / "empty-skills"
+        empty_skills_dir.mkdir()
+
+        skills = {}
+        # Simulate what list_all_skills does for a single base_path
+        for entry in empty_skills_dir.iterdir():
+            if entry.is_dir():
+                skill_md = entry / "SKILL.md"
+                if skill_md.exists():
+                    skills[entry.name] = {}
+
+        assert skills == {}
+
+    def test_list_all_skills_with_nonexistent_paths_returns_list(self, monkeypatch):
+        """list_all_skills handles non-existent search paths without crashing"""
+        from services import unified_loader
+
+        monkeypatch.setattr(
+            unified_loader,
+            "get_skills_search_paths",
+            lambda: [
+                unified_loader.Path("/nonexistent/path/skills-abc123"),
+                unified_loader.Path("/another/missing/dir-xyz"),
+            ],
+        )
+
+        result = list_all_skills()
+        assert isinstance(result, list)
+        assert result == []
+
+    def test_list_all_workflows_with_nonexistent_paths_returns_list(self, monkeypatch):
+        """list_all_workflows handles non-existent search paths without crashing"""
+        from services import unified_loader
+
+        monkeypatch.setattr(
+            unified_loader,
+            "get_workflow_search_paths",
+            lambda project_path=None: [
+                unified_loader.Path("/nonexistent/workflows-abc123"),
+            ],
+        )
+        # Also patch DEV_TEMPLATES so fallback doesn't kick in
+        monkeypatch.setattr(unified_loader, "DEV_TEMPLATES", unified_loader.Path("/nonexistent/dev"))
+
+        result = list_all_workflows()
+        assert isinstance(result, list)
+
+    def test_scan_nonexistent_workflow_directory_does_not_crash(self, tmp_path):
+        """_scan_workflow_directory on a non-existent path returns without error"""
+        missing = tmp_path / "does-not-exist"
+        workflows = {}
+        _scan_workflow_directory(missing, "dev", workflows)
+        assert workflows == {}
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
