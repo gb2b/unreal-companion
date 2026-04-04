@@ -25,10 +25,7 @@ import {
   LayoutGrid,
   FolderOpen,
   Plus,
-  Image,
-  Brain,
   Lightbulb,
-  Target,
   GitBranch,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -109,16 +106,7 @@ const AGENT_COLORS: Record<string, string> = {
   pink: 'from-pink-500 to-rose-500',
 }
 
-const DOC_ICONS: Record<string, React.ElementType> = {
-  brief: Target,
-  gdd: FileText,
-  architecture: Building2,
-  asset: Box,
-  moodboard: Image,
-  mindmap: Brain,
-  context: Lightbulb,
-  other: FileText,
-}
+// DOC_ICONS moved to Dashboard component
 
 // === Main Component ===
 
@@ -603,101 +591,6 @@ function BoardView({
           // TODO: Navigate to editor with task context
         }}
       />
-    </motion.div>
-  )
-}
-
-// === Documents View ===
-
-function DocumentsView({
-  documents,
-  isLoading,
-}: {
-  documents: Document[]
-  isLoading: boolean
-}) {
-  const { t } = useTranslation()
-
-  // Guard against null/undefined
-  const safeDocs = documents || []
-
-  const categories = [
-    { id: 'concept', title: t('studio.documents.categoryConceptVision'), types: ['brief', 'context'] },
-    { id: 'design', title: t('studio.documents.categoryDesignDocuments'), types: ['gdd', 'architecture'] },
-    { id: 'visual', title: t('studio.documents.categoryVisualReferences'), types: ['moodboard', 'mindmap', 'asset'] },
-    { id: 'other', title: t('studio.documents.categoryOther'), types: ['other'] },
-  ]
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="h-full overflow-y-auto p-6"
-    >
-      <div className="max-w-5xl mx-auto space-y-8">
-        {isLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-32 rounded-xl bg-card border border-border animate-pulse" />
-            ))}
-          </div>
-        ) : safeDocs.length === 0 ? (
-          <div className="text-center py-16">
-            <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">{t('studio.documents.noDocuments')}</h3>
-            <p className="text-muted-foreground mb-6">
-              {t('studio.documents.noDocumentsDesc')}
-            </p>
-            <div className="flex justify-center gap-3">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                {t('studio.documents.createDocument')}
-              </Button>
-              <Button variant="outline">
-                <FolderOpen className="h-4 w-4 mr-2" />
-                {t('studio.documents.import')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          categories.map((category) => {
-            const categoryDocs = safeDocs.filter(d => category.types.includes(d.type))
-            if (categoryDocs.length === 0) return null
-            
-            return (
-              <div key={category.id} className="space-y-4">
-                <h2 className="text-lg font-semibold">{category.title}</h2>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {categoryDocs.map((doc) => {
-                    const Icon = DOC_ICONS[doc.type] || FileText
-                    return (
-                      <button
-                        key={doc.id}
-                        className="p-4 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-lg transition-all text-left group"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <Icon className="h-8 w-8 text-primary" />
-                          {doc.status === 'draft' && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500">
-                              {t('studio.documents.statusDraft')}
-                            </span>
-                          )}
-                        </div>
-                        <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                          {doc.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">{doc.type}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
     </motion.div>
   )
 }
