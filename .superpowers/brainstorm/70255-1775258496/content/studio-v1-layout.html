@@ -1,0 +1,172 @@
+<h2>Unreal Companion Studio — V1 Layout</h2>
+<p class="subtitle">How should the main studio experience be organized? Click the layout that fits your vision best.</p>
+
+<div class="cards">
+
+  <!-- Option A: Immersive Workspace -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)" style="min-height: 400px;">
+    <div class="card-image" style="padding: 20px; background: #1a1a2e;">
+      <div style="display: flex; height: 280px; gap: 2px; font-family: monospace; font-size: 11px; color: #ccc;">
+        <!-- Left: Dashboard/Nav -->
+        <div style="width: 60px; background: #16213e; border-radius: 8px 0 0 8px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+          <div style="width: 36px; height: 36px; background: #e94560; border-radius: 8px; display: flex; align-items: center; justify-content: center;">🎮</div>
+          <div style="width: 32px; height: 32px; background: #0f3460; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: 2px solid #e94560;">📋</div>
+          <div style="width: 32px; height: 32px; background: #0f3460; border-radius: 6px; display: flex; align-items: center; justify-content: center;">🎲</div>
+          <div style="width: 32px; height: 32px; background: #0f3460; border-radius: 6px; display: flex; align-items: center; justify-content: center;">📄</div>
+          <div style="width: 32px; height: 32px; background: #0f3460; border-radius: 6px; display: flex; align-items: center; justify-content: center;">🗺️</div>
+          <div style="flex:1"></div>
+          <div style="width: 32px; height: 32px; background: #0f3460; border-radius: 6px; display: flex; align-items: center; justify-content: center;">⚙️</div>
+        </div>
+
+        <!-- Center: Immersive Content (changes per step) -->
+        <div style="flex: 1; background: #0f3460; display: flex; flex-direction: column;">
+          <!-- Step header -->
+          <div style="padding: 12px 16px; background: #16213e; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #1a1a2e;">
+            <span style="background: #e94560; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Step 3/8</span>
+            <span style="color: #fff; font-weight: bold;">Core Pillars</span>
+            <span style="flex:1"></span>
+            <span style="color: #666; font-size: 10px;">Game Brief → Zelda 🎲</span>
+          </div>
+
+          <!-- Dynamic content area (form, quiz, cards...) -->
+          <div style="flex: 1; padding: 20px; overflow: auto;">
+            <div style="color: #e94560; font-size: 13px; margin-bottom: 12px;">What are your game's core pillars?</div>
+
+            <!-- Interactive cards for pillar selection -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div style="background: #1a1a2e; border: 2px solid #e94560; border-radius: 8px; padding: 12px;">
+                <div style="font-size: 18px; margin-bottom: 4px;">⚔️</div>
+                <div style="color: #fff; font-size: 11px; font-weight: bold;">Strategic Combat</div>
+                <div style="color: #888; font-size: 9px;">Turn-based, risk/reward</div>
+              </div>
+              <div style="background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 12px;">
+                <div style="font-size: 18px; margin-bottom: 4px;">🌍</div>
+                <div style="color: #fff; font-size: 11px; font-weight: bold;">Exploration</div>
+                <div style="color: #888; font-size: 9px;">Open world discovery</div>
+              </div>
+              <div style="background: #1a1a2e; border: 2px solid #e94560; border-radius: 8px; padding: 12px;">
+                <div style="font-size: 18px; margin-bottom: 4px;">📖</div>
+                <div style="color: #fff; font-size: 11px; font-weight: bold;">Narrative</div>
+                <div style="color: #888; font-size: 9px;">Branching storylines</div>
+              </div>
+              <div style="background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 12px;">
+                <div style="font-size: 18px; margin-bottom: 4px;">🎨</div>
+                <div style="color: #fff; font-size: 11px; font-weight: bold;">Visual Identity</div>
+                <div style="color: #888; font-size: 9px;">Distinctive art style</div>
+              </div>
+            </div>
+
+            <div style="margin-top: 16px; padding: 12px; background: #1a1a2e; border-radius: 8px; border-left: 3px solid #e94560;">
+              <div style="color: #888; font-size: 10px;">💬 Zelda says:</div>
+              <div style="color: #ccc; font-size: 11px; margin-top: 4px;">"Great choices! Strategic Combat + Narrative is a powerful combo. Think XCOM meets Fire Emblem. Want to add a third pillar?"</div>
+            </div>
+          </div>
+
+          <!-- Bottom: contextual actions -->
+          <div style="padding: 8px 16px; background: #16213e; display: flex; gap: 8px; align-items: center; border-top: 1px solid #1a1a2e;">
+            <input style="flex: 1; background: #0f3460; border: 1px solid #333; color: #ccc; padding: 6px 12px; border-radius: 6px; font-size: 11px;" placeholder="Type your thoughts or pick from above...">
+            <div style="background: #e94560; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;">Continue →</div>
+          </div>
+        </div>
+
+        <!-- Right: Live Preview -->
+        <div style="width: 220px; background: #16213e; display: flex; flex-direction: column;">
+          <div style="padding: 8px 12px; font-size: 10px; color: #888; border-bottom: 1px solid #1a1a2e; display: flex; align-items: center; gap: 4px;">
+            📄 Game Brief <span style="flex:1"></span> <span style="color: #4ade80; font-size: 9px;">● Live</span>
+          </div>
+          <div style="flex: 1; padding: 12px; font-size: 9px; color: #aaa; overflow: auto;">
+            <div style="color: #fff; font-size: 11px; font-weight: bold; margin-bottom: 8px;">🎮 My Game</div>
+            <div style="color: #e94560; font-size: 9px; margin-bottom: 4px;">TAGLINE</div>
+            <div style="margin-bottom: 8px;">"A tactical RPG where every choice echoes"</div>
+            <div style="color: #e94560; font-size: 9px; margin-bottom: 4px;">VISION</div>
+            <div style="margin-bottom: 8px;">Blend strategic combat with deep narrative...</div>
+            <div style="color: #e94560; font-size: 9px; margin-bottom: 4px;">CORE PILLARS</div>
+            <div style="margin-bottom: 4px;">⚔️ Strategic Combat</div>
+            <div style="margin-bottom: 4px;">📖 Narrative</div>
+            <div style="color: #666; font-style: italic;">⏳ Selecting 3rd pillar...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Immersive Workspace</h3>
+      <p>Sidebar nav (workflows/docs) + center area that <strong>transforms per step</strong> (forms, cards, quizzes, editors) + live preview panel. The agent is embedded in the content, not in a separate chat.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Split Adaptive -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)" style="min-height: 400px;">
+    <div class="card-image" style="padding: 20px; background: #1a1a2e;">
+      <div style="display: flex; height: 280px; gap: 2px; font-family: monospace; font-size: 11px; color: #ccc;">
+        <!-- Left: Adaptive Panel -->
+        <div style="flex: 1; background: #0f3460; display: flex; flex-direction: column;">
+          <!-- Tabs -->
+          <div style="padding: 8px 12px; background: #16213e; display: flex; gap: 4px;">
+            <span style="background: #e94560; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Workflow</span>
+            <span style="background: #0f3460; color: #888; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Chat</span>
+            <span style="background: #0f3460; color: #888; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Docs</span>
+          </div>
+
+          <!-- Workflow step content -->
+          <div style="flex: 1; padding: 16px; overflow: auto;">
+            <div style="color: #888; font-size: 10px; margin-bottom: 8px;">GAME BRIEF → STEP 3: CORE PILLARS</div>
+            <div style="color: #fff; font-size: 13px; font-weight: bold; margin-bottom: 12px;">Define your game's core pillars</div>
+
+            <div style="background: #1a1a2e; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+              <div style="color: #888; font-size: 10px; margin-bottom: 4px;">🎲 Zelda:</div>
+              <div style="color: #ccc; font-size: 11px;">Core pillars are 3-5 guiding principles. What matters most in your game?</div>
+            </div>
+
+            <!-- Tags/chips for selection -->
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
+              <span style="background: #e94560; color: white; padding: 4px 10px; border-radius: 12px; font-size: 10px;">⚔️ Combat</span>
+              <span style="background: #e94560; color: white; padding: 4px 10px; border-radius: 12px; font-size: 10px;">📖 Story</span>
+              <span style="background: #1a1a2e; color: #888; padding: 4px 10px; border-radius: 12px; font-size: 10px; border: 1px solid #333;">🌍 Explore</span>
+              <span style="background: #1a1a2e; color: #888; padding: 4px 10px; border-radius: 12px; font-size: 10px; border: 1px solid #333;">🎵 Audio</span>
+              <span style="background: #1a1a2e; color: #888; padding: 4px 10px; border-radius: 12px; font-size: 10px; border: 1px solid #333;">🎨 Art</span>
+              <span style="background: #1a1a2e; color: #888; padding: 4px 10px; border-radius: 12px; font-size: 10px; border: 1px solid #333;">🧩 Puzzle</span>
+            </div>
+          </div>
+
+          <div style="padding: 8px 12px; background: #16213e; display: flex; gap: 8px; border-top: 1px solid #1a1a2e;">
+            <input style="flex: 1; background: #0f3460; border: 1px solid #333; color: #ccc; padding: 6px 12px; border-radius: 6px; font-size: 11px;" placeholder="Add custom pillar or discuss...">
+            <div style="background: #e94560; color: white; padding: 4px 12px; border-radius: 6px; font-size: 11px;">→</div>
+          </div>
+        </div>
+
+        <!-- Right: Preview (resizable) -->
+        <div style="width: 240px; background: #16213e; display: flex; flex-direction: column;">
+          <div style="padding: 8px 12px; display: flex; gap: 4px; border-bottom: 1px solid #1a1a2e;">
+            <span style="background: #e94560; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Preview</span>
+            <span style="background: #0f3460; color: #888; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Graph</span>
+            <span style="background: #0f3460; color: #888; padding: 2px 8px; border-radius: 4px; font-size: 10px;">Assets</span>
+          </div>
+          <div style="flex: 1; padding: 12px; font-size: 9px; color: #aaa;">
+            <div style="color: #fff; font-weight: bold; margin-bottom: 8px;">Game Brief.md</div>
+            <div style="background: #0f3460; border-radius: 6px; padding: 8px; margin-bottom: 6px;">
+              <div style="color: #e94560; font-size: 9px;">## Core Pillars</div>
+              <div>1. ⚔️ Strategic Combat</div>
+              <div>2. 📖 Deep Narrative</div>
+              <div style="color: #4ade80;">▌</div>
+            </div>
+            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #333;">
+              <div style="color: #888; font-size: 9px; margin-bottom: 4px;">DOC GRAPH</div>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <span style="background: #4ade80; color: #000; padding: 1px 4px; border-radius: 3px; font-size: 8px;">Brief ✓</span>
+                <span style="color: #444;">→</span>
+                <span style="background: #333; color: #888; padding: 1px 4px; border-radius: 3px; font-size: 8px;">GDD</span>
+                <span style="color: #444;">→</span>
+                <span style="background: #333; color: #888; padding: 1px 4px; border-radius: 3px; font-size: 8px;">Arch</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Split Adaptive</h3>
+      <p>Left panel switches between <strong>workflow/chat/docs</strong> tabs. Right panel switches between <strong>preview/graph/assets</strong>. Agent messages are inline with the workflow steps. Resizable split.</p>
+    </div>
+  </div>
+
+</div>

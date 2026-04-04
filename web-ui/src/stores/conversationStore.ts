@@ -93,7 +93,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => {
               newBlocks.push({
                 kind: 'interaction',
                 blockType: d.block_type as InteractionBlockType,
-                data: d.data as InteractionData,
+                data: d.data as unknown as InteractionData,
               })
               break
             }
