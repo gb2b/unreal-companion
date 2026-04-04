@@ -8,7 +8,7 @@ import uvicorn
 from config import settings
 from core.database import init_db
 from core.logging import setup_logging, RequestLoggingMiddleware, get_logger
-from api import projects, chat, context, agents, websocket_routes, llm, status, viewport, meshy, usage, studio, workflows, system, metrics, knowledge, memories, skills
+from api import projects, chat, context, agents, websocket_routes, llm, status, viewport, meshy, usage, studio, workflows, system, metrics, knowledge, memories, skills, studio_v2
 from services.llm import llm_service
 
 # Setup logging first
@@ -50,6 +50,7 @@ app.include_router(system.router)
 app.include_router(memories.router)
 app.include_router(skills.router)
 app.include_router(websocket_routes.router)
+app.include_router(studio_v2.router)
 
 # Static files - serve built frontend
 DIST_DIR = Path(__file__).parent.parent / "dist"
