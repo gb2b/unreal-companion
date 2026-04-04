@@ -33,6 +33,7 @@ class StudioChatRequest(BaseModel):
     agent: str = "game-designer"
     section_focus: str = ""  # Optional: which section to focus on
     language: str = "en"  # User's preferred language (en, fr, etc.)
+    project_path: str = ""  # Project path for document context
 
 
 @router.post("/chat")
@@ -67,13 +68,51 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
     # Build system prompt
     agent_prompt = agent_manager.get_system_prompt(request.agent)
+    # Load user name from config
+    user_name = ""
+    try:
+        import yaml as _yaml
+        from pathlib import Path as _Path
+        for config_path in [
+            _Path.home() / ".unreal-companion" / "config.yaml",
+            _Path(request.project_path) / ".unreal-companion" / "config.yaml" if request.project_path else None,
+        ]:
+            if config_path and config_path.exists():
+                with open(config_path) as f:
+                    cfg = _yaml.safe_load(f) or {}
+                user_name = cfg.get("user_name", "") or cfg.get("userName", "")
+                if user_name:
+                    break
+    except Exception:
+        pass
+
     builder = (
         SystemPromptBuilder()
         .add_language(request.language)
+        .add_user_identity(user_name)
         .add_agent_persona(agent_prompt)
         .add_interaction_guide()
         .add_security_rules()
     )
+
+    # Load existing project documents for context
+    if request.project_path:
+        try:
+            doc_store = DocumentStore(request.project_path)
+            existing_docs = doc_store.list_documents()
+            if existing_docs:
+                doc_context = []
+                for doc in existing_docs:
+                    content = doc_store.get_document(doc.get("id", ""))
+                    if content:
+                        doc_context.append({
+                            "name": doc.get("name", doc.get("id", "")),
+                            "content": content[:2000],
+                        })
+                if doc_context:
+                    builder.add_uploaded_context(doc_context)
+        except Exception:
+            pass
 
     # Add workflow briefing and document template if workflow specified
     if request.workflow_id:

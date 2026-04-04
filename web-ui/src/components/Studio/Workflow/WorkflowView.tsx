@@ -8,10 +8,11 @@ import type { WorkflowV2 } from '@/types/studio'
 
 interface WorkflowViewProps {
   workflow: WorkflowV2
+  projectPath?: string
   previewPanel?: React.ReactNode
 }
 
-export function WorkflowView({ workflow, previewPanel }: WorkflowViewProps) {
+export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowViewProps) {
   const {
     blocks,
     currentText,
@@ -50,9 +51,10 @@ export function WorkflowView({ workflow, previewPanel }: WorkflowViewProps) {
       agent: workflow.agents.primary,
       workflowId: workflow.id,
       language,
-      hidden: true,  // Don't show the init message as a user bubble
+      projectPath,
+      hidden: true,
     })
-  }, [workflow.id]) // Only on workflow change
+  }, [workflow.id])
 
   const handleSend = (message: string) => {
     sendMessage(message, {
@@ -60,6 +62,7 @@ export function WorkflowView({ workflow, previewPanel }: WorkflowViewProps) {
       workflowId: workflow.id,
       sectionFocus: activeSection || undefined,
       language,
+      projectPath,
     })
   }
 

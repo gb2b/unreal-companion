@@ -58,6 +58,16 @@ class SystemPromptBuilder:
             self.sections.append(PromptSection(name=name, content=content.strip(), priority=priority))
         return self
 
+    def add_user_identity(self, user_name: str) -> "SystemPromptBuilder":
+        """Add user identity so the LLM can address them by name."""
+        if user_name:
+            return self.add("UserIdentity", (
+                f"## User\n\n"
+                f"The user's name is **{user_name}**. Address them by name occasionally "
+                f"to make the interaction feel personal and friendly."
+            ), priority=6)
+        return self
+
     def add_agent_persona(self, agent_markdown: str) -> "SystemPromptBuilder":
         """Add the agent persona from agent.md content."""
         return self.add("AgentPersona", agent_markdown, priority=10)

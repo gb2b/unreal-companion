@@ -33,7 +33,7 @@ interface ConversationState {
   outputTokens: number
 
   // Actions
-  sendMessage: (message: string, options?: { agent?: string; workflowId?: string; sectionFocus?: string; language?: string; hidden?: boolean }) => Promise<void>
+  sendMessage: (message: string, options?: { agent?: string; workflowId?: string; sectionFocus?: string; language?: string; hidden?: boolean; projectPath?: string }) => Promise<void>
   addUserBlock: (content: string) => void
   reset: () => void
 }
@@ -164,6 +164,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => {
             workflow_id: options.workflowId || '',
             section_focus: options.sectionFocus || '',
             language: options.language || 'en',
+            project_path: options.projectPath || '',
           },
           signal: abortController.signal,
         })
