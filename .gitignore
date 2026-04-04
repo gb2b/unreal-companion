@@ -161,3 +161,9 @@ UNREAL/Source/
 UNREAL/SOURCE/
 
 *.code-workspace
+
+# Superpowers brainstorm sessions
+.superpowers/brainstorm/
+
+# Claude Code local settings
+.claude/settings.local.json
