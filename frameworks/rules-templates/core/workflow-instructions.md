@@ -243,3 +243,31 @@ Documents are saved to `.unreal-companion/docs/` with subfolders:
 - `analysis/` - Brainstorms, research
 - `production/` - Sprints, stories
 - `boards/` - Mind maps, diagrams
+
+---
+
+## Adaptive Workflows (V2 Format)
+
+When a workflow uses the section-based format (has `sections:` instead of `steps:`):
+
+### Reading the Format
+- `sections:` lists document sections with IDs, names, and hints
+- `briefing:` contains your global instructions
+- `interaction_types:` per section tell you what UI to offer
+- There are no step files -- the briefing guides your behavior
+
+### Terminal Interaction Mapping
+- **choices** -> Present as a numbered list: "1) RPG  2) Platformer  3) Puzzle"
+- **slider** -> Ask: "Rate from {min} to {max} (e.g., 7):"
+- **rating** -> Ask: "Rate 1-{max}:"
+- **upload** -> Ask: "Provide file path:"
+- **prototype** -> Generate HTML file, save to project, suggest `open <file>` in browser
+- **confirm** -> Ask: "Section complete? (yes/no)"
+- **Section bar** -> Show as markdown checklist: "- [x] Overview  - [ ] Gameplay  - [ ] Progression"
+
+### Behavior
+- Fill sections by conversation -- don't follow a rigid order
+- When user says "skip", mark section as TODO and move on
+- When user says "stop", save progress and exit
+- Show progress checklist after completing each section
+- Always save document updates to the output path
