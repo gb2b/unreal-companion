@@ -30,7 +30,6 @@ import {
   Lightbulb,
   Target,
   GitBranch,
-  BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/projectStore'
@@ -53,7 +52,7 @@ import type { WorkflowV2 } from '@/types/studio'
 
 // === Types ===
 
-type StudioView = 'today' | 'board' | 'documents' | 'team' | 'workflow' | 'studioV2' | 'studioWorkflow'
+type StudioView = 'today' | 'board' | 'documents' | 'team' | 'workflow' | 'studioWorkflow'
 
 interface Agent {
   id: string
@@ -227,9 +226,23 @@ export function StudioPage() {
         : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || '')
     : ''
 
-  const handleOpenDocument = (_docId: string) => {
-    // TODO: load WorkflowV2 for the document's workflow_id and navigate
-    setView('studioWorkflow')
+  const handleOpenDocument = async (docId: string) => {
+    if (!projectPath) return
+    try {
+      // Fetch document list to resolve its workflow_id from meta
+      const docs = await api.get<{ documents: import('@/types/studio').StudioDocument[] }>(
+        `/api/v2/studio/documents?project_path=${encodeURIComponent(projectPath)}`
+      )
+      const doc = docs.documents?.find(d => d.id === docId)
+      const workflowId = doc?.meta?.workflow_id
+      if (workflowId) {
+        await handleSelectV2Workflow(workflowId)
+      } else {
+        setView('studioWorkflow')
+      }
+    } catch {
+      setView('studioWorkflow')
+    }
   }
 
   const handleSelectV2Workflow = async (workflowId: string) => {
@@ -257,7 +270,7 @@ export function StudioPage() {
   const handleBackFromV2Workflow = () => {
     setActiveV2Workflow(null)
     resetConversation()
-    setView('studioV2')
+    setView('documents')
   }
 
   // === Render ===
@@ -326,16 +339,10 @@ export function StudioPage() {
             icon={Users}
             label={t('studio.tab.team')}
           />
-          <TabButton
-            active={view === 'studioV2'}
-            onClick={() => { setView('studioV2'); setSelectedAgent(null) }}
-            icon={BookOpen}
-            label="Studio"
-          />
         </div>
 
         <div className="flex items-center gap-2">
-          {view === 'studioV2' ? (
+          {view === 'documents' ? (
             <Button size="sm" onClick={() => setNewDocModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Document
@@ -376,11 +383,19 @@ export function StudioPage() {
           )}
 
           {view === 'documents' && (
-            <DocumentsView
+            <motion.div
               key="documents"
-              documents={documents}
-              isLoading={isLoading}
-            />
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full overflow-y-auto"
+            >
+              <Dashboard
+                projectPath={projectPath}
+                onOpenDocument={handleOpenDocument}
+                onNewDocument={() => setNewDocModalOpen(true)}
+              />
+            </motion.div>
           )}
 
           {view === 'team' && !selectedAgent && (
@@ -401,20 +416,7 @@ export function StudioPage() {
             />
           )}
 
-          {view === 'studioV2' && (
-            <motion.div
-              key="studioV2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="h-full overflow-y-auto"
-            >
-              <Dashboard
-                projectPath={projectPath}
-                onOpenDocument={handleOpenDocument}
-              />
-            </motion.div>
-          )}
+
         </AnimatePresence>
       </div>
 

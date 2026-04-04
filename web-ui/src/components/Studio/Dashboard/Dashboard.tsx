@@ -7,9 +7,10 @@ import type { StudioDocument } from '@/types/studio'
 interface DashboardProps {
   projectPath: string
   onOpenDocument: (docId: string) => void
+  onNewDocument?: () => void
 }
 
-export function Dashboard({ projectPath, onOpenDocument }: DashboardProps) {
+export function Dashboard({ projectPath, onOpenDocument, onNewDocument }: DashboardProps) {
   const [documents, setDocuments] = useState<StudioDocument[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -35,7 +36,10 @@ export function Dashboard({ projectPath, onOpenDocument }: DashboardProps) {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Documents</h1>
-        <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <button
+          onClick={onNewDocument}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
           + New Document
         </button>
       </div>
