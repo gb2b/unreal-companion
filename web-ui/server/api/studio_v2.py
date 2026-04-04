@@ -14,6 +14,9 @@ from services.llm_engine.context_manager import ContextManager
 from services.llm_engine.system_prompt import SystemPromptBuilder
 from services.mcp_bridge import execute_tool
 from services.agent_manager import agent_manager
+from services.document_store import DocumentStore, DocumentMeta
+from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
+from services.unified_loader import get_workflow_search_paths
 
 logger = logging.getLogger(__name__)
 
@@ -113,3 +116,58 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             yield ErrorEvent(message=str(e)).to_sse()
 
     return EventSourceResponse(event_generator())
+
+
+class DocumentUpdateRequest(BaseModel):
+    content: str
+
+
+@router.get("/documents")
+async def list_documents(project_path: str = ""):
+    """List all documents with metadata."""
+    if not project_path:
+        return {"documents": []}
+    store = DocumentStore(project_path)
+    return {"documents": store.list_documents()}
+
+
+@router.get("/documents/{doc_id:path}")
+async def get_document(doc_id: str, project_path: str = ""):
+    """Get a single document with content and metadata."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = DocumentStore(project_path)
+    doc = store.get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, f"Document not found: {doc_id}")
+    return doc
+
+
+@router.put("/documents/{doc_id:path}")
+async def update_document(doc_id: str, body: DocumentUpdateRequest, project_path: str = ""):
+    """Manually update a document's content."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = DocumentStore(project_path)
+    store.save_document(doc_id, body.content)
+    return {"success": True}
+
+
+@router.get("/workflows")
+async def list_workflows(project_path: str = ""):
+    """List available workflows (V1 + V2)."""
+    from services.unified_loader import list_all_workflows
+    workflows = list_all_workflows(project_path or None)
+    return {"workflows": workflows}
+
+
+@router.get("/prototypes/{doc_id:path}")
+async def list_prototypes(doc_id: str, project_path: str = ""):
+    """List prototypes for a document."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = DocumentStore(project_path)
+    doc = store.get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    return {"prototypes": doc["meta"].get("prototypes", [])}
