@@ -1,4 +1,5 @@
 import { useConversationStore } from '@/stores/conversationStore'
+import { useI18n } from '@/i18n/useI18n'
 import { SectionBar } from './SectionBar'
 import { ImmersiveZone } from './ImmersiveZone'
 import { InputBar } from './InputBar'
@@ -18,12 +19,14 @@ export function WorkflowView({ workflow, previewPanel }: WorkflowViewProps) {
     activeSection,
     sendMessage,
   } = useConversationStore()
+  const { language } = useI18n()
 
   const handleSend = (message: string) => {
     sendMessage(message, {
       agent: workflow.agents.primary,
       workflowId: workflow.id,
       sectionFocus: activeSection || undefined,
+      language,
     })
   }
 

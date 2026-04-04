@@ -86,6 +86,28 @@ class SystemPromptBuilder:
 
         return self.add("DocumentTemplate", "\n".join(parts), priority=30)
 
+    def add_language(self, language: str) -> "SystemPromptBuilder":
+        """Set the conversation language. The LLM will respond in this language from the first message."""
+        lang_map = {
+            "fr": "French (français)",
+            "en": "English",
+            "es": "Spanish (español)",
+            "de": "German (Deutsch)",
+            "it": "Italian (italiano)",
+            "pt": "Portuguese (português)",
+            "ja": "Japanese (日本語)",
+            "ko": "Korean (한국어)",
+            "zh": "Chinese (中文)",
+        }
+        lang_name = lang_map.get(language, language)
+        return self.add("Language", (
+            f"## Language\n\n"
+            f"IMPORTANT: Always respond in {lang_name}. "
+            f"This applies to ALL your responses, including the very first message, "
+            f"tool call descriptions, interaction labels, and document content. "
+            f"The user's preferred language is {lang_name} — use it even if the user writes in a different language."
+        ), priority=5)  # Highest priority — before agent persona
+
     def add_interaction_guide(self) -> "SystemPromptBuilder":
         """Add the interaction guide for interceptor tools."""
         return self.add("InteractionGuide", INTERACTION_GUIDE, priority=40)

@@ -32,6 +32,7 @@ class StudioChatRequest(BaseModel):
     workflow_id: str = ""
     agent: str = "game-designer"
     section_focus: str = ""  # Optional: which section to focus on
+    language: str = "en"  # User's preferred language (en, fr, etc.)
 
 
 @router.post("/chat")
@@ -68,6 +69,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     agent_prompt = agent_manager.get_system_prompt(request.agent)
     builder = (
         SystemPromptBuilder()
+        .add_language(request.language)
         .add_agent_persona(agent_prompt)
         .add_interaction_guide()
         .add_security_rules()
