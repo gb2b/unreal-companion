@@ -236,22 +236,30 @@ export function StudioPage() {
   const handleSelectV2Workflow = async (workflowId: string) => {
     if (!projectPath) return
     try {
+      // Try V2 workflow first
       const workflow = await api.get<WorkflowV2>(
         `/api/v2/studio/workflows/${workflowId}?project_path=${encodeURIComponent(projectPath)}`
-      ).catch(async () => {
-        // Fallback: fetch list and find
-        const list = await api.get<WorkflowV2[]>(
-          `/api/v2/studio/workflows?project_path=${encodeURIComponent(projectPath)}`
-        )
-        return list.find(w => w.id === workflowId) || null
-      })
-      if (workflow) {
+      ).catch(() => null)
+
+      if (workflow && workflow.sections) {
+        // V2 format — use new immersive view
         setActiveV2Workflow(workflow)
         resetConversation()
         setView('studioWorkflow')
+      } else {
+        // Fallback to V1 workflow system (existing step-based)
+        if (currentProject) {
+          await startWorkflow(workflowId, currentProject.id, projectPath)
+          setView('workflow')
+        }
       }
     } catch (e) {
       console.error('Failed to load workflow:', e)
+      // Ultimate fallback — try V1
+      if (currentProject) {
+        await startWorkflow(workflowId, currentProject.id, projectPath)
+        setView('workflow')
+      }
     }
   }
 

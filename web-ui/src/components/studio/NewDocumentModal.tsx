@@ -46,10 +46,14 @@ export function NewDocumentModal({
     if (!isOpen) return
     setLoading(true)
     api
-      .get<WorkflowInfo[]>(
+      .get<{ workflows: WorkflowInfo[] } | WorkflowInfo[]>(
         `/api/v2/studio/workflows?project_path=${encodeURIComponent(projectPath)}`
       )
-      .then(setWorkflows)
+      .then(data => {
+        // API returns {workflows: [...]} object, not array directly
+        const list = Array.isArray(data) ? data : (data as any).workflows ?? []
+        setWorkflows(list)
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [isOpen, projectPath])
