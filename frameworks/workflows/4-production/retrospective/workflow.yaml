@@ -1,36 +1,36 @@
 id: retrospective
-version: "1.0"
-name: "Sprint Retrospective"
-description: "Reflect on sprint to identify improvements"
-category: "agile"
-behavior: "repeatable"
-ui_visible: true
-icon: "refresh-cw"
-color: "orange"
-estimated_time: "10 min"
+name: Sprint Retrospective
+description: Reflect on sprint to identify improvements
 agents:
-  primary: "scrum-master"
+  primary: scrum-master
   alternatives: []
   party_mode: false
-
-context_required:
-  - sprint
-  - tasks
-
-outputs:
-  - type: "retrospective"
-    path: "{output_folder}/sprints/retro-{{sprint_id}}.md"
-
-steps:
-  - id: "what-went-well"
-    file: "steps/step-01-went-well.md"
-    title: "What Went Well"
-  - id: "challenges"
-    file: "steps/step-02-challenges.md"
-    title: "Challenges Faced"
-  - id: "learnings"
-    file: "steps/step-03-learnings.md"
-    title: "Key Learnings"
-  - id: "actions"
-    file: "steps/step-04-actions.md"
-    title: "Action Items"
+sections:
+- id: what-went-well
+  name: What Went Well
+  required: true
+  interaction_types:
+  - text
+- id: challenges
+  name: Challenges
+  required: true
+  interaction_types:
+  - text
+- id: learnings
+  name: Learnings
+  required: true
+  interaction_types:
+  - text
+- id: actions
+  name: Actions
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Sprint Retrospective. Fill all required sections
+  by conversing with the user. Adapt your approach based on what the user provides.
+category: agile
+icon: refresh-cw
+color: orange
+estimated_time: 10 min
+behavior: repeatable
+ui_visible: true

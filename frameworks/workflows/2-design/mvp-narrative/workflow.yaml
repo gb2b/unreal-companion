@@ -1,41 +1,44 @@
 id: mvp-narrative
-version: "1.0"
-name: "MVP Narrative"
-description: "Define the minimal viable narrative for your game"
-category: "document"
-behavior: "one-shot"
-ui_visible: true
-icon: "scroll"
-color: "amber"
-suggested_after: ["game-brief"]
-document_order: 7
-estimated_time: "15 min"
+name: MVP Narrative
+description: Define the minimal viable narrative for your game
 agents:
-  primary: "game-designer"
+  primary: game-designer
   alternatives: []
   party_mode: false
-
-context_required:
-  - brief
-  - gdd
-
-outputs:
-  - type: "narrative"
-    path: "{output_folder}/narrative/mvp-narrative.md"
-
-steps:
-  - id: "core-conflict"
-    file: "steps/step-01-core-conflict.md"
-    title: "Core Conflict"
-  - id: "protagonist"
-    file: "steps/step-02-protagonist.md"
-    title: "Protagonist Essence"
-  - id: "journey"
-    file: "steps/step-03-journey.md"
-    title: "Minimal Journey"
-  - id: "hooks"
-    file: "steps/step-04-hooks.md"
-    title: "Narrative Hooks"
-  - id: "integration"
-    file: "steps/step-05-integration.md"
-    title: "Gameplay Integration"
+sections:
+- id: core-conflict
+  name: Core Conflict
+  required: true
+  interaction_types:
+  - text
+- id: protagonist
+  name: Protagonist
+  required: true
+  interaction_types:
+  - text
+- id: journey
+  name: Journey
+  required: true
+  interaction_types:
+  - text
+- id: hooks
+  name: Hooks
+  required: true
+  interaction_types:
+  - text
+- id: integration
+  name: Integration
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a MVP Narrative. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: document
+icon: scroll
+color: amber
+estimated_time: 15 min
+behavior: one-shot
+ui_visible: true
+suggested_after:
+- game-brief
+document_order: 7

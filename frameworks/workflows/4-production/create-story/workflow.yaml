@@ -1,37 +1,36 @@
 id: create-story
-version: "1.0"
-name: "Create User Story"
-description: "Define a user story with acceptance criteria"
-category: "agile"
-behavior: "repeatable"
-ui_visible: true
-icon: "file-plus"
-color: "teal"
-estimated_time: "5 min"
-quick_action: true
+name: Create User Story
+description: Define a user story with acceptance criteria
 agents:
-  primary: "scrum-master"
+  primary: scrum-master
   alternatives: []
   party_mode: false
-
-context_required:
-  - brief
-  - gdd
-
-outputs:
-  - type: "story"
-    path: "{output_folder}/stories/story-{{story_id}}.md"
-
-steps:
-  - id: "user-need"
-    file: "steps/step-01-user-need.md"
-    title: "User Need"
-  - id: "story-format"
-    file: "steps/step-02-story-format.md"
-    title: "Story Format"
-  - id: "acceptance"
-    file: "steps/step-03-acceptance.md"
-    title: "Acceptance Criteria"
-  - id: "priority"
-    file: "steps/step-04-priority.md"
-    title: "Priority & Effort"
+sections:
+- id: user-need
+  name: User Need
+  required: true
+  interaction_types:
+  - text
+- id: story-format
+  name: Story Format
+  required: true
+  interaction_types:
+  - text
+- id: acceptance
+  name: Acceptance
+  required: true
+  interaction_types:
+  - text
+- id: priority
+  name: Priority
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Create User Story. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: agile
+icon: file-plus
+color: teal
+estimated_time: 5 min
+behavior: repeatable
+ui_visible: true

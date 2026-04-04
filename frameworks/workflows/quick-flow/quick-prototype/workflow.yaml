@@ -1,38 +1,36 @@
 id: quick-prototype
-version: "1.0"
-name: "Quick Prototype"
-description: "Rapid prototype definition to test an idea"
-category: "dev"
-behavior: "repeatable"
-ui_visible: true
-icon: "flask"
-color: "lime"
-estimated_time: "5 min"
-quick_action: true
+name: Quick Prototype
+description: Rapid prototype definition to test an idea
 agents:
-  primary: "solo-dev"
+  primary: solo-dev
   alternatives: []
   party_mode: false
-
-context_required:
-  - brief
-
-outputs:
-  - type: "prototype-spec"
-    path: "{output_folder}/prototypes/proto-{{subject}}-{{date}}.md"
-  - type: "tasks"
-    action: "create_tasks"
-
-steps:
-  - id: "hypothesis"
-    file: "steps/step-01-hypothesis.md"
-    title: "Hypothesis to Test"
-  - id: "scope"
-    file: "steps/step-02-scope.md"
-    title: "Minimal Scope"
-  - id: "success"
-    file: "steps/step-03-success.md"
-    title: "Success Criteria"
-  - id: "tasks"
-    file: "steps/step-04-tasks.md"
-    title: "Prototype Tasks"
+sections:
+- id: hypothesis
+  name: Hypothesis
+  required: true
+  interaction_types:
+  - text
+- id: scope
+  name: Scope
+  required: true
+  interaction_types:
+  - text
+- id: success
+  name: Success
+  required: true
+  interaction_types:
+  - text
+- id: tasks
+  name: Tasks
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Quick Prototype. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: dev
+icon: flask
+color: lime
+estimated_time: 5 min
+behavior: repeatable
+ui_visible: true

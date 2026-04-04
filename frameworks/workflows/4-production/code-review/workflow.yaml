@@ -1,37 +1,38 @@
 id: code-review
-version: "1.0"
-name: "Code Review"
-description: "Review Blueprint or code implementation"
-category: "dev"
-behavior: "repeatable"
-ui_visible: true
-icon: "search"
-color: "slate"
-estimated_time: "5 min"
-quick_action: true
+name: Code Review
+description: Review Blueprint or code implementation
 agents:
-  primary: "game-dev"
+  primary: game-dev
   alternatives: []
   party_mode: false
-
-context_required:
-  - architecture
-  - code_context
-
-outputs:
-  - type: "review"
-    path: "{output_folder}/reviews/review-{{subject}}-{{date}}.md"
-
-steps:
-  - id: "overview"
-    file: "steps/step-01-overview.md"
-    title: "Code Overview"
-  - id: "patterns"
-    file: "steps/step-02-patterns.md"
-    title: "Pattern Check"
-  - id: "issues"
-    file: "steps/step-03-issues.md"
-    title: "Issues & Suggestions"
-  - id: "summary"
-    file: "steps/step-04-summary.md"
-    title: "Review Summary"
+sections:
+- id: overview
+  name: Overview
+  required: true
+  interaction_types:
+  - text
+  - choices
+- id: patterns
+  name: Patterns
+  required: true
+  interaction_types:
+  - text
+- id: issues
+  name: Issues
+  required: true
+  interaction_types:
+  - text
+- id: summary
+  name: Summary
+  required: false
+  interaction_types:
+  - text
+  - confirm
+briefing: You are helping create a Code Review. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: dev
+icon: search
+color: slate
+estimated_time: 5 min
+behavior: repeatable
+ui_visible: true

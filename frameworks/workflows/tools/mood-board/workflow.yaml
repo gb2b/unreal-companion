@@ -1,41 +1,41 @@
 id: mood-board
-version: "1.0"
-name: "Mood Board Generator"
-description: "Create a visual mood board for art direction"
-category: "board"
-behavior: "repeatable"
-ui_visible: true
-icon: "image"
-color: "rose"
-estimated_time: "8 min"
+name: Mood Board Generator
+description: Create a visual mood board for art direction
 agents:
-  primary: "3d-artist"
+  primary: 3d-artist
   alternatives: []
   party_mode: false
-
-context_required:
-  - brief
-  - art_direction
-
-outputs:
-  - type: "mood-board"
-    path: "{output_folder}/boards/moodboard-{{subject}}-{{date}}.json"
-  - type: "summary"
-    path: "{output_folder}/boards/moodboard-{{subject}}-{{date}}.md"
-
-steps:
-  - id: "theme"
-    file: "steps/step-01-theme.md"
-    title: "Visual Theme"
-  - id: "colors"
-    file: "steps/step-02-colors.md"
-    title: "Color Palette"
-  - id: "references"
-    file: "steps/step-03-references.md"
-    title: "Visual References"
-  - id: "keywords"
-    file: "steps/step-04-keywords.md"
-    title: "Keywords & Tags"
-  - id: "generate"
-    file: "steps/step-05-generate.md"
-    title: "Generate Board"
+sections:
+- id: theme
+  name: Theme
+  required: true
+  interaction_types:
+  - text
+- id: colors
+  name: Colors
+  required: true
+  interaction_types:
+  - text
+- id: references
+  name: References
+  required: true
+  interaction_types:
+  - text
+- id: keywords
+  name: Keywords
+  required: true
+  interaction_types:
+  - text
+- id: generate
+  name: Generate
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Mood Board Generator. Fill all required sections
+  by conversing with the user. Adapt your approach based on what the user provides.
+category: board
+icon: image
+color: rose
+estimated_time: 8 min
+behavior: repeatable
+ui_visible: true

@@ -161,6 +161,16 @@ async def list_workflows(project_path: str = ""):
     return {"workflows": workflows}
 
 
+@router.get("/workflows/{workflow_id}")
+async def get_workflow(workflow_id: str, project_path: str = ""):
+    """Load a single workflow in V2 format."""
+    search_paths = get_workflow_search_paths(project_path or None)
+    workflow = load_workflow_v2(workflow_id, search_paths)
+    if workflow is None:
+        return None
+    return workflow.__dict__ if hasattr(workflow, '__dict__') else workflow
+
+
 @router.get("/prototypes/{doc_id:path}")
 async def list_prototypes(doc_id: str, project_path: str = ""):
     """List prototypes for a document."""

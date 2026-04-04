@@ -1,59 +1,67 @@
 id: level-design
-version: "1.0"
-name: "Level Design"
-description: "Plan your game's levels, progression, and spatial design"
+name: Level Design
+description: Plan your game's levels, progression, and spatial design
+document:
+  template: template.md
+  output: '{output_folder}/design/level-design.md'
 agents:
-  primary: "level-designer"
+  primary: level-designer
   alternatives: []
   party_mode: false
-estimated_time: "45-60 min"
-category: "document"
-behavior: "one-shot"
+sections:
+- id: structure
+  name: Structure
+  required: true
+  interaction_types:
+  - text
+- id: progression
+  name: Progression
+  required: true
+  interaction_types:
+  - text
+  - slider
+- id: first-level
+  name: First Level
+  required: true
+  interaction_types:
+  - text
+- id: pacing
+  name: Pacing
+  required: true
+  interaction_types:
+  - text
+- id: secrets
+  name: Secrets
+  required: true
+  interaction_types:
+  - text
+- id: review
+  name: Review
+  required: false
+  interaction_types:
+  - text
+  - confirm
+input_documents:
+- type: project_context
+  required: true
+  auto_fill: true
+- type: game_brief
+  required: true
+  auto_fill: true
+- type: gdd
+  required: true
+  auto_fill: true
+- type: narrative
+  required: false
+  auto_fill: true
+briefing: You are helping create a Level Design. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: document
+icon: map
+color: emerald
+estimated_time: 45-60 min
+behavior: one-shot
 ui_visible: true
-icon: "map"
-color: "emerald"
-suggested_after: ["gdd"]
+suggested_after:
+- gdd
 document_order: 6
-
-input_discovery:
-  - name: "project_context"
-    patterns: ["project-context.md"]
-    strategy: "full"
-    required: true
-  - name: "game_brief"
-    patterns: ["{output_folder}/concept/*brief*.md"]
-    strategy: "full"
-    required: true
-  - name: "gdd"
-    patterns: ["{output_folder}/design/gdd.md"]
-    strategy: "full"
-    required: true
-  - name: "narrative"
-    patterns: ["{output_folder}/narrative/*.md"]
-    strategy: "index"
-    required: false
-
-output:
-  path: "{output_folder}/design/level-design.md"
-  format: "md"
-  update_context: true
-
-steps:
-  - id: "structure"
-    file: "steps/step-01-structure.md"
-  - id: "progression"
-    file: "steps/step-02-progression.md"
-  - id: "first-level"
-    file: "steps/step-03-first-level.md"
-  - id: "pacing"
-    file: "steps/step-04-pacing.md"
-  - id: "secrets"
-    file: "steps/step-05-secrets.md"
-  - id: "review"
-    file: "steps/step-06-review.md"
-
-celebrations:
-  complete: |
-    🗺️ Level Design document complete!
-    Your level structure and progression are mapped out.
-    Time to block out those levels!

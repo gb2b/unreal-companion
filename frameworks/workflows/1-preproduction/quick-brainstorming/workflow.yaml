@@ -1,39 +1,36 @@
 id: quick-brainstorming
-version: "1.0"
-name: "Quick Brainstorm"
-description: "Rapid idea exploration in 5 minutes"
-category: "conversation"
-behavior: "infinite"
-ui_visible: true
-icon: "lightbulb"
-color: "amber"
-estimated_time: "5 min"
-output_pattern: "session-quick-{subject}-{date}.md"
-quick_action: true
+name: Quick Brainstorm
+description: Rapid idea exploration in 5 minutes
 agents:
-  primary: "game-designer"
+  primary: game-designer
   alternatives: []
   party_mode: false
-
-context_required: []
-
-outputs:
-  - type: "ideas"
-    path: "{output_folder}/brainstorms/quick-{{subject}}-{{date}}.md"
-  - type: "mind-map"
-    path: "{output_folder}/boards/mindmap-{{subject}}-{{date}}.json"
-    optional: true
-
-steps:
-  - id: "seed"
-    file: "steps/step-01-seed.md"
-    title: "Seed Idea"
-  - id: "expand"
-    file: "steps/step-02-expand.md"
-    title: "Rapid Expansion"
-  - id: "filter"
-    file: "steps/step-03-filter.md"
-    title: "Quick Filter"
-  - id: "capture"
-    file: "steps/step-04-capture.md"
-    title: "Capture Results"
+sections:
+- id: seed
+  name: Seed
+  required: true
+  interaction_types:
+  - text
+- id: expand
+  name: Expand
+  required: true
+  interaction_types:
+  - text
+- id: filter
+  name: Filter
+  required: true
+  interaction_types:
+  - text
+- id: capture
+  name: Capture
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Quick Brainstorm. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: conversation
+icon: lightbulb
+color: amber
+estimated_time: 5 min
+behavior: infinite
+ui_visible: true

@@ -1,42 +1,41 @@
 id: dev-story
-version: "1.0"
-name: "Development Story"
-description: "Break down a feature into implementable dev tasks"
-category: "agile"
-behavior: "repeatable"
-ui_visible: true
-icon: "git-branch"
-color: "indigo"
-estimated_time: "8 min"
-quick_action: true
+name: Development Story
+description: Break down a feature into implementable dev tasks
 agents:
-  primary: "game-dev"
+  primary: game-dev
   alternatives: []
   party_mode: false
-
-context_required:
-  - gdd
-  - architecture
-
-outputs:
-  - type: "story"
-    path: "{output_folder}/stories/dev-{{story_id}}.md"
-  - type: "tasks"
-    action: "create_tasks"
-
-steps:
-  - id: "feature"
-    file: "steps/step-01-feature.md"
-    title: "Feature Definition"
-  - id: "breakdown"
-    file: "steps/step-02-breakdown.md"
-    title: "Technical Breakdown"
-  - id: "dependencies"
-    file: "steps/step-03-dependencies.md"
-    title: "Dependencies"
-  - id: "tasks"
-    file: "steps/step-04-tasks.md"
-    title: "Task Generation"
-  - id: "acceptance"
-    file: "steps/step-05-acceptance.md"
-    title: "Acceptance Criteria"
+sections:
+- id: feature
+  name: Feature
+  required: true
+  interaction_types:
+  - text
+- id: breakdown
+  name: Breakdown
+  required: true
+  interaction_types:
+  - text
+- id: dependencies
+  name: Dependencies
+  required: true
+  interaction_types:
+  - text
+- id: tasks
+  name: Tasks
+  required: true
+  interaction_types:
+  - text
+- id: acceptance
+  name: Acceptance
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Development Story. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: agile
+icon: git-branch
+color: indigo
+estimated_time: 8 min
+behavior: repeatable
+ui_visible: true

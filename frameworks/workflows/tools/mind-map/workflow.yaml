@@ -1,39 +1,41 @@
 id: mind-map
-version: "1.0"
-name: "Mind Map Generator"
-description: "Generate a visual mind map from ideas or concepts"
-category: "board"
-behavior: "repeatable"
-ui_visible: true
-icon: "network"
-color: "fuchsia"
-estimated_time: "5 min"
+name: Mind Map Generator
+description: Generate a visual mind map from ideas or concepts
 agents:
-  primary: "game-designer"
+  primary: game-designer
   alternatives: []
   party_mode: false
-
-context_required: []
-
-outputs:
-  - type: "mind-map"
-    path: "{output_folder}/boards/mindmap-{{subject}}-{{date}}.json"
-  - type: "summary"
-    path: "{output_folder}/boards/mindmap-{{subject}}-{{date}}.md"
-
-steps:
-  - id: "central"
-    file: "steps/step-01-central.md"
-    title: "Central Concept"
-  - id: "branches"
-    file: "steps/step-02-branches.md"
-    title: "Main Branches"
-  - id: "details"
-    file: "steps/step-03-details.md"
-    title: "Branch Details"
-  - id: "connections"
-    file: "steps/step-04-connections.md"
-    title: "Cross-Connections"
-  - id: "generate"
-    file: "steps/step-05-generate.md"
-    title: "Generate Map"
+sections:
+- id: central
+  name: Central
+  required: true
+  interaction_types:
+  - text
+- id: branches
+  name: Branches
+  required: true
+  interaction_types:
+  - text
+- id: details
+  name: Details
+  required: true
+  interaction_types:
+  - text
+- id: connections
+  name: Connections
+  required: true
+  interaction_types:
+  - text
+- id: generate
+  name: Generate
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Mind Map Generator. Fill all required sections
+  by conversing with the user. Adapt your approach based on what the user provides.
+category: board
+icon: network
+color: fuchsia
+estimated_time: 5 min
+behavior: repeatable
+ui_visible: true

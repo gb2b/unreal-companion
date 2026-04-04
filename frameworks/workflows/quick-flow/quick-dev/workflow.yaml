@@ -1,33 +1,31 @@
 id: quick-dev
-version: "1.0"
-name: "Quick Dev Task"
-description: "Rapid task definition for immediate development"
-category: "dev"
-behavior: "repeatable"
-ui_visible: true
-icon: "zap"
-color: "yellow"
-estimated_time: "2 min"
-quick_action: true
+name: Quick Dev Task
+description: Rapid task definition for immediate development
 agents:
-  primary: "game-dev"
+  primary: game-dev
   alternatives: []
   party_mode: false
-
-context_required:
-  - architecture
-
-outputs:
-  - type: "task"
-    action: "create_task"
-
-steps:
-  - id: "what"
-    file: "steps/step-01-what.md"
-    title: "What to Build"
-  - id: "how"
-    file: "steps/step-02-how.md"
-    title: "Implementation Approach"
-  - id: "create"
-    file: "steps/step-03-create.md"
-    title: "Create Task"
+sections:
+- id: what
+  name: What
+  required: true
+  interaction_types:
+  - text
+- id: how
+  name: How
+  required: true
+  interaction_types:
+  - text
+- id: create
+  name: Create
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Quick Dev Task. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: dev
+icon: zap
+color: yellow
+estimated_time: 2 min
+behavior: repeatable
+ui_visible: true

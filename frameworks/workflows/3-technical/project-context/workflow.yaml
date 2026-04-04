@@ -1,37 +1,40 @@
 id: project-context
-version: "1.0"
-name: "Project Context"
-description: "Build comprehensive project context for AI agents"
-category: "technical"
-behavior: "system"
-ui_visible: false
-estimated_time: "10 min"
-auto_trigger: true
-agent_use: true
+name: Project Context
+description: Build comprehensive project context for AI agents
 agents:
-  primary: "game-architect"
+  primary: game-architect
   alternatives: []
   party_mode: false
-
-context_required: []
-
-outputs:
-  - type: "context"
-    path: "{output_folder}/context/project-context.md"
-
-steps:
-  - id: "overview"
-    file: "steps/step-01-overview.md"
-    title: "Project Overview"
-  - id: "goals"
-    file: "steps/step-02-goals.md"
-    title: "Goals & Constraints"
-  - id: "architecture"
-    file: "steps/step-03-architecture.md"
-    title: "Technical Architecture"
-  - id: "conventions"
-    file: "steps/step-04-conventions.md"
-    title: "Conventions & Standards"
-  - id: "current-state"
-    file: "steps/step-05-current-state.md"
-    title: "Current State"
+sections:
+- id: overview
+  name: Overview
+  required: true
+  interaction_types:
+  - text
+  - choices
+- id: goals
+  name: Goals
+  required: true
+  interaction_types:
+  - text
+- id: architecture
+  name: Architecture
+  required: true
+  interaction_types:
+  - text
+- id: conventions
+  name: Conventions
+  required: true
+  interaction_types:
+  - text
+- id: current-state
+  name: Current State
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Project Context. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: technical
+estimated_time: 10 min
+behavior: system
+ui_visible: false

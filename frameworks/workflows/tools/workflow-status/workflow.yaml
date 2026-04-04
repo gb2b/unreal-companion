@@ -1,29 +1,25 @@
 id: workflow-status
-version: "1.0"
-name: "Workflow Status"
-description: "Check status of ongoing workflows and sessions"
-category: "technical"
-behavior: "system"
+name: Workflow Status
+description: Check status of ongoing workflows and sessions
+sections:
+- id: active
+  name: Active
+  required: true
+  interaction_types:
+  - text
+- id: pending
+  name: Pending
+  required: true
+  interaction_types:
+  - text
+- id: recommendations
+  name: Recommendations
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Workflow Status. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: technical
+estimated_time: 2 min
+behavior: system
 ui_visible: false
-estimated_time: "2 min"
-auto_trigger: true
-agent_use: true
-
-context_required:
-  - sessions
-  - workflows
-
-outputs:
-  - type: "status"
-    format: "inline"
-
-steps:
-  - id: "active"
-    file: "steps/step-01-active.md"
-    title: "Active Workflows"
-  - id: "pending"
-    file: "steps/step-02-pending.md"
-    title: "Pending Items"
-  - id: "recommendations"
-    file: "steps/step-03-recommendations.md"
-    title: "Recommendations"

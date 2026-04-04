@@ -1,58 +1,68 @@
 id: art-direction
-version: "1.0"
-name: "Art Direction"
-description: "Define your game's visual identity, style, and aesthetics"
+name: Art Direction
+description: Define your game's visual identity, style, and aesthetics
+document:
+  template: template.md
+  output: '{output_folder}/art/art-direction.md'
 agents:
-  primary: "3d-artist"
+  primary: 3d-artist
   alternatives: []
   party_mode: false
-estimated_time: "45-60 min"
-category: "document"
-behavior: "one-shot"
+sections:
+- id: vision
+  name: Vision
+  required: true
+  interaction_types:
+  - text
+- id: style
+  name: Style
+  required: true
+  interaction_types:
+  - text
+- id: color
+  name: Color
+  required: true
+  interaction_types:
+  - text
+- id: characters
+  name: Characters
+  required: true
+  interaction_types:
+  - text
+- id: environments
+  name: Environments
+  required: true
+  interaction_types:
+  - text
+- id: ui
+  name: Ui
+  required: true
+  interaction_types:
+  - text
+- id: review
+  name: Review
+  required: false
+  interaction_types:
+  - text
+  - confirm
+input_documents:
+- type: project_context
+  required: true
+  auto_fill: true
+- type: game_brief
+  required: true
+  auto_fill: true
+- type: narrative
+  required: false
+  auto_fill: true
+briefing: You are helping create a Art Direction. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: document
+icon: palette
+color: pink
+estimated_time: 45-60 min
+behavior: one-shot
 ui_visible: true
-icon: "palette"
-color: "pink"
-suggested_after: ["game-brief"]
+suggested_after:
+- game-brief
 document_order: 4
-
-input_discovery:
-  - name: "project_context"
-    patterns: ["project-context.md"]
-    strategy: "full"
-    required: true
-  - name: "game_brief"
-    patterns: ["{output_folder}/concept/*brief*.md"]
-    strategy: "full"
-    required: true
-  - name: "narrative"
-    patterns: ["{output_folder}/narrative/*.md"]
-    strategy: "index"
-    required: false
-
-output:
-  path: "{output_folder}/art/art-direction.md"
-  format: "md"
-  update_context: true
-  visual_format: "moodboard"
-
-steps:
-  - id: "vision"
-    file: "steps/step-01-vision.md"
-  - id: "style"
-    file: "steps/step-02-style.md"
-  - id: "color"
-    file: "steps/step-03-color.md"
-  - id: "characters"
-    file: "steps/step-04-characters.md"
-  - id: "environments"
-    file: "steps/step-05-environments.md"
-  - id: "ui"
-    file: "steps/step-06-ui.md"
-  - id: "review"
-    file: "steps/step-07-review.md"
-
-celebrations:
-  complete: |
-    🎨 Art Direction complete!
-    Your visual identity is defined. Style, colors, and aesthetics are locked.
-    Time to create some stunning visuals!

@@ -1,37 +1,36 @@
 id: diagram
-version: "1.0"
-name: "Diagram Generator"
-description: "Generate technical or flow diagrams"
-category: "board"
-behavior: "repeatable"
-ui_visible: true
-icon: "git-merge"
-color: "sky"
-estimated_time: "5 min"
+name: Diagram Generator
+description: Generate technical or flow diagrams
 agents:
-  primary: "game-architect"
+  primary: game-architect
   alternatives: []
   party_mode: false
-
-context_required:
-  - architecture
-
-outputs:
-  - type: "diagram"
-    path: "{output_folder}/boards/diagram-{{subject}}-{{date}}.json"
-  - type: "mermaid"
-    path: "{output_folder}/boards/diagram-{{subject}}-{{date}}.mmd"
-
-steps:
-  - id: "type"
-    file: "steps/step-01-type.md"
-    title: "Diagram Type"
-  - id: "elements"
-    file: "steps/step-02-elements.md"
-    title: "Elements"
-  - id: "relationships"
-    file: "steps/step-03-relationships.md"
-    title: "Relationships"
-  - id: "generate"
-    file: "steps/step-04-generate.md"
-    title: "Generate Diagram"
+sections:
+- id: type
+  name: Type
+  required: true
+  interaction_types:
+  - text
+- id: elements
+  name: Elements
+  required: true
+  interaction_types:
+  - text
+- id: relationships
+  name: Relationships
+  required: true
+  interaction_types:
+  - text
+- id: generate
+  name: Generate
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Diagram Generator. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: board
+icon: git-merge
+color: sky
+estimated_time: 5 min
+behavior: repeatable
+ui_visible: true

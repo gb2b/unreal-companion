@@ -1,34 +1,32 @@
 id: sprint-status
-version: "1.0"
-name: "Sprint Status"
-description: "Quick check on current sprint progress and blockers"
-category: "agile"
-behavior: "repeatable"
-ui_visible: true
-icon: "bar-chart"
-color: "green"
-estimated_time: "3 min"
-quick_action: true
+name: Sprint Status
+description: Quick check on current sprint progress and blockers
 agents:
-  primary: "scrum-master"
+  primary: scrum-master
   alternatives: []
   party_mode: false
-
-context_required:
-  - tasks
-  - sprint
-
-outputs:
-  - type: "status-report"
-    path: "{output_folder}/sprints/status-{{date}}.md"
-
-steps:
-  - id: "progress"
-    file: "steps/step-01-progress.md"
-    title: "Sprint Progress"
-  - id: "blockers"
-    file: "steps/step-02-blockers.md"
-    title: "Blockers & Risks"
-  - id: "summary"
-    file: "steps/step-03-summary.md"
-    title: "Status Summary"
+sections:
+- id: progress
+  name: Progress
+  required: true
+  interaction_types:
+  - text
+- id: blockers
+  name: Blockers
+  required: true
+  interaction_types:
+  - text
+- id: summary
+  name: Summary
+  required: false
+  interaction_types:
+  - text
+  - confirm
+briefing: You are helping create a Sprint Status. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: agile
+icon: bar-chart
+color: green
+estimated_time: 3 min
+behavior: repeatable
+ui_visible: true

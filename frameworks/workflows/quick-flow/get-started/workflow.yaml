@@ -1,39 +1,38 @@
 id: get-started
-version: "1.0"
-name: "Get Started"
-description: "Initialize your project in 2 minutes with core info"
-agent: "game-designer"
-estimated_time: "2 min"
-category: "onboarding"
-behavior: "one-shot"
+name: Get Started
+description: Initialize your project in 2 minutes with core info
+document:
+  template: template.md
+  output: project-context.md
+agents:
+  primary: game-designer
+  alternatives: []
+  party_mode: false
+sections:
+- id: intro
+  name: Intro
+  required: true
+  interaction_types:
+  - text
+- id: basics
+  name: Basics
+  required: true
+  interaction_types:
+  - text
+- id: complete
+  name: Complete
+  required: false
+  interaction_types:
+  - text
+input_documents:
+- type: existing_context
+  required: false
+  auto_fill: true
+briefing: You are helping create a Get Started. Fill all required sections by conversing
+  with the user. Adapt your approach based on what the user provides.
+category: onboarding
+icon: rocket
+color: primary
+estimated_time: 2 min
+behavior: one-shot
 ui_visible: true
-icon: "rocket"
-color: "primary"
-
-# What documents to load before starting
-input_discovery:
-  - name: "existing_context"
-    patterns: ["project-context.md"]
-    strategy: "full"
-    required: false
-
-# Output configuration
-output:
-  path: "project-context.md"
-  format: "md"
-  append: false
-
-# Steps configuration
-steps:
-  - id: "intro"
-    file: "steps/step-01-intro.md"
-  - id: "basics"
-    file: "steps/step-02-basics.md"
-  - id: "complete"
-    file: "steps/step-03-complete.md"
-
-# Celebractions
-celebrations:
-  complete: |
-    🎉 Project initialized! Your project-context.md is ready.
-    Now you can start with more detailed workflows like Game Brief or brainstorming!

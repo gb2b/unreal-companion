@@ -1,39 +1,41 @@
 id: gametest
-version: "1.0"
-name: "Game Test Session"
-description: "Structure a playtest session and capture feedback"
-category: "dev"
-behavior: "repeatable"
-ui_visible: true
-icon: "gamepad"
-color: "red"
-estimated_time: "10 min"
+name: Game Test Session
+description: Structure a playtest session and capture feedback
 agents:
-  primary: "game-qa"
+  primary: game-qa
   alternatives: []
   party_mode: false
-
-context_required:
-  - gdd
-  - build_info
-
-outputs:
-  - type: "playtest-report"
-    path: "{output_folder}/playtests/test-{{subject}}-{{date}}.md"
-
-steps:
-  - id: "objectives"
-    file: "steps/step-01-objectives.md"
-    title: "Test Objectives"
-  - id: "scenarios"
-    file: "steps/step-02-scenarios.md"
-    title: "Test Scenarios"
-  - id: "observations"
-    file: "steps/step-03-observations.md"
-    title: "Observations"
-  - id: "feedback"
-    file: "steps/step-04-feedback.md"
-    title: "Player Feedback"
-  - id: "actions"
-    file: "steps/step-05-actions.md"
-    title: "Action Items"
+sections:
+- id: objectives
+  name: Objectives
+  required: true
+  interaction_types:
+  - text
+- id: scenarios
+  name: Scenarios
+  required: true
+  interaction_types:
+  - text
+- id: observations
+  name: Observations
+  required: true
+  interaction_types:
+  - text
+- id: feedback
+  name: Feedback
+  required: true
+  interaction_types:
+  - text
+- id: actions
+  name: Actions
+  required: false
+  interaction_types:
+  - text
+briefing: You are helping create a Game Test Session. Fill all required sections by
+  conversing with the user. Adapt your approach based on what the user provides.
+category: dev
+icon: gamepad
+color: red
+estimated_time: 10 min
+behavior: repeatable
+ui_visible: true
