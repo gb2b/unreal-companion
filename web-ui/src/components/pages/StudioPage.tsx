@@ -30,24 +30,30 @@ import {
   Lightbulb,
   Target,
   GitBranch,
+  BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/projectStore'
 import { useWorkflowStore } from '@/stores/workflowStore'
 import { useTranslation } from '@/i18n/useI18n'
 import { useStudioStore, Task as StudioTask } from '@/stores/studioStore'
+import { useConversationStore } from '@/stores/conversationStore'
 import { WorkflowStepContainer } from '@/components/workflow/WorkflowStepContainer'
 import { ProductionBoard } from '@/components/studio/ProductionBoard'
 import { TodayView } from '@/components/studio/TodayView'
 import { CreateTaskModal } from '@/components/board/CreateTaskModal'
 import { TaskDetailPanel } from '@/components/board/TaskDetailPanel'
 import { DependencyGraph } from '@/components/board/DependencyGraph'
+import { Dashboard } from '@/components/studio/Dashboard/Dashboard'
+import { WorkflowView } from '@/components/studio/Workflow/WorkflowView'
+import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
+import type { WorkflowV2 } from '@/types/studio'
 
 // === Types ===
 
-type StudioView = 'today' | 'board' | 'documents' | 'team' | 'workflow'
+type StudioView = 'today' | 'board' | 'documents' | 'team' | 'workflow' | 'studioV2' | 'studioWorkflow'
 
 interface Agent {
   id: string
@@ -120,6 +126,7 @@ const DOC_ICONS: Record<string, React.ElementType> = {
 export function StudioPage() {
   const { currentProject } = useProjectStore()
   const { activeSession, startWorkflow, resumeSession, reset: resetWorkflow } = useWorkflowStore()
+  const { reset: resetConversation } = useConversationStore()
   const { t } = useTranslation()
 
   const [view, setView] = useState<StudioView>('today')
@@ -128,6 +135,10 @@ export function StudioPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Studio V2 state
+  const [newDocModalOpen, setNewDocModalOpen] = useState(false)
+  const [activeV2Workflow, setActiveV2Workflow] = useState<WorkflowV2 | null>(null)
 
   // Fetch data on mount
   useEffect(() => {
@@ -208,9 +219,68 @@ export function StudioPage() {
     setView('today')
   }
 
+  // === Studio V2 handlers ===
+
+  const projectPath = currentProject
+    ? (currentProject.companion_path
+        ? currentProject.companion_path.replace(/\/.unreal-companion$/, '')
+        : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || '')
+    : ''
+
+  const handleOpenDocument = (_docId: string) => {
+    // TODO: load WorkflowV2 for the document's workflow_id and navigate
+    setView('studioWorkflow')
+  }
+
+  const handleSelectV2Workflow = async (workflowId: string) => {
+    if (!projectPath) return
+    try {
+      const workflow = await api.get<WorkflowV2>(
+        `/api/v2/studio/workflows/${workflowId}?project_path=${encodeURIComponent(projectPath)}`
+      ).catch(async () => {
+        // Fallback: fetch list and find
+        const list = await api.get<WorkflowV2[]>(
+          `/api/v2/studio/workflows?project_path=${encodeURIComponent(projectPath)}`
+        )
+        return list.find(w => w.id === workflowId) || null
+      })
+      if (workflow) {
+        setActiveV2Workflow(workflow)
+        resetConversation()
+        setView('studioWorkflow')
+      }
+    } catch (e) {
+      console.error('Failed to load workflow:', e)
+    }
+  }
+
+  const handleBackFromV2Workflow = () => {
+    setActiveV2Workflow(null)
+    resetConversation()
+    setView('studioV2')
+  }
+
   // === Render ===
 
-  // Workflow view (full screen) - show when session active, pending, or streaming
+  // Studio V2 — immersive workflow view (full screen, 3-panel)
+  if (view === 'studioWorkflow' && activeV2Workflow) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="h-12 border-b border-border bg-card/80 backdrop-blur flex items-center px-4 gap-4">
+          <Button variant="ghost" size="sm" onClick={handleBackFromV2Workflow}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Documents
+          </Button>
+          <span className="text-sm font-medium text-muted-foreground">{activeV2Workflow.name}</span>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <WorkflowView workflow={activeV2Workflow} />
+        </div>
+      </div>
+    )
+  }
+
+  // Legacy workflow view (full screen) - show when session active, pending, or streaming
   if (view === 'workflow' && (activeSession || pendingWorkflow || isStartStreaming)) {
     return (
       <div className="h-full flex flex-col">
@@ -256,13 +326,26 @@ export function StudioPage() {
             icon={Users}
             label={t('studio.tab.team')}
           />
+          <TabButton
+            active={view === 'studioV2'}
+            onClick={() => { setView('studioV2'); setSelectedAgent(null) }}
+            icon={BookOpen}
+            label="Studio"
+          />
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            {t('studio.tab.new')}
-          </Button>
+          {view === 'studioV2' ? (
+            <Button size="sm" onClick={() => setNewDocModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Document
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              {t('studio.tab.new')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -270,14 +353,11 @@ export function StudioPage() {
       <div className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           {view === 'today' && (
-            <TodayView 
+            <TodayView
               key="today"
               projectName={currentProject?.name}
               projectId={currentProject?.id}
-              projectPath={currentProject?.companion_path
-                ? currentProject.companion_path.replace(/\/.unreal-companion$/, '')
-                : currentProject?.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || ''
-              }
+              projectPath={projectPath}
               documents={documents}
               agents={agents}
               onStartWorkflow={handleStartWorkflow}
@@ -285,24 +365,24 @@ export function StudioPage() {
               onSelectAgent={handleSelectAgent}
             />
           )}
-          
+
           {view === 'board' && (
-            <BoardView 
+            <BoardView
               key="board"
               tasks={tasks}
               agents={agents}
               onStartWorkflow={handleStartWorkflow}
             />
           )}
-          
+
           {view === 'documents' && (
-            <DocumentsView 
+            <DocumentsView
               key="documents"
               documents={documents}
               isLoading={isLoading}
             />
           )}
-          
+
           {view === 'team' && !selectedAgent && (
             <TeamView
               key="team"
@@ -311,7 +391,7 @@ export function StudioPage() {
               onSelectAgent={handleSelectAgent}
             />
           )}
-          
+
           {view === 'team' && selectedAgent && (
             <AgentMenuView
               key="agent-menu"
@@ -320,8 +400,31 @@ export function StudioPage() {
               onStartWorkflow={handleStartWorkflow}
             />
           )}
+
+          {view === 'studioV2' && (
+            <motion.div
+              key="studioV2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full overflow-y-auto"
+            >
+              <Dashboard
+                projectPath={projectPath}
+                onOpenDocument={handleOpenDocument}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
+
+      {/* New Document Modal (Studio V2) */}
+      <NewDocumentModal
+        isOpen={newDocModalOpen}
+        projectPath={projectPath}
+        onClose={() => setNewDocModalOpen(false)}
+        onSelectWorkflow={handleSelectV2Workflow}
+      />
     </div>
   )
 }
