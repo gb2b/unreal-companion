@@ -33,7 +33,7 @@ interface ConversationState {
   outputTokens: number
 
   // Actions
-  sendMessage: (message: string, options?: { agent?: string; workflowId?: string; sectionFocus?: string; language?: string }) => Promise<void>
+  sendMessage: (message: string, options?: { agent?: string; workflowId?: string; sectionFocus?: string; language?: string; hidden?: boolean }) => Promise<void>
   addUserBlock: (content: string) => void
   reset: () => void
 }
@@ -57,9 +57,9 @@ export const useConversationStore = create<ConversationState>()((set, get) => {
       abortController?.abort()
       abortController = new AbortController()
 
-      // Add user message as a block
+      // Add user message as a block (unless hidden — for system init messages)
       set(s => ({
-        blocks: [...s.blocks, { kind: 'user_response' as const, content: message }],
+        blocks: options.hidden ? s.blocks : [...s.blocks, { kind: 'user_response' as const, content: message }],
         isStreaming: true,
         error: null,
         currentText: '',

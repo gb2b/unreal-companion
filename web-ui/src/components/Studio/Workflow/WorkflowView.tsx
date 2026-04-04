@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useI18n } from '@/i18n/useI18n'
 import { SectionBar } from './SectionBar'
@@ -20,6 +21,38 @@ export function WorkflowView({ workflow, previewPanel }: WorkflowViewProps) {
     sendMessage,
   } = useConversationStore()
   const { language } = useI18n()
+  const hasInitialized = useRef(false)
+
+  // Auto-start: send initial message when workflow opens with empty conversation
+  useEffect(() => {
+    if (hasInitialized.current || blocks.length > 0 || isStreaming) return
+    hasInitialized.current = true
+
+    // Build section list for the LLM
+    const sectionList = workflow.sections
+      .map(s => `- ${s.name}${s.required ? ' (required)' : ' (optional)'}`)
+      .join('\n')
+
+    // Send a system-level init message that the LLM responds to
+    const initMessage = [
+      `[WORKFLOW_START]`,
+      `Workflow: ${workflow.name}`,
+      `Description: ${workflow.description}`,
+      `Sections to fill:\n${sectionList}`,
+      ``,
+      `Greet the user and start the workflow. Introduce yourself with your persona.`,
+      `Propose how to get started: either answer some questions to fill the document,`,
+      `or upload an existing document/brief to pre-fill sections.`,
+      `Show a choices block with: "Start from scratch", "Upload existing document", "Quick start (fill basics fast)".`,
+    ].join('\n')
+
+    sendMessage(initMessage, {
+      agent: workflow.agents.primary,
+      workflowId: workflow.id,
+      language,
+      hidden: true,  // Don't show the init message as a user bubble
+    })
+  }, [workflow.id]) // Only on workflow change
 
   const handleSend = (message: string) => {
     sendMessage(message, {

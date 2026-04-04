@@ -74,7 +74,20 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         .add_interaction_guide()
         .add_security_rules()
     )
-    # TODO: add workflow briefing, document template when workflow_loader_v2 is ready
+
+    # Add workflow briefing and document template if workflow specified
+    if request.workflow_id:
+        search_paths = get_workflow_search_paths(None)
+        wf = load_workflow_v2(request.workflow_id, search_paths)
+        if wf:
+            if wf.briefing:
+                builder.add_workflow_briefing(wf.briefing)
+            if wf.sections:
+                section_dicts = [{"id": s.id, "name": s.name, "required": s.required,
+                                  "hints": s.hints, "interaction_types": s.interaction_types}
+                                 for s in wf.sections]
+                builder.add_document_template(section_dicts, {})
+
     system = builder.build()
 
     # Build messages
