@@ -206,3 +206,57 @@ class TestAgenticLoop:
 
         types = [e.event for e in events]
         assert "interaction_block" in types
+
+
+from services.llm_engine.system_prompt import SystemPromptBuilder
+
+
+class TestSystemPromptBuilder:
+    def test_build_empty(self):
+        builder = SystemPromptBuilder()
+        assert builder.build() == ""
+
+    def test_sections_ordered_by_priority(self):
+        prompt = (
+            SystemPromptBuilder()
+            .add("low", "LOW", priority=90)
+            .add("high", "HIGH", priority=10)
+            .build()
+        )
+        assert prompt.index("HIGH") < prompt.index("LOW")
+
+    def test_add_workflow_briefing(self):
+        prompt = (
+            SystemPromptBuilder()
+            .add_workflow_briefing("Help create a GDD.")
+            .add_interaction_guide()
+            .add_security_rules()
+            .build()
+        )
+        assert "Help create a GDD" in prompt
+        assert "show_interaction" in prompt
+        assert "Security" in prompt
+
+    def test_document_template(self):
+        sections = [
+            {"id": "overview", "name": "Game Overview", "required": True, "hints": "Ask about genre"},
+            {"id": "gameplay", "name": "Core Gameplay", "required": True, "interaction_types": ["text", "choices"]},
+        ]
+        state = {"overview": {"status": "complete"}, "gameplay": {"status": "in_progress"}}
+        prompt = SystemPromptBuilder().add_document_template(sections, state).build()
+        assert "complete" in prompt
+        assert "in_progress" in prompt
+        assert "REQUIRED" in prompt
+
+    def test_empty_content_skipped(self):
+        prompt = (
+            SystemPromptBuilder()
+            .add("a", "Content A")
+            .add("b", "  ")  # Empty after strip
+            .add("c", "Content C")
+            .build()
+        )
+        assert "Content A" in prompt
+        assert "Content C" in prompt
+        # Only 2 sections joined
+        assert prompt.count("\n\n") == 1
