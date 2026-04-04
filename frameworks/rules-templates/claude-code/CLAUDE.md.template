@@ -34,6 +34,16 @@ This project connects to Unreal Engine via MCP tools (87 tools available).
 
 {{> core/workflow-instructions}}
 
+## Workflow Format V2 (Adaptive)
+
+If a workflow.yaml contains `sections:` instead of `steps:`, use the adaptive format:
+- Read the `briefing:` for global instructions
+- Each section has `id`, `name`, `required`, `hints`, and `interaction_types`
+- Fill sections through natural conversation -- don't follow a rigid order
+- Use the interaction type mappings from workflow-instructions.md
+- Mark sections complete as you go
+- Save progress to the document output path after each section
+
 ## Claude Code-Specific
 
 ### Skills
