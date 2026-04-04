@@ -16,6 +16,15 @@ export default defineConfig({
         target: 'http://localhost:3179',
         changeOrigin: true,
         ws: true,
+        configure: (proxy) => {
+          // Disable buffering for SSE streams
+          proxy.on('proxyRes', (proxyRes) => {
+            if (proxyRes.headers['content-type']?.includes('text/event-stream')) {
+              proxyRes.headers['cache-control'] = 'no-cache';
+              proxyRes.headers['x-accel-buffering'] = 'no';
+            }
+          });
+        },
       },
       '/ws': {
         target: 'ws://localhost:3179',

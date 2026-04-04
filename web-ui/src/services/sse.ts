@@ -40,12 +40,19 @@ export async function* streamSSE(options: SSEClientOptions): AsyncGenerator<SSEE
   const decoder = new TextDecoder()
   let buffer = ''
 
+  console.debug('[SSE] Stream reader connected, starting read loop')
+
   try {
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        console.debug('[SSE] Stream done')
+        break
+      }
 
-      buffer += decoder.decode(value, { stream: true })
+      const chunk = decoder.decode(value, { stream: true })
+      console.debug('[SSE] Chunk received:', chunk.substring(0, 100))
+      buffer += chunk
 
       // Parse SSE events from buffer
       const lines = buffer.split('\n')
@@ -54,7 +61,8 @@ export async function* streamSSE(options: SSEClientOptions): AsyncGenerator<SSEE
       let currentEvent = ''
       let currentData = ''
 
-      for (const line of lines) {
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\r$/, '') // Handle \r\n line endings
         if (line.startsWith('event: ')) {
           currentEvent = line.slice(7).trim()
         } else if (line.startsWith('data: ')) {
@@ -63,9 +71,10 @@ export async function* streamSSE(options: SSEClientOptions): AsyncGenerator<SSEE
           // End of event block
           try {
             const data = JSON.parse(currentData) as SSEEventData
+            console.debug('[SSE]', currentEvent, data)
             yield { type: currentEvent as SSEEventType, data }
-          } catch {
-            // Skip malformed events
+          } catch (e) {
+            console.warn('[SSE] Parse error:', currentEvent, currentData, e)
           }
           currentEvent = ''
           currentData = ''

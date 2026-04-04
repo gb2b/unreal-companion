@@ -109,11 +109,13 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 tools=tools,
                 max_tokens=4096,
             ):
-                yield event.to_sse()
+                # EventSourceResponse expects dicts with 'event' and 'data' keys
+                from dataclasses import asdict
+                data = {k: v for k, v in asdict(event).items() if k != "event"}
+                yield {"event": event.event, "data": json.dumps(data)}
         except Exception as e:
             logger.error(f"Agentic loop error: {e}", exc_info=True)
-            from services.llm_engine.events import ErrorEvent
-            yield ErrorEvent(message=str(e)).to_sse()
+            yield {"event": "error", "data": json.dumps({"message": str(e)})}
 
     return EventSourceResponse(event_generator())
 
