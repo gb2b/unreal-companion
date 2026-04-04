@@ -12,10 +12,12 @@ interface ImmersiveZoneProps {
   blocks: StreamBlock[]
   currentText: string
   isStreaming: boolean
+  agentName?: string
+  agentEmoji?: string
   onInteractionResponse: (response: string) => void
 }
 
-export function ImmersiveZone({ blocks, currentText, isStreaming, onInteractionResponse }: ImmersiveZoneProps) {
+export function ImmersiveZone({ blocks, currentText, isStreaming, agentName, agentEmoji, onInteractionResponse }: ImmersiveZoneProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export function ImmersiveZone({ blocks, currentText, isStreaming, onInteractionR
         {blocks.map((block, i) => (
           <div key={i}>
             {block.kind === 'agent_text' && (
-              <AgentBubble content={block.content} />
+              <AgentBubble content={block.content} agentName={agentName} agentEmoji={agentEmoji} />
             )}
             {block.kind === 'user_response' && (
               <div className="ml-auto max-w-[80%] rounded-lg bg-primary/10 px-4 py-2 text-sm text-foreground">
@@ -71,13 +73,19 @@ export function ImmersiveZone({ blocks, currentText, isStreaming, onInteractionR
 
         {/* Live streaming text */}
         {currentText && (
-          <AgentBubble content={currentText} />
+          <AgentBubble content={currentText} agentName={agentName} agentEmoji={agentEmoji} />
         )}
 
-        {isStreaming && !currentText && blocks.length === 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
-            Thinking...
+        {isStreaming && !currentText && (
+          <div className="flex items-center gap-3 rounded-lg border border-border/30 bg-card/50 px-4 py-3">
+            <div className="flex gap-1">
+              <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: '0ms' }} />
+              <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: '150ms' }} />
+              <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {agentName || 'Agent'} is thinking...
+            </span>
           </div>
         )}
 

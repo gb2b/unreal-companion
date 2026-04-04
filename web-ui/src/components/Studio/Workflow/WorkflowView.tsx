@@ -24,6 +24,20 @@ export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowVi
   const { language } = useI18n()
   const hasInitialized = useRef(false)
 
+  // Agent persona mapping
+  const AGENT_PERSONAS: Record<string, { name: string; emoji: string }> = {
+    'game-designer': { name: 'Zelda', emoji: '🎲' },
+    'game-architect': { name: 'Solid', emoji: '🏗️' },
+    'game-dev': { name: 'Ada', emoji: '💻' },
+    'solo-dev': { name: 'Indie', emoji: '⚡' },
+    'level-designer': { name: 'Lara', emoji: '🗺️' },
+    '3d-artist': { name: 'Navi', emoji: '🎨' },
+    'game-qa': { name: 'Tester', emoji: '🔍' },
+    'scrum-master': { name: 'Coach', emoji: '📋' },
+    'unreal-agent': { name: 'Epic', emoji: '🎮' },
+  }
+  const agentPersona = AGENT_PERSONAS[workflow.agents.primary] || { name: workflow.agents.primary, emoji: '🤖' }
+
   // Auto-start: send initial message when workflow opens with empty conversation
   useEffect(() => {
     if (hasInitialized.current || blocks.length > 0 || isStreaming) return
@@ -105,6 +119,8 @@ export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowVi
             blocks={blocks}
             currentText={currentText}
             isStreaming={isStreaming}
+            agentName={agentPersona.name}
+            agentEmoji={agentPersona.emoji}
             onInteractionResponse={handleInteractionResponse}
           />
           <InputBar
