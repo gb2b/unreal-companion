@@ -1,5 +1,7 @@
 // web-ui/src/types/sse.ts
 
+import type { InteractionBlockType } from '@/types/interactions'
+
 /** SSE event types matching the backend events.py */
 export type SSEEventType =
   | 'text_delta'
@@ -15,6 +17,9 @@ export type SSEEventType =
   | 'error'
   | 'done'
   | 'context_summarized'
+  | 'processing_status'
+  | 'micro_step'
+  | 'section_transition'
 
 export interface TextDeltaEvent {
   content: string
@@ -68,6 +73,21 @@ export interface ErrorSSEEvent {
   message: string
 }
 
+export interface ProcessingStatusEvent {
+  text: string
+}
+
+export interface MicroStepEvent {
+  prompt: string
+  interaction_type: InteractionBlockType | null
+  interaction_data: Record<string, unknown> | null
+}
+
+export interface SectionTransitionEvent {
+  from_section: string
+  to_section: string
+}
+
 export type SSEEventData =
   | TextDeltaEvent
   | TextDoneEvent
@@ -80,6 +100,9 @@ export type SSEEventData =
   | ThinkingEvent
   | UsageEvent
   | ErrorSSEEvent
+  | ProcessingStatusEvent
+  | MicroStepEvent
+  | SectionTransitionEvent
   | Record<string, never> // done event
 
 export interface SSEEvent {

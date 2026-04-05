@@ -12,7 +12,7 @@ function statusIndicator(status: SectionStatus, isActive: boolean): string {
   switch (status) {
     case 'complete': return 'bg-green-500'
     case 'in_progress': return 'bg-yellow-500'
-    case 'todo': return 'bg-orange-400'
+    case 'todo': return 'bg-orange-400/60 ring-1 ring-orange-400/30'  // skipped visual
     case 'empty': return 'bg-muted-foreground/30'
     default: return 'bg-muted-foreground/30'
   }

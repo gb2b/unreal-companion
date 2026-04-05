@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import type { ChoicesData } from '@/types/interactions'
 
 interface ChoicesBlockProps {
@@ -7,21 +8,60 @@ interface ChoicesBlockProps {
 }
 
 export function ChoicesBlock({ data, onSelect, disabled = false }: ChoicesBlockProps) {
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const isMulti = data.multi ?? false
+
+  const toggleChoice = (id: string) => {
+    if (disabled) return
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        if (!isMulti) next.clear() // single select: clear others
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  // Notify parent whenever selection changes
+  useEffect(() => {
+    onSelect(Array.from(selected))
+  }, [selected])
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {data.options.map(option => (
-        <button
-          key={option.id}
-          disabled={disabled}
-          onClick={() => onSelect([option.id])}
-          className="rounded-lg border border-border/50 bg-card px-4 py-3 text-left transition-all hover:border-primary/50 hover:shadow-sm disabled:opacity-50"
-        >
-          <span className="text-sm font-medium text-foreground">{option.label}</span>
-          {option.description && (
-            <p className="mt-1 text-xs text-muted-foreground">{option.description}</p>
-          )}
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {data.options.map(option => {
+          const isSelected = selected.has(option.id)
+          return (
+            <button
+              key={option.id}
+              disabled={disabled}
+              onClick={() => toggleChoice(option.id)}
+              className={`relative rounded-lg border px-4 py-3 text-left transition-all disabled:opacity-50 ${
+                isSelected
+                  ? 'border-primary/60 bg-primary/5 shadow-sm shadow-primary/10'
+                  : 'border-border/50 bg-card hover:border-primary/30 hover:bg-primary/[0.02]'
+              }`}
+            >
+              {isSelected && (
+                <span className="absolute right-2 top-2 text-xs text-accent font-bold">✓</span>
+              )}
+              <span className="text-sm font-medium text-foreground">{option.label}</span>
+              {option.description && (
+                <p className="mt-1 text-xs text-muted-foreground">{option.description}</p>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      {isMulti && (
+        <p className="text-xs text-muted-foreground/60">
+          Select one or more options
+        </p>
+      )}
     </div>
   )
 }

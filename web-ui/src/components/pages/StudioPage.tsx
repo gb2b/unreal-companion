@@ -42,7 +42,7 @@ import { TaskDetailPanel } from '@/components/board/TaskDetailPanel'
 import { DependencyGraph } from '@/components/board/DependencyGraph'
 import { DocumentsDashboard } from '@/components/studio/Dashboard/DocumentsDashboard'
 import { LibraryTab } from '@/components/studio/Dashboard/LibraryTab'
-import { WorkflowView } from '@/components/studio/Workflow/WorkflowView'
+import { BuilderView } from '@/components/studio/Builder/BuilderView'
 import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
@@ -284,7 +284,7 @@ export function StudioPage() {
           <span className="text-sm font-medium text-muted-foreground">{activeV2Workflow.name}</span>
         </div>
         <div className="flex-1 overflow-hidden">
-          <WorkflowView workflow={activeV2Workflow} />
+          <BuilderView workflow={activeV2Workflow} projectPath={projectPath} />
         </div>
       </div>
     )
