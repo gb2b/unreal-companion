@@ -5,7 +5,7 @@ instead of executing on Unreal Engine.
 from __future__ import annotations
 import json
 import logging
-from .events import InteractionBlock, DocumentUpdate, PrototypeReady, SectionComplete, ProcessingStatus
+from .events import InteractionBlock, DocumentUpdate, PrototypeReady, SectionComplete, ProcessingStatus, SectionAdded
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ INTERCEPTOR_NAMES = frozenset({
     "read_project_document",
     "update_project_context",
     "report_progress",
+    "add_section",
 })
 
 # Tool definitions to inject into the LLM's tool list
@@ -112,6 +113,19 @@ INTERCEPTOR_TOOLS = [
         },
     },
     {
+        "name": "add_section",
+        "description": "Add a new section to the document dynamically. Use when the conversation reveals a topic that deserves its own section.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "section_id": {"type": "string"},
+                "section_name": {"type": "string"},
+                "required": {"type": "boolean", "default": False},
+            },
+            "required": ["section_id", "section_name"],
+        },
+    },
+    {
         "name": "update_project_context",
         "description": "Update the project context summary with key decisions and facts. Call this EVERY TIME you write or update a document section. Summarize the important facts — game name, genre, core mechanics, target audience, key decisions made. Keep it concise (under 500 words). This context is read at the start of every future conversation so the entire studio knows the project state.",
         "input_schema": {
@@ -184,5 +198,12 @@ def handle_interceptor(tool_name: str, tool_input: dict) -> list:
     elif tool_name == "update_project_context":
         # Writes project-context.md — handled by tool_executor (needs project_path)
         pass
+
+    elif tool_name == "add_section":
+        events.append(SectionAdded(
+            section_id=tool_input.get("section_id", ""),
+            section_name=tool_input.get("section_name", ""),
+            required=tool_input.get("required", False),
+        ))
 
     return events

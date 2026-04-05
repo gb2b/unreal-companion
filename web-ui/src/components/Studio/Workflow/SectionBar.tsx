@@ -5,6 +5,7 @@ interface SectionBarProps {
   statuses: Record<string, SectionStatus>
   activeSection: string | null
   onSectionClick: (sectionId: string) => void
+  displayNames?: Record<string, string>
 }
 
 const SECTION_TOOLTIPS: Record<string, string> = {
@@ -28,12 +29,13 @@ function statusIndicator(status: SectionStatus, isActive: boolean): string {
   }
 }
 
-export function SectionBar({ sections, statuses, activeSection, onSectionClick }: SectionBarProps) {
+export function SectionBar({ sections, statuses, activeSection, onSectionClick, displayNames }: SectionBarProps) {
   return (
     <div data-tour="section-bar" className="flex gap-1 overflow-x-auto border-b border-border/30 px-4 py-2">
       {sections.map(section => {
         const status = statuses[section.id] || 'empty'
         const isActive = activeSection === section.id
+        const label = displayNames?.[section.id] || section.name
 
         return (
           <button
@@ -47,7 +49,7 @@ export function SectionBar({ sections, statuses, activeSection, onSectionClick }
             }`}
           >
             <span className={`inline-block h-2 w-2 rounded-full ${statusIndicator(status, isActive)}`} />
-            {section.name}
+            {label}
           </button>
         )
       })}

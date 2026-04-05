@@ -16,6 +16,7 @@ from services.llm_engine.system_prompt import SystemPromptBuilder
 from services.mcp_bridge import execute_tool
 from services.agent_manager import agent_manager
 from services.document_store import DocumentStore, DocumentMeta
+from services.microstep_store import MicroStepStore
 from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
@@ -323,3 +324,35 @@ async def list_prototypes(doc_id: str, project_path: str = ""):
     if not doc:
         raise HTTPException(404, "Document not found")
     return {"prototypes": doc["meta"].get("prototypes", [])}
+
+
+@router.get("/documents/{doc_id:path}/steps")
+async def get_steps(doc_id: str, project_path: str = ""):
+    """Load micro-steps for a document."""
+    if not project_path:
+        return {"steps": []}
+    store = MicroStepStore(project_path)
+    return {"steps": store.load_steps(doc_id)}
+
+
+@router.post("/documents/{doc_id:path}/steps")
+async def save_step(doc_id: str, project_path: str = "", step: dict = {}):
+    """Save a single micro-step."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = MicroStepStore(project_path)
+    store.save_step(doc_id, step)
+    return {"success": True}
+
+
+@router.put("/documents/{doc_id:path}/steps")
+async def save_all_steps(doc_id: str, request: Request):
+    """Save all micro-steps at once."""
+    body = await request.json()
+    project_path = body.get("project_path", "")
+    steps = body.get("steps", [])
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = MicroStepStore(project_path)
+    store.save_all_steps(doc_id, steps)
+    return {"success": True}

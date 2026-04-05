@@ -9,7 +9,7 @@ EventType = Literal[
     "text_delta", "text_done", "interaction_block", "document_update",
     "tool_call", "tool_result", "prototype_ready", "section_complete",
     "thinking", "usage", "error", "done", "context_summarized",
-    "processing_status",
+    "processing_status", "section_added",
 ]
 
 
@@ -107,3 +107,11 @@ class ErrorEvent(SSEEvent):
 @dataclass
 class DoneEvent(SSEEvent):
     event: EventType = field(default="done", init=False)
+
+
+@dataclass
+class SectionAdded(SSEEvent):
+    event: EventType = field(default="section_added", init=False)
+    section_id: str = ""
+    section_name: str = ""
+    required: bool = False

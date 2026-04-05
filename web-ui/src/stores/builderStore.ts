@@ -8,7 +8,7 @@ import type {
 } from '@/types/sse'
 import type {
   SectionStatus, Prototype, WorkflowV2,
-  MicroStep, AgentPersona,
+  WorkflowSection, MicroStep, AgentPersona,
 } from '@/types/studio'
 import type { InteractionBlockType, InteractionData } from '@/types/interactions'
 
@@ -57,12 +57,16 @@ interface BuilderState {
   // Prototypes
   prototypes: Prototype[]
 
+  // Dynamic sections (added by LLM at runtime)
+  dynamicSections: WorkflowSection[]
+
   // Token usage
   inputTokens: number
   outputTokens: number
 
   // Actions
   initWorkflow: (workflow: WorkflowV2, projectPath: string) => Promise<void>
+  setSectionDisplayNames: (names: Record<string, string>) => void
   submitResponse: (response: string) => Promise<void>
   skipSection: () => void
   goBack: () => void
@@ -87,8 +91,29 @@ const INITIAL_STATE = {
   currentStreamText: '',
   error: null,
   prototypes: [],
+  dynamicSections: [],
   inputTokens: 0,
   outputTokens: 0,
+}
+
+// --- Debounced save ---
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+function debouncedSaveSteps(microSteps: MicroStep[], workflow: WorkflowV2 | null, projectPath: string) {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    if (!workflow || !projectPath) return
+    const docId = `concept/${workflow.id}`
+    fetch(
+      `/api/v2/studio/documents/${encodeURIComponent(docId)}/steps`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_path: projectPath, steps: microSteps }),
+      }
+    ).catch(console.error)
+  }, 1000)
 }
 
 // --- Store ---
@@ -160,6 +185,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       const activeIdx = s.activeMicroStepIndex
       let statuses = { ...s.sectionStatuses }
       let protos = [...s.prototypes]
+      let dynSections = [...s.dynamicSections]
       let section = s.activeSection
       let inTkn = s.inputTokens
       let outTkn = s.outputTokens
@@ -245,8 +271,30 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             protos.push({ title: d.title, html: d.html })
             break
           }
+          case 'tool_call': {
+            // LLM is calling a tool — show thinking indicator
+            const d = event.data as any
+            const toolName = d?.name || ''
+            // Map tool names to user-friendly messages
+            const toolMessages: Record<string, string> = {
+              'show_interaction': 'Preparing options...',
+              'update_document': 'Updating document...',
+              'mark_section_complete': 'Completing section...',
+              'show_prototype': 'Building prototype...',
+              'read_project_document': 'Reading project documents...',
+              'update_project_context': 'Updating project context...',
+              'report_progress': '',
+            }
+            procText = toolMessages[toolName] || `Processing...`
+            // Clear streaming text so ProcessingState shows
+            streamText = ''
+            break
+          }
+          case 'tool_result': {
+            // Tool completed — clear processing text (next text_delta will come)
+            break
+          }
           case 'thinking': {
-            // Show as processing text
             const d = event.data as ThinkingEvent
             if (d.content) procText = d.content.slice(0, 100)
             break
@@ -255,6 +303,21 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             const d = event.data as UsageEvent
             inTkn = d.input_tokens
             outTkn += d.output_tokens
+            break
+          }
+          case 'section_added': {
+            const d = event.data as { section_id: string; section_name: string; required?: boolean }
+            // Only add if not already present in dynamic sections
+            const alreadyExists = dynSections.some(s => s.id === d.section_id)
+            if (!alreadyExists) {
+              dynSections.push({
+                id: d.section_id,
+                name: d.section_name,
+                required: d.required ?? false,
+                hints: '',
+                interaction_types: [],
+              })
+            }
             break
           }
           case 'error': {
@@ -271,10 +334,14 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         microSteps: steps,
         sectionStatuses: statuses,
         prototypes: protos,
+        dynamicSections: dynSections,
         activeSection: section,
         inputTokens: inTkn,
         outputTokens: outTkn,
       })
+
+      const { workflow, projectPath } = get()
+      debouncedSaveSteps(steps, workflow, projectPath)
     })
 
     try {
@@ -351,6 +418,24 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           }
         }
       } catch { /* ignore — document may not exist yet */ }
+
+      // Load existing micro-steps — if found, restore and skip init message
+      try {
+        const stepsRes = await fetch(
+          `/api/v2/studio/documents/${encodeURIComponent(docId)}/steps?project_path=${encodeURIComponent(projectPath)}`
+        )
+        if (stepsRes.ok) {
+          const stepsData = await stepsRes.json()
+          const loadedSteps: MicroStep[] = stepsData.steps || []
+          if (loadedSteps.length > 0) {
+            set({
+              microSteps: loadedSteps,
+              activeMicroStepIndex: loadedSteps.length - 1,
+            })
+            return
+          }
+        }
+      } catch { /* no steps yet */ }
 
       // Auto-start: send the init message
       const sectionList = workflow.sections
@@ -438,6 +523,11 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       const { microSteps } = get()
       if (index < 0 || index >= microSteps.length) return
       set({ activeMicroStepIndex: index })
+    },
+
+    setSectionDisplayNames: (_names: Record<string, string>) => {
+      // Placeholder — display names are resolved on the frontend via language detection
+      // This action exists for external callers if needed
     },
 
     reset: () => {

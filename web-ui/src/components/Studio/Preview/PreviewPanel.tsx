@@ -1,73 +1,75 @@
 // web-ui/src/components/Studio/Preview/PreviewPanel.tsx
 import { useState } from 'react'
 import { DocumentPreview } from './DocumentPreview'
-import { DocGraph } from './DocGraph'
-import { PrototypeViewer } from './PrototypeViewer'
-import type { WorkflowSection, SectionStatus, StudioDocument, Prototype } from '@/types/studio'
-
-type PreviewTab = 'document' | 'graph' | 'prototype'
+import type { WorkflowSection, SectionStatus, Prototype } from '@/types/studio'
 
 interface PreviewPanelProps {
   sections: WorkflowSection[]
   sectionStatuses: Record<string, SectionStatus>
   documentContent: string
-  documents: StudioDocument[]
+  documents: unknown[]
   prototypes: Prototype[]
   onSectionClick: (sectionId: string) => void
   onDocumentClick: (docId: string) => void
-}
-
-const TAB_LABELS: Record<PreviewTab, string> = {
-  document: '\uD83D\uDCC4 Doc',
-  graph: '\uD83D\uDDFA\uFE0F Graph',
-  prototype: '\uD83C\uDFAE Proto',
 }
 
 export function PreviewPanel({
   sections,
   sectionStatuses,
   documentContent,
-  documents,
   prototypes,
   onSectionClick,
-  onDocumentClick,
 }: PreviewPanelProps) {
-  const [activeTab, setActiveTab] = useState<PreviewTab>('document')
+  const [viewingPrototype, setViewingPrototype] = useState(false)
+
+  // Always use the latest prototype
+  const latestPrototype = prototypes.length > 0 ? prototypes[prototypes.length - 1] : null
+  const hasPrototype = latestPrototype !== null
 
   return (
     <div className="flex h-full flex-col">
-      {/* Tab bar */}
-      <div className="flex border-b border-border/30">
-        {(Object.keys(TAB_LABELS) as PreviewTab[]).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 text-xs font-medium transition-colors ${
-              activeTab === tab
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
-      </div>
+      {/* Header bar — show View Prototype button when one is available */}
+      {hasPrototype && (
+        <div className="flex items-center justify-between border-b border-border/30 px-3 py-1.5">
+          <span className="text-xs text-muted-foreground">
+            {viewingPrototype ? latestPrototype!.title : '📄 Document'}
+          </span>
+          {viewingPrototype ? (
+            <button
+              onClick={() => setViewingPrototype(false)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back to Document
+            </button>
+          ) : (
+            <button
+              onClick={() => setViewingPrototype(true)}
+              className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+            >
+              🎮 View Prototype
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'document' && (
-          <DocumentPreview
-            documentContent={documentContent}
-            sections={sections}
-            sectionStatuses={sectionStatuses}
-            onSectionClick={onSectionClick}
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {viewingPrototype && latestPrototype ? (
+          <iframe
+            srcDoc={latestPrototype.html}
+            title={latestPrototype.title}
+            className="h-full w-full border-0"
+            sandbox="allow-scripts allow-same-origin"
           />
-        )}
-        {activeTab === 'graph' && (
-          <DocGraph documents={documents} onNodeClick={onDocumentClick} />
-        )}
-        {activeTab === 'prototype' && (
-          <PrototypeViewer prototypes={prototypes} />
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <DocumentPreview
+              documentContent={documentContent}
+              sections={sections}
+              sectionStatuses={sectionStatuses}
+              onSectionClick={onSectionClick}
+            />
+          </div>
         )}
       </div>
     </div>

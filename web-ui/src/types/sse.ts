@@ -20,6 +20,7 @@ export type SSEEventType =
   | 'processing_status'
   | 'micro_step'
   | 'section_transition'
+  | 'section_added'
 
 export interface TextDeltaEvent {
   content: string
@@ -88,6 +89,12 @@ export interface SectionTransitionEvent {
   to_section: string
 }
 
+export interface SectionAddedEvent {
+  section_id: string
+  section_name: string
+  required?: boolean
+}
+
 export type SSEEventData =
   | TextDeltaEvent
   | TextDoneEvent
@@ -103,6 +110,7 @@ export type SSEEventData =
   | ProcessingStatusEvent
   | MicroStepEvent
   | SectionTransitionEvent
+  | SectionAddedEvent
   | Record<string, never> // done event
 
 export interface SSEEvent {

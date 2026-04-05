@@ -6,6 +6,7 @@ import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { ProcessingState } from './ProcessingState'
 import { StepNavigation } from './StepNavigation'
+import { useI18n } from '@/i18n/useI18n'
 
 /** Collapsible thinking block — shows previous text from the LLM in this step */
 function ThinkingBlock({ content }: { content: string }) {
@@ -55,6 +56,7 @@ export function StepSlide({
   onBack,
   onSkip,
 }: StepSlideProps) {
+  const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
   const [selectedChoices, setSelectedChoices] = useState<string[]>([])
   const [agentReaction, setAgentReaction] = useState<string | null>(null)
@@ -74,10 +76,14 @@ export function StepSlide({
   const hasTextInput = textValue.trim().length > 0
   const hasResponse = hasSelection || hasTextInput
 
-  // Dynamic placeholder
+  // Dynamic placeholder (translated)
   const placeholder = hasSelection
-    ? 'Add details about your selection (optional)...'
-    : 'Describe your choice or type freely...'
+    ? (language === 'fr' ? 'Ajoutez des détails sur votre sélection (optionnel)...' : 'Add details about your selection (optional)...')
+    : (language === 'fr' ? 'Décrivez votre choix ou tapez librement...' : 'Describe your choice or type freely...')
+
+  const enterHint = language === 'fr'
+    ? 'Entrée pour envoyer · Maj+Entrée pour une nouvelle ligne'
+    : 'Press Enter to submit · Shift+Enter for new line'
 
   const handleInteractionSelect = useCallback(
     (response: string) => {
@@ -209,7 +215,7 @@ export function StepSlide({
                 className="w-full resize-none rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground/50">
-                Press Enter to submit · Shift+Enter for new line
+                {enterHint}
               </p>
             </div>
           )}

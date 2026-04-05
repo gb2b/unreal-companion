@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
+import { useI18n } from '@/i18n/useI18n'
 import { SectionBar } from '@/components/studio/Workflow/SectionBar'
 import { PreviewPanel } from '@/components/studio/Preview/PreviewPanel'
 import { MicroTimeline } from './MicroTimeline'
@@ -14,8 +15,20 @@ interface BuilderViewProps {
   projectPath: string
 }
 
+const SECTION_NAMES_FR: Record<string, string> = {
+  init: 'Initialisation',
+  identity: 'Identité',
+  vision: 'Vision',
+  pillars: 'Piliers',
+  references: 'Références',
+  audience: 'Public cible',
+  scope: 'Périmètre',
+  review: 'Validation',
+}
+
 export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
   const hasInitialized = useRef(false)
+  const { language } = useI18n()
   // Confetti removed
 
   const {
@@ -35,7 +48,11 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
     currentStreamText,
     prototypes,
     agent,
+    dynamicSections,
   } = useBuilderStore()
+
+  const allSections = [...workflow.sections, ...dynamicSections]
+  const sectionDisplayNames = language === 'fr' ? SECTION_NAMES_FR : undefined
 
   useEffect(() => {
     if (hasInitialized.current) return
@@ -105,10 +122,11 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
 
       {/* Section Bar (top, full width) */}
       <SectionBar
-        sections={workflow.sections}
+        sections={allSections}
         statuses={sectionStatuses}
         activeSection={activeSection}
         onSectionClick={jumpToSection}
+        displayNames={sectionDisplayNames}
       />
 
       {/* Main area: 3-column flex */}
@@ -138,7 +156,7 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
         {/* Right: PreviewPanel (w-[400px], shrink-0) */}
         <div data-tour="preview" className="w-[400px] shrink-0">
           <PreviewPanel
-            sections={workflow.sections}
+            sections={allSections}
             sectionStatuses={sectionStatuses}
             documentContent=""
             documents={[]}
