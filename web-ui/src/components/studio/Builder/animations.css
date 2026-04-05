@@ -1,0 +1,65 @@
+/* Slide transitions between micro-steps */
+.step-enter { opacity: 0; transform: translateX(20px); }
+.step-enter-active { opacity: 1; transform: translateX(0); transition: all 0.3s ease-out; }
+.step-exit { opacity: 1; transform: translateX(0); }
+.step-exit-active { opacity: 0; transform: translateX(-20px); transition: all 0.3s ease-out; }
+
+/* Stagger animation for choice cards */
+.choice-stagger > * {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeSlideUp 0.3s ease-out forwards;
+}
+.choice-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.choice-stagger > *:nth-child(2) { animation-delay: 80ms; }
+.choice-stagger > *:nth-child(3) { animation-delay: 160ms; }
+.choice-stagger > *:nth-child(4) { animation-delay: 240ms; }
+.choice-stagger > *:nth-child(5) { animation-delay: 320ms; }
+.choice-stagger > *:nth-child(6) { animation-delay: 400ms; }
+
+@keyframes fadeSlideUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Section bar pulse on active */
+.section-pulse {
+  animation: sectionPulse 2s infinite;
+}
+@keyframes sectionPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.2); }
+  50% { box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.05); }
+}
+
+/* Preview typing cursor */
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: hsl(var(--primary));
+  animation: cursorBlink 1s infinite;
+  vertical-align: text-bottom;
+  margin-left: 1px;
+}
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Section complete flash */
+.section-complete-flash {
+  animation: completeFlash 0.6s ease-out;
+}
+@keyframes completeFlash {
+  0% { background: rgba(0, 217, 128, 0.3); }
+  100% { background: rgba(0, 217, 128, 0.08); }
+}
+
+/* Timeline dot bounce on complete */
+.dot-bounce {
+  animation: dotBounce 0.4s ease-out;
+}
+@keyframes dotBounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}

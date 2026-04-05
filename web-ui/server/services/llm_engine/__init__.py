@@ -4,7 +4,7 @@ LLM Engine -- SSE streaming, agentic loop, multi-provider.
 Usage:
     from services.llm_engine import AgenticLoop, SSEEvent
 """
-from .events import SSEEvent, TextDelta, TextDone, InteractionBlock, DocumentUpdate, ToolCall, ToolResult, PrototypeReady, SectionComplete, ThinkingEvent, UsageEvent, ErrorEvent, DoneEvent
+from .events import SSEEvent, TextDelta, TextDone, InteractionBlock, DocumentUpdate, ToolCall, ToolResult, PrototypeReady, SectionComplete, ThinkingEvent, UsageEvent, ErrorEvent, DoneEvent, ProcessingStatus
 
 # AgenticLoop imported lazily once agentic_loop.py exists (Task 1.3+)
 try:
@@ -17,4 +17,5 @@ __all__ = [
     "SSEEvent", "TextDelta", "TextDone", "InteractionBlock",
     "DocumentUpdate", "ToolCall", "ToolResult", "PrototypeReady",
     "SectionComplete", "ThinkingEvent", "UsageEvent", "ErrorEvent", "DoneEvent",
+    "ProcessingStatus",
 ]

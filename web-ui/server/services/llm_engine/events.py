@@ -9,6 +9,7 @@ EventType = Literal[
     "text_delta", "text_done", "interaction_block", "document_update",
     "tool_call", "tool_result", "prototype_ready", "section_complete",
     "thinking", "usage", "error", "done", "context_summarized",
+    "processing_status",
 ]
 
 
@@ -82,6 +83,12 @@ class SectionComplete(SSEEvent):
 class ThinkingEvent(SSEEvent):
     event: EventType = field(default="thinking", init=False)
     content: str = ""
+
+
+@dataclass
+class ProcessingStatus(SSEEvent):
+    event: EventType = field(default="processing_status", init=False)
+    text: str = ""  # e.g., "Writing Vision section...", "Analyzing references..."
 
 
 @dataclass

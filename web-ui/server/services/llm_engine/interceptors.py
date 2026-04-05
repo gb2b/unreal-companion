@@ -5,7 +5,7 @@ instead of executing on Unreal Engine.
 from __future__ import annotations
 import json
 import logging
-from .events import InteractionBlock, DocumentUpdate, PrototypeReady, SectionComplete
+from .events import InteractionBlock, DocumentUpdate, PrototypeReady, SectionComplete, ProcessingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,9 @@ INTERCEPTOR_NAMES = frozenset({
     "update_document",
     "mark_section_complete",
     "ask_user",
+    "read_project_document",
+    "update_project_context",
+    "report_progress",
 })
 
 # Tool definitions to inject into the LLM's tool list
@@ -86,6 +89,42 @@ INTERCEPTOR_TOOLS = [
             "required": ["question"],
         },
     },
+    {
+        "name": "read_project_document",
+        "description": "Read the full content of a project document. Use this when you need to reference or build upon an existing document (e.g., reading the Game Brief to inform the GDD).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "document_id": {"type": "string", "description": "Document ID (e.g., 'concept/game-brief', 'design/gdd')"},
+            },
+            "required": ["document_id"],
+        },
+    },
+    {
+        "name": "report_progress",
+        "description": "Report what you're currently doing to the user. Call this before starting a lengthy operation like writing a document section or generating a prototype.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "What you're doing, e.g., 'Writing the Vision section...'"},
+            },
+            "required": ["status"],
+        },
+    },
+    {
+        "name": "update_project_context",
+        "description": "Update the project context summary with key decisions and facts. Call this EVERY TIME you write or update a document section. Summarize the important facts — game name, genre, core mechanics, target audience, key decisions made. Keep it concise (under 500 words). This context is read at the start of every future conversation so the entire studio knows the project state.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "summary": {
+                    "type": "string",
+                    "description": "The complete updated project context summary in markdown. Include: game identity, key design decisions, current status, important constraints."
+                },
+            },
+            "required": ["summary"],
+        },
+    },
 ]
 
 
@@ -133,6 +172,17 @@ def handle_interceptor(tool_name: str, tool_input: dict) -> list:
 
     elif tool_name == "ask_user":
         # ask_user is handled by the agentic loop as a pause signal
+        pass
+
+    elif tool_name == "report_progress":
+        events.append(ProcessingStatus(text=tool_input.get("status", "")))
+
+    elif tool_name == "read_project_document":
+        # Returns content to LLM — handled by tool_executor, not SSE events
+        pass
+
+    elif tool_name == "update_project_context":
+        # Writes project-context.md — handled by tool_executor (needs project_path)
         pass
 
     return events

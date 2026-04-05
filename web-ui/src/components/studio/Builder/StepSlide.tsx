@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { MicroStep } from '@/types/studio'
@@ -57,6 +57,8 @@ export function StepSlide({
 }: StepSlideProps) {
   const [textValue, setTextValue] = useState('')
   const [selectedChoices, setSelectedChoices] = useState<string[]>([])
+  const [agentReaction, setAgentReaction] = useState<string | null>(null)
+  const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // All text blocks accumulated in this micro-step
   const prompts = microStep?.agentPrompts || []
@@ -85,6 +87,13 @@ export function StepSlide({
         setSelectedChoices(ids)
       } else {
         setSelectedChoices([])
+      }
+      // Show brief agent reaction on selection
+      if (response) {
+        const reactions = ['👍', '✨', '💡', '🎯', '🔥']
+        setAgentReaction(reactions[Math.floor(Math.random() * reactions.length)])
+        if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current)
+        reactionTimerRef.current = setTimeout(() => setAgentReaction(null), 1000)
       }
     },
     [],
@@ -129,7 +138,7 @@ export function StepSlide({
   )
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden">
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
@@ -150,12 +159,19 @@ export function StepSlide({
 
           {/* Agent Prompt — rendered as markdown, even during streaming */}
           {(displayText || streamingText) && (
-            <AgentPrompt
-              content={displayText || streamingText}
-              agentName={agentName}
-              agentEmoji={agentEmoji}
-              isStreaming={isProcessing && prompts.length === 0}
-            />
+            <div className="relative">
+              <AgentPrompt
+                content={displayText || streamingText}
+                agentName={agentName}
+                agentEmoji={agentEmoji}
+                isStreaming={isProcessing && prompts.length === 0}
+              />
+              {agentReaction && (
+                <span className="absolute -right-2 -top-2 animate-bounce text-lg">
+                  {agentReaction}
+                </span>
+              )}
+            </div>
           )}
 
           {/* Thinking indicator — shown when LLM is processing between text blocks */}
@@ -169,12 +185,14 @@ export function StepSlide({
 
           {/* Interaction Component — only after streaming is done */}
           {hasInteraction && !isProcessing && (
-            <InteractionRenderer
-              type={microStep!.interactionType!}
-              data={microStep!.interactionData!}
-              onResponse={handleInteractionSelect}
-              disabled={isProcessing}
-            />
+            <div className="choice-stagger">
+              <InteractionRenderer
+                type={microStep!.interactionType!}
+                data={microStep!.interactionData!}
+                onResponse={handleInteractionSelect}
+                disabled={isProcessing}
+              />
+            </div>
           )}
 
           {/* Text Input — only visible when ready to respond */}

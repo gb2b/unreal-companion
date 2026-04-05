@@ -3,6 +3,7 @@ Studio V2 API -- SSE streaming chat + document management.
 """
 import json
 import logging
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -17,6 +18,7 @@ from services.agent_manager import agent_manager
 from services.document_store import DocumentStore, DocumentMeta
 from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
+from services.project_context import build_project_summary
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +32,16 @@ class StudioChatRequest(BaseModel):
     message: str
     conversation_id: str = ""
     workflow_id: str = ""
+    document_id: str = ""  # Explicit document ID (e.g. 'concept/game-brief')
     agent: str = "game-designer"
     section_focus: str = ""  # Optional: which section to focus on
     language: str = "en"  # User's preferred language (en, fr, etc.)
     project_path: str = ""  # Project path for document context
+
+
+class DocumentResumeRequest(BaseModel):
+    document_id: str
+    project_path: str
 
 
 @router.post("/chat")
@@ -95,24 +103,10 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         .add_security_rules()
     )
 
-    # Load existing project documents for context
+    # Add compact project context (document index, not full dump)
     if request.project_path:
-        try:
-            doc_store = DocumentStore(request.project_path)
-            existing_docs = doc_store.list_documents()
-            if existing_docs:
-                doc_context = []
-                for doc in existing_docs:
-                    content = doc_store.get_document(doc.get("id", ""))
-                    if content:
-                        doc_context.append({
-                            "name": doc.get("name", doc.get("id", "")),
-                            "content": content[:2000],
-                        })
-                if doc_context:
-                    builder.add_uploaded_context(doc_context)
-        except Exception:
-            pass
+        summary = build_project_summary(request.project_path)
+        builder.add_project_context(summary)
 
     # Add workflow briefing and document template if workflow specified
     if request.workflow_id:
@@ -136,8 +130,32 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     if ctx_mgr.needs_summarization:
         messages, _ = ctx_mgr.summarize_messages(messages)
 
-    # Tool executor: forwards to MCP bridge
+    # Tool executor: handles local tools, then forwards to MCP bridge
     async def tool_executor(name: str, tool_input: dict) -> str:
+        # Handle read_project_document locally (not via MCP)
+        if name == "read_project_document":
+            doc_id = tool_input.get("document_id", "")
+            try:
+                store = DocumentStore(request.project_path)
+                doc = store.get_document(doc_id)
+                if doc:
+                    return json.dumps({"success": True, "content": doc["content"][:4000]})
+                return json.dumps({"success": False, "error": f"Document '{doc_id}' not found"})
+            except Exception as e:
+                return json.dumps({"success": False, "error": str(e)})
+
+        # Handle update_project_context locally (not via MCP)
+        if name == "update_project_context":
+            summary = tool_input.get("summary", "")
+            try:
+                context_path = Path(request.project_path) / ".unreal-companion" / "project-context.md"
+                context_path.parent.mkdir(parents=True, exist_ok=True)
+                context_path.write_text(summary, encoding="utf-8")
+                return json.dumps({"success": True})
+            except Exception as e:
+                return json.dumps({"success": False, "error": str(e)})
+
+        # All other tools → MCP bridge
         try:
             result = await execute_tool(name, tool_input)
             return json.dumps(result, default=str)
@@ -152,10 +170,49 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     except Exception:
         pass  # No Unreal connection -- interceptor tools still work
 
+    # --- Document persistence setup ---
+    # If [WORKFLOW_START] is in the message, create the document record now
+    is_workflow_start = "[WORKFLOW_START]" in request.message
+    doc_id = request.document_id  # May be empty for non-workflow chats
+
+    if is_workflow_start and request.project_path and request.workflow_id and not doc_id:
+        # Infer document_id from workflow_id: "game-brief" -> "concept/game-brief"
+        # We default to "concept/<workflow_id>" if no explicit doc_id provided
+        doc_id = f"concept/{request.workflow_id}"
+
+    if is_workflow_start and request.project_path and doc_id:
+        try:
+            doc_store = DocumentStore(request.project_path)
+            existing = doc_store.get_document(doc_id)
+            if not existing:
+                # Create document stub
+                doc_store.save_document(
+                    doc_id,
+                    f"# {request.workflow_id.replace('-', ' ').title()}\n\n",
+                    DocumentMeta(
+                        workflow_id=request.workflow_id,
+                        agent=request.agent,
+                        status="in_progress",
+                        conversation_id=conv_id,
+                    ),
+                )
+                logger.info(f"Created document stub: {doc_id}")
+            else:
+                # Update conversation_id on existing document
+                meta_path = doc_store.root / f"{doc_id}.meta.json"
+                if meta_path.exists():
+                    import json as _json
+                    raw = _json.loads(meta_path.read_text(encoding="utf-8"))
+                    raw["conversation_id"] = conv_id
+                    meta_path.write_text(_json.dumps(raw, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Failed to init document {doc_id}: {e}")
+
     # Run the agentic loop as an SSE stream
     loop = AgenticLoop(provider, tool_executor)
 
     async def event_generator():
+        from dataclasses import asdict
         try:
             async for event in loop.run(
                 messages=messages,
@@ -163,8 +220,20 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 tools=tools,
                 max_tokens=4096,
             ):
+                # Persist document_update events to disk
+                if event.event == "document_update" and request.project_path and doc_id:
+                    try:
+                        persist_store = DocumentStore(request.project_path)
+                        event_data = asdict(event)
+                        section_id = event_data.get("section_id", "")
+                        content = event_data.get("content", "")
+                        status = event_data.get("status", "in_progress")
+                        if section_id and content:
+                            persist_store.update_section(doc_id, section_id, content, status)
+                    except Exception as e:
+                        logger.warning(f"Failed to persist document_update for {doc_id}: {e}")
+
                 # EventSourceResponse expects dicts with 'event' and 'data' keys
-                from dataclasses import asdict
                 data = {k: v for k, v in asdict(event).items() if k != "event"}
                 yield {"event": event.event, "data": json.dumps(data)}
         except Exception as e:
@@ -207,6 +276,23 @@ async def update_document(doc_id: str, body: DocumentUpdateRequest, project_path
     store = DocumentStore(project_path)
     store.save_document(doc_id, body.content)
     return {"success": True}
+
+
+@router.post("/documents/resume")
+async def resume_document(body: DocumentResumeRequest):
+    """
+    Resume a document workflow — returns the document metadata so the frontend
+    can restore section statuses, conversation_id, and other state.
+    """
+    store = DocumentStore(body.project_path)
+    doc = store.get_document(body.document_id)
+    if not doc:
+        raise HTTPException(404, f"Document not found: {body.document_id}")
+    return {
+        "document_id": body.document_id,
+        "meta": doc["meta"],
+        "content": doc["content"],
+    }
 
 
 @router.get("/workflows")

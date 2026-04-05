@@ -62,11 +62,12 @@ interface BuilderState {
   outputTokens: number
 
   // Actions
-  initWorkflow: (workflow: WorkflowV2, projectPath: string) => void
+  initWorkflow: (workflow: WorkflowV2, projectPath: string) => Promise<void>
   submitResponse: (response: string) => Promise<void>
   skipSection: () => void
   goBack: () => void
   jumpToSection: (sectionId: string) => void
+  scrollToSection: (sectionId: string) => void
   jumpToMicroStep: (index: number) => void
   reset: () => void
 }
@@ -306,7 +307,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
   return {
     ...INITIAL_STATE,
 
-    initWorkflow: (workflow, projectPath) => {
+    initWorkflow: async (workflow, projectPath) => {
       abortController?.abort()
       stepCounter = 0
       const persona = AGENT_PERSONAS[workflow.agents.primary] || {
@@ -325,18 +326,47 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         activeSection: firstSectionId,
       })
 
+      // Check if a document already exists for this workflow
+      const docId = `concept/${workflow.id}`
+      let existingSectionStatuses: Record<string, SectionStatus> = {}
+      try {
+        const res = await fetch(`/api/v2/studio/documents/resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document_id: docId, project_path: projectPath }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const sections = data?.meta?.sections || {}
+          for (const [sectionId, sectionData] of Object.entries(sections)) {
+            const s = sectionData as { status?: string }
+            if (s?.status === 'complete') {
+              existingSectionStatuses[sectionId] = 'complete'
+            } else if (s?.status === 'in_progress') {
+              existingSectionStatuses[sectionId] = 'in_progress'
+            }
+          }
+          if (Object.keys(existingSectionStatuses).length > 0) {
+            set({ sectionStatuses: existingSectionStatuses })
+          }
+        }
+      } catch { /* ignore — document may not exist yet */ }
+
       // Auto-start: send the init message
       const sectionList = workflow.sections
         .map(s => `- ${s.name}${s.required ? ' (required)' : ' (optional)'}`)
         .join('\n')
 
+      const hasExistingContent = Object.keys(existingSectionStatuses).length > 0
       const initMessage = [
         `[WORKFLOW_START]`,
         `Workflow: ${workflow.name}`,
         `Description: ${workflow.description}`,
         `Sections to fill:\n${sectionList}`,
         ``,
-        `Greet the user and start the workflow. Introduce yourself with your persona.`,
+        hasExistingContent
+          ? `This document already has some sections filled (see project context). Resume where we left off.`
+          : `Greet the user and start the workflow. Introduce yourself with your persona.`,
         `Propose how to get started: either answer some questions to fill the document,`,
         `or upload an existing document/brief to pre-fill sections.`,
         `Show a choices block with: "Start from scratch", "Upload existing document", "Quick start (fill basics fast)".`,
@@ -389,6 +419,19 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
 
     jumpToSection: (sectionId) => {
       sendToSSE(`Let's work on the ${sectionId} section.`, { sectionFocus: sectionId })
+    },
+
+    scrollToSection: (sectionId) => {
+      // Scroll to the section's micro-steps in the timeline without sending a new message.
+      // If the section matches activeSection, find the first micro-step for that section.
+      const { microSteps, activeSection } = get()
+      if (sectionId === activeSection && microSteps.length > 0) {
+        // Jump to the first micro-step (beginning of the current section)
+        set({ activeMicroStepIndex: 0 })
+      }
+      // If the section is a different one, just update activeSection visually
+      // without sending a new LLM message
+      set({ activeSection: sectionId })
     },
 
     jumpToMicroStep: (index) => {

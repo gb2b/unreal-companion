@@ -7,6 +7,16 @@ interface SectionBarProps {
   onSectionClick: (sectionId: string) => void
 }
 
+const SECTION_TOOLTIPS: Record<string, string> = {
+  identity: 'Game name, genre, tagline, and platform',
+  vision: 'The core experience players will feel',
+  pillars: '3-5 guiding principles for every design decision',
+  references: 'Games, media, and art that inspire your project',
+  audience: 'Who will play your game and why',
+  scope: 'Platform, team size, timeline, and MVP scope',
+  review: 'Review and finalize the complete document',
+}
+
 function statusIndicator(status: SectionStatus, isActive: boolean): string {
   if (isActive) return 'animate-pulse bg-primary'
   switch (status) {
@@ -20,7 +30,7 @@ function statusIndicator(status: SectionStatus, isActive: boolean): string {
 
 export function SectionBar({ sections, statuses, activeSection, onSectionClick }: SectionBarProps) {
   return (
-    <div className="flex gap-1 overflow-x-auto border-b border-border/30 px-4 py-2">
+    <div data-tour="section-bar" className="flex gap-1 overflow-x-auto border-b border-border/30 px-4 py-2">
       {sections.map(section => {
         const status = statuses[section.id] || 'empty'
         const isActive = activeSection === section.id
@@ -29,9 +39,10 @@ export function SectionBar({ sections, statuses, activeSection, onSectionClick }
           <button
             key={section.id}
             onClick={() => onSectionClick(section.id)}
+            title={SECTION_TOOLTIPS[section.id] || section.name}
             className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-all ${
               isActive
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-primary/10 text-primary section-pulse'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >

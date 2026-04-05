@@ -1,44 +1,52 @@
+import { useState, useEffect } from 'react'
+
 interface ProcessingStateProps {
-  text: string
   agentName: string
   agentEmoji: string
+  processingText?: string  // from SSE processing_status event
+  sectionName?: string
+  // Legacy prop — kept for backward compatibility
+  text?: string
 }
 
-export function ProcessingState({ text, agentName, agentEmoji }: ProcessingStateProps) {
+export function ProcessingState({ agentName, agentEmoji, processingText, sectionName, text }: ProcessingStateProps) {
+  const [dotCount, setDotCount] = useState(0)
+  const [fallbackIdx, setFallbackIdx] = useState(0)
+
+  // Animated dots
+  useEffect(() => {
+    const timer = setInterval(() => setDotCount(d => (d + 1) % 4), 400)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Rotate fallback messages if no processingText from SSE
+  const fallbackMessages = [
+    `${agentEmoji} ${agentName} is thinking`,
+    `Analyzing your response`,
+    sectionName ? `Working on ${sectionName}` : `Preparing next question`,
+    `Almost there`,
+  ]
+  useEffect(() => {
+    const effectiveText = processingText || text
+    if (effectiveText) return
+    const timer = setInterval(() => setFallbackIdx(i => (i + 1) % fallbackMessages.length), 2500)
+    return () => clearInterval(timer)
+  }, [processingText, text, fallbackMessages.length])
+
+  const effectiveText = processingText || text
+  const displayText = effectiveText || fallbackMessages[fallbackIdx]
+  const dots = '.'.repeat(dotCount)
+
   return (
-    <div className="rounded-xl border border-border/30 bg-card/50 p-6">
-      {/* Header */}
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-sm">
-          {agentEmoji}
-        </div>
-        <span className="text-sm font-medium text-foreground">
-          {agentName} is working...
-        </span>
+    <div className="flex items-center gap-3 rounded-xl border border-border/30 bg-card/50 px-5 py-4">
+      <div className="flex gap-1">
+        <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: '0ms' }} />
+        <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: '150ms' }} />
+        <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-primary" style={{ animationDelay: '300ms' }} />
       </div>
-
-      {/* Bouncing dots */}
-      <div className="flex gap-1.5">
-        <span
-          className="h-2 w-2 animate-bounce rounded-full bg-primary"
-          style={{ animationDelay: '0ms' }}
-        />
-        <span
-          className="h-2 w-2 animate-bounce rounded-full bg-primary"
-          style={{ animationDelay: '150ms' }}
-        />
-        <span
-          className="h-2 w-2 animate-bounce rounded-full bg-primary"
-          style={{ animationDelay: '300ms' }}
-        />
-      </div>
-
-      {/* Processing text */}
-      {(text || 'Thinking...') && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {text || 'Thinking...'}
-        </p>
-      )}
+      <span className="text-sm text-muted-foreground transition-all duration-300">
+        {displayText}{dots}
+      </span>
     </div>
   )
 }

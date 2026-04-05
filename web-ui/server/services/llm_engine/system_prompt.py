@@ -14,6 +14,8 @@ You have special tools to create rich interactions:
 - **update_document**: Update a section of the document being built
 - **mark_section_complete**: Mark a section as done (user sees confirmation)
 - **ask_user**: Pause and wait for user input
+- **read_project_document**: Read the full content of an existing project document
+- **update_project_context**: Update the living project context summary
 
 ### Interaction Types
 - `choices`: Show clickable cards. data: {options: [{id, label, description?}], multi?: bool}
@@ -28,6 +30,12 @@ You have special tools to create rich interactions:
 - If the user says "skip", mark the section as TODO and move on
 - Always save progress via update_document as you go
 - Propose prototypes for gameplay mechanics when relevant
+
+### Project Context
+- After EVERY document section update, call `update_project_context` to refresh the project summary
+- The summary should capture: game name, genre, core pillars, key mechanics, target audience, platforms, scope, and any important decisions
+- Keep it under 500 words — it's read at the start of every future conversation
+- Write it as a living document, not a log — replace with the latest state, don't append
 """
 
 SECURITY_RULES = """
@@ -117,6 +125,12 @@ class SystemPromptBuilder:
             f"tool call descriptions, interaction labels, and document content. "
             f"The user's preferred language is {lang_name} — use it even if the user writes in a different language."
         ), priority=5)  # Highest priority — before agent persona
+
+    def add_project_context(self, summary: str) -> "SystemPromptBuilder":
+        """Add compact project context (document index, not full content)."""
+        if summary.strip():
+            return self.add("ProjectContext", summary, priority=15)
+        return self
 
     def add_interaction_guide(self) -> "SystemPromptBuilder":
         """Add the interaction guide for interceptor tools."""

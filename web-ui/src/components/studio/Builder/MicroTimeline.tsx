@@ -17,7 +17,7 @@ export function MicroTimeline({ steps, activeIndex, onStepClick, sectionName }: 
   }, [activeIndex])
 
   return (
-    <div className="flex w-64 shrink-0 flex-col border-r border-border/30 bg-card/30 overflow-y-auto">
+    <div data-tour="timeline" className="flex w-64 shrink-0 flex-col border-r border-border/30 bg-card/30 overflow-y-auto">
       {/* Header */}
       <div className="px-3 py-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
