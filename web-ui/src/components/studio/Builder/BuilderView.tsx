@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
 import { SectionBar } from '@/components/studio/Workflow/SectionBar'
 import { PreviewPanel } from '@/components/studio/Preview/PreviewPanel'
 import { MicroTimeline } from './MicroTimeline'
 import { StepSlide } from './StepSlide'
-import { Confetti } from './Confetti'
+// Confetti removed — too random, replaced with subtler section flash animation
 import { OnboardingTour } from './OnboardingTour'
 import './animations.css'
 
@@ -16,7 +16,7 @@ interface BuilderViewProps {
 
 export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
   const hasInitialized = useRef(false)
-  const [showConfetti, setShowConfetti] = useState(false)
+  // Confetti removed
 
   const {
     initWorkflow,
@@ -42,16 +42,6 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
     hasInitialized.current = true
     initWorkflow(workflow, projectPath)
   }, [initWorkflow, workflow, projectPath])
-
-  // Watch for newly completed sections to trigger confetti
-  const prevStatusesRef = useRef<Record<string, string>>({})
-  useEffect(() => {
-    const newlyComplete = Object.entries(sectionStatuses).find(
-      ([id, s]) => s === 'complete' && prevStatusesRef.current[id] !== 'complete'
-    )
-    if (newlyComplete) setShowConfetti(true)
-    prevStatusesRef.current = { ...sectionStatuses }
-  }, [sectionStatuses])
 
   const activeMicroStep = microSteps[activeMicroStepIndex] ?? null
 
@@ -109,8 +99,6 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Confetti on section complete */}
-      <Confetti trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
 
       {/* Onboarding tour (first time) */}
       <OnboardingTour />

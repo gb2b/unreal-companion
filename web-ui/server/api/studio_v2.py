@@ -235,10 +235,10 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
                 # EventSourceResponse expects dicts with 'event' and 'data' keys
                 data = {k: v for k, v in asdict(event).items() if k != "event"}
-                yield {"event": event.event, "data": json.dumps(data)}
+                yield {"event": event.event, "data": json.dumps(data, ensure_ascii=False)}
         except Exception as e:
             logger.error(f"Agentic loop error: {e}", exc_info=True)
-            yield {"event": "error", "data": json.dumps({"message": str(e)})}
+            yield {"event": "error", "data": json.dumps({"message": str(e)}, ensure_ascii=False)}
 
     return EventSourceResponse(event_generator())
 
