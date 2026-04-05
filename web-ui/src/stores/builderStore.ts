@@ -8,7 +8,7 @@ import type {
 } from '@/types/sse'
 import type {
   SectionStatus, Prototype, WorkflowV2,
-  WorkflowSection, MicroStep, AgentPersona,
+  WorkflowSection, MicroStep, AgentPersona, StepBlock,
 } from '@/types/studio'
 import type { InteractionBlockType, InteractionData } from '@/types/interactions'
 
@@ -160,7 +160,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
     // Create a new micro-step for the agent's response
     const newStep: MicroStep = {
       id: nextStepId(),
-      agentPrompts: [],
+      blocks: [],
       interactionType: null,
       interactionData: null,
       userResponse: null,
@@ -177,6 +177,17 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       activeMicroStepIndex: s.microSteps.length, // point to the new step
     }))
 
+    // Tool name → user-friendly label map
+    const TOOL_LABELS: Record<string, string> = {
+      'show_interaction': 'Preparing options',
+      'update_document': 'Updating document',
+      'mark_section_complete': 'Completing section',
+      'show_prototype': 'Building prototype',
+      'read_project_document': 'Reading project documents',
+      'update_project_context': 'Updating project context',
+      'report_progress': 'Reporting progress',
+    }
+
     const batcher = new StreamBatcher<SSEEvent>((batch) => {
       const s = get()
       let streamText = s.currentStreamText
@@ -190,38 +201,65 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       let inTkn = s.inputTokens
       let outTkn = s.outputTokens
 
+      // Helper: get blocks array of active step (mutable copy already made above)
+      function getBlocks(): StepBlock[] {
+        return steps[activeIdx] ? [...steps[activeIdx].blocks] : []
+      }
+      function setBlocks(blocks: StepBlock[]) {
+        if (!steps[activeIdx]) return
+        // Derive summary from last text block
+        const lastText = [...blocks].reverse().find(b => b.kind === 'text')
+        const summary = lastText
+          ? (lastText.content.length > 80
+            ? lastText.content.replace(/[#*_`]/g, '').slice(0, 77) + '...'
+            : lastText.content.replace(/[#*_`]/g, ''))
+          : steps[activeIdx].summary
+        steps[activeIdx] = { ...steps[activeIdx], blocks, summary: summary ?? null }
+      }
+
       for (const event of batch) {
         switch (event.type) {
           case 'text_delta': {
             const d = event.data as TextDeltaEvent
             streamText += d.content
+            // Update (or push) the streaming block
+            const blocks = getBlocks()
+            const last = blocks[blocks.length - 1]
+            if (last?.kind === 'streaming') {
+              blocks[blocks.length - 1] = { kind: 'streaming', content: last.content + d.content }
+            } else {
+              blocks.push({ kind: 'streaming', content: streamText })
+            }
+            setBlocks(blocks)
             break
           }
           case 'text_done': {
             const d = event.data as TextDoneEvent
-            // Append text block to the micro-step's agentPrompts array.
-            // The LLM may send multiple text blocks in one agentic loop
-            // (text → tool call → text → tool call → text).
-            // All are kept. The LAST one is the main prompt, others are "thinking".
-            if (steps[activeIdx]) {
-              const prompts = [...steps[activeIdx].agentPrompts, d.content]
-              const lastPrompt = prompts[prompts.length - 1]
-              steps[activeIdx] = {
-                ...steps[activeIdx],
-                agentPrompts: prompts,
-                summary: lastPrompt.length > 80
-                  ? lastPrompt.replace(/[#*_`]/g, '').slice(0, 77) + '...'
-                  : lastPrompt.replace(/[#*_`]/g, ''),
-              }
+            const blocks = getBlocks()
+            // Replace the last streaming block with a text block (or push a new text block)
+            const lastIdx = blocks.map(b => b.kind).lastIndexOf('streaming')
+            if (lastIdx !== -1) {
+              blocks[lastIdx] = { kind: 'text', content: d.content }
+            } else {
+              blocks.push({ kind: 'text', content: d.content })
             }
+            setBlocks(blocks)
             streamText = ''
             break
           }
           case 'interaction_block': {
             const d = event.data as InteractionBlockEvent
             if (steps[activeIdx]) {
+              const blocks = getBlocks()
+              blocks.push({
+                kind: 'interaction',
+                type: d.block_type as InteractionBlockType,
+                data: d.data as unknown as InteractionData,
+              })
+              setBlocks(blocks)
               steps[activeIdx] = {
                 ...steps[activeIdx],
+                blocks: steps[activeIdx].blocks, // already updated by setBlocks
                 interactionType: d.block_type as InteractionBlockType,
                 interactionData: d.data as unknown as InteractionData,
               }
@@ -231,14 +269,26 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           case 'processing_status': {
             const d = event.data as ProcessingStatusEvent
             procText = d.text
+            // Update or push thinking block
+            const blocks = getBlocks()
+            const last = blocks[blocks.length - 1]
+            if (last?.kind === 'thinking') {
+              blocks[blocks.length - 1] = { kind: 'thinking', content: d.text }
+            } else {
+              blocks.push({ kind: 'thinking', content: d.text })
+            }
+            setBlocks(blocks)
             break
           }
           case 'micro_step': {
             const d = event.data as MicroStepEvent
             if (steps[activeIdx]) {
+              const blocks = getBlocks()
+              blocks.push({ kind: 'text', content: d.prompt })
+              setBlocks(blocks)
               steps[activeIdx] = {
                 ...steps[activeIdx],
-                agentPrompts: [...steps[activeIdx].agentPrompts, d.prompt],
+                blocks: steps[activeIdx].blocks,
                 interactionType: d.interaction_type as InteractionBlockType | null,
                 interactionData: d.interaction_data as unknown as InteractionData | null,
               }
@@ -272,31 +322,38 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             break
           }
           case 'tool_call': {
-            // LLM is calling a tool — show thinking indicator
             const d = event.data as any
             const toolName = d?.name || ''
-            // Map tool names to user-friendly messages
-            const toolMessages: Record<string, string> = {
-              'show_interaction': 'Preparing options...',
-              'update_document': 'Updating document...',
-              'mark_section_complete': 'Completing section...',
-              'show_prototype': 'Building prototype...',
-              'read_project_document': 'Reading project documents...',
-              'update_project_context': 'Updating project context...',
-              'report_progress': '',
+            const label = TOOL_LABELS[toolName] || 'Processing'
+            const blocks = getBlocks()
+            // If last block is streaming, convert it to text first
+            const last = blocks[blocks.length - 1]
+            if (last?.kind === 'streaming') {
+              blocks[blocks.length - 1] = { kind: 'text', content: last.content }
+              streamText = ''
             }
-            procText = toolMessages[toolName] || `Processing...`
-            // Clear streaming text so ProcessingState shows
-            streamText = ''
+            blocks.push({ kind: 'tool_call', name: toolName, label })
+            setBlocks(blocks)
+            procText = label
             break
           }
           case 'tool_result': {
-            // Tool completed — clear processing text (next text_delta will come)
+            // Tool completed — nothing to display
             break
           }
           case 'thinking': {
             const d = event.data as ThinkingEvent
-            if (d.content) procText = d.content.slice(0, 100)
+            if (d.content) {
+              procText = d.content.slice(0, 100)
+              const blocks = getBlocks()
+              const last = blocks[blocks.length - 1]
+              if (last?.kind === 'thinking') {
+                blocks[blocks.length - 1] = { kind: 'thinking', content: d.content.slice(0, 100) }
+              } else {
+                blocks.push({ kind: 'thinking', content: d.content.slice(0, 100) })
+              }
+              setBlocks(blocks)
+            }
             break
           }
           case 'usage': {

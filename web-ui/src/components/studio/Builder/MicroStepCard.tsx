@@ -30,8 +30,9 @@ export function MicroStepCard({ step, index, isActive, onClick }: MicroStepCardP
     ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
     : 'border-border/30 bg-card/50 hover:border-border/60 hover:bg-card/80'
 
+  const lastText = [...step.blocks].reverse().find(b => b.kind === 'text') as { kind: 'text'; content: string } | undefined
   const summary = step.summary
-    ?? (step.agentPrompts.length > 0 ? getFirstSentence(step.agentPrompts[step.agentPrompts.length - 1]) : `Step ${index + 1}`)
+    ?? (lastText ? getFirstSentence(lastText.content) : `Step ${index + 1}`)
 
   return (
     <button

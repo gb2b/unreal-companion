@@ -63,13 +63,21 @@ export interface Prototype {
 
 export type MicroStepStatus = 'active' | 'answered' | 'skipped'
 
+/** A block in the micro-step timeline — everything accumulates, nothing disappears */
+export type StepBlock =
+  | { kind: 'tool_call'; name: string; label: string }     // collapsed card: "Updating document..."
+  | { kind: 'text'; content: string }                       // agent text (markdown)
+  | { kind: 'streaming'; content: string }                  // text being streamed (temporary, replaced by 'text' on text_done)
+  | { kind: 'interaction'; type: InteractionBlockType; data: InteractionData }  // choices/slider/etc
+  | { kind: 'thinking'; content: string }                   // processing indicator
+
 export interface MicroStep {
   id: string
-  agentPrompts: string[]         // accumulated text blocks from the LLM (last = main, others = thinking/collapsed)
-  interactionType: InteractionBlockType | null
+  blocks: StepBlock[]            // ordered list of blocks — everything the LLM produced
+  interactionType: InteractionBlockType | null   // shortcut to the last interaction block (if any)
   interactionData: InteractionData | null
-  userResponse: string | null    // what the user answered
-  summary: string | null         // one-line summary for collapsed card
+  userResponse: string | null
+  summary: string | null
   status: MicroStepStatus
 }
 

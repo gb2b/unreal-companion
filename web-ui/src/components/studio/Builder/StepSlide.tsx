@@ -1,6 +1,4 @@
 import { useState, useCallback, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
@@ -8,25 +6,22 @@ import { InteractionRenderer } from './InteractionRenderer'
 import { ProcessingState } from './ProcessingState'
 import { StepNavigation } from './StepNavigation'
 
-/** Collapsible thinking block — shows previous text from the LLM in this step */
-function ThinkingBlock({ content }: { content: string }) {
-  const [open, setOpen] = useState(false)
-  const preview = content.replace(/[#*_`\n]/g, ' ').trim().slice(0, 80)
-
+/** Collapsed card shown for tool calls */
+function ToolCallCard({ label }: { label: string }) {
   return (
-    <div className="rounded-lg border border-border/20 bg-card/30">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors"
-      >
-        <span className={`transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-        <span className="flex-1 truncate">{open ? 'Agent thinking' : preview + '...'}</span>
-      </button>
-      {open && (
-        <div className="border-t border-border/10 px-3 py-2 text-xs text-muted-foreground/60">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-        </div>
-      )}
+    <div className="flex items-center gap-2 rounded-lg border border-border/20 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground/70">
+      <span className="text-accent">✓</span>
+      {label}
+    </div>
+  )
+}
+
+/** Simple inline thinking indicator for a block */
+function ThinkingIndicator({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border/20 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground/60">
+      <span className="animate-spin">⟳</span>
+      <span className="truncate">{text || 'Thinking…'}</span>
     </div>
   )
 }
@@ -46,7 +41,7 @@ interface StepSlideProps {
 
 export function StepSlide({
   microStep,
-  streamingText,
+  streamingText: _streamingText,
   isProcessing,
   processingText,
   agentName,
@@ -62,20 +57,13 @@ export function StepSlide({
   const [agentReaction, setAgentReaction] = useState<string | null>(null)
   const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // === State derivation ===
-  const prompts = microStep?.agentPrompts || []
-  const mainPrompt = prompts.length > 0 ? prompts[prompts.length - 1] : ''
-  const thinkingPrompts = prompts.length > 1 ? prompts.slice(0, -1) : []
-  const hasInteraction = !!microStep?.interactionType && !!microStep?.interactionData
+  // === Derived state from blocks ===
+  const blocks = microStep?.blocks ?? []
+  const hasInteraction = blocks.some(b => b.kind === 'interaction')
+  const isStreaming = blocks.some(b => b.kind === 'streaming')
+  const stepReady = !isProcessing && blocks.length > 0
 
-  // What text to display — streaming text takes priority during streaming
-  const isActivelyStreaming = isProcessing && streamingText.length > 0
-  const displayText = isActivelyStreaming ? streamingText : mainPrompt
-
-  // Is the step complete (all content received, ready for user input)?
-  const stepReady = !isProcessing && (mainPrompt.length > 0 || hasInteraction)
-
-  // Show textarea only when step is ready
+  // Show input when step is done processing
   const showInput = stepReady
 
   const hasSelection = selectedChoices.length > 0
@@ -133,57 +121,72 @@ export function StepSlide({
     [hasResponse, isProcessing, handleContinue],
   )
 
-  // === Rendering logic ===
-  // Simple rule: while isProcessing, ALWAYS show thinking at the bottom
-  // UNLESS we are actively streaming text (then show the text being typed)
-  const showThinking = isProcessing && !isActivelyStreaming
-
   return (
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
 
-          {/* Previous text blocks (thinking/collapsed) */}
-          {thinkingPrompts.map((text, i) => (
-            <ThinkingBlock key={i} content={text} />
-          ))}
+          {/* Render all blocks in order — additive, nothing disappears */}
+          {blocks.map((block, i) => {
+            switch (block.kind) {
+              case 'tool_call':
+                return <ToolCallCard key={i} label={block.label} />
+              case 'text':
+                return (
+                  <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>
+                    <AgentPrompt
+                      content={block.content}
+                      agentName={agentName}
+                      agentEmoji={agentEmoji}
+                    />
+                    {i === blocks.length - 1 && agentReaction && (
+                      <span className="absolute -right-2 -top-2 animate-bounce text-lg">
+                        {agentReaction}
+                      </span>
+                    )}
+                  </div>
+                )
+              case 'streaming':
+                return (
+                  <div key={i} className="relative">
+                    <AgentPrompt
+                      content={block.content}
+                      agentName={agentName}
+                      agentEmoji={agentEmoji}
+                      isStreaming
+                    />
+                    {agentReaction && (
+                      <span className="absolute -right-2 -top-2 animate-bounce text-lg">
+                        {agentReaction}
+                      </span>
+                    )}
+                  </div>
+                )
+              case 'interaction':
+                return (
+                  <div key={i} className="choice-stagger">
+                    <InteractionRenderer
+                      type={block.type}
+                      data={block.data}
+                      onResponse={handleInteractionSelect}
+                      disabled={isProcessing}
+                    />
+                  </div>
+                )
+              case 'thinking':
+                return <ThinkingIndicator key={i} text={block.content} />
+              default:
+                return null
+            }
+          })}
 
-          {/* Main text — agent prompt or streaming text */}
-          {displayText && (
-            <div className="relative">
-              <AgentPrompt
-                content={displayText}
-                agentName={agentName}
-                agentEmoji={agentEmoji}
-                isStreaming={isActivelyStreaming}
-              />
-              {agentReaction && (
-                <span className="absolute -right-2 -top-2 animate-bounce text-lg">
-                  {agentReaction}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Thinking indicator — ALWAYS shown during processing when not streaming text */}
-          {showThinking && (
+          {/* Global processing indicator — shown while processing and not yet streaming */}
+          {isProcessing && !isStreaming && (
             <ProcessingState
               text={processingText}
               agentName={agentName}
               agentEmoji={agentEmoji}
             />
-          )}
-
-          {/* Interaction — only when step is complete (not processing) */}
-          {hasInteraction && stepReady && (
-            <div className="choice-stagger">
-              <InteractionRenderer
-                type={microStep!.interactionType!}
-                data={microStep!.interactionData!}
-                onResponse={handleInteractionSelect}
-                disabled={isProcessing}
-              />
-            </div>
           )}
 
           {/* Text input — only when step is ready */}
