@@ -40,7 +40,8 @@ import { TodayView } from '@/components/studio/TodayView'
 import { CreateTaskModal } from '@/components/board/CreateTaskModal'
 import { TaskDetailPanel } from '@/components/board/TaskDetailPanel'
 import { DependencyGraph } from '@/components/board/DependencyGraph'
-import { Dashboard } from '@/components/studio/Dashboard/Dashboard'
+import { DocumentsDashboard } from '@/components/studio/Dashboard/DocumentsDashboard'
+import { LibraryTab } from '@/components/studio/Dashboard/LibraryTab'
 import { WorkflowView } from '@/components/studio/Workflow/WorkflowView'
 import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
@@ -49,7 +50,7 @@ import type { WorkflowV2 } from '@/types/studio'
 
 // === Types ===
 
-type StudioView = 'today' | 'board' | 'documents' | 'team' | 'workflow' | 'studioWorkflow'
+type StudioView = 'today' | 'board' | 'documents' | 'library' | 'team' | 'workflow' | 'studioWorkflow'
 
 interface Agent {
   id: string
@@ -278,7 +279,7 @@ export function StudioPage() {
         <div className="h-12 border-b border-border bg-card/80 backdrop-blur flex items-center px-4 gap-4">
           <Button variant="ghost" size="sm" onClick={handleBackFromV2Workflow}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Documents
+            Back to Workshop
           </Button>
           <span className="text-sm font-medium text-muted-foreground">{activeV2Workflow.name}</span>
         </div>
@@ -318,16 +319,22 @@ export function StudioPage() {
             label={t('studio.tab.today')}
           />
           <TabButton
+            active={view === 'documents'}
+            onClick={() => { setView('documents'); setSelectedAgent(null) }}
+            icon={FolderOpen}
+            label="Workshop"
+          />
+          <TabButton
+            active={view === 'library'}
+            onClick={() => { setView('library' as StudioView); setSelectedAgent(null) }}
+            icon={FileText}
+            label="Library"
+          />
+          <TabButton
             active={view === 'board'}
             onClick={() => { setView('board'); setSelectedAgent(null) }}
             icon={LayoutGrid}
             label={t('studio.tab.board')}
-          />
-          <TabButton
-            active={view === 'documents'}
-            onClick={() => { setView('documents'); setSelectedAgent(null) }}
-            icon={FolderOpen}
-            label={t('studio.tab.documents')}
           />
           <TabButton
             active={view === 'team'}
@@ -338,12 +345,7 @@ export function StudioPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {view === 'documents' ? (
-            <Button size="sm" onClick={() => setNewDocModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Document
-            </Button>
-          ) : (
+          {view !== 'documents' && (
             <Button variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
               {t('studio.tab.new')}
@@ -386,10 +388,26 @@ export function StudioPage() {
               exit={{ opacity: 0 }}
               className="h-full overflow-y-auto"
             >
-              <Dashboard
+              <DocumentsDashboard
                 projectPath={projectPath}
                 onOpenDocument={handleOpenDocument}
-                onNewDocument={() => setNewDocModalOpen(true)}
+                onNewDocument={(workflowId) => handleSelectV2Workflow(workflowId)}
+              />
+            </motion.div>
+          )}
+
+          {view === 'library' && (
+            <motion.div
+              key="library"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full overflow-y-auto p-6"
+            >
+              <LibraryTab
+                projectPath={projectPath}
+                onOpenDocument={handleOpenDocument}
+                onGoToWorkshop={() => setView('documents')}
               />
             </motion.div>
           )}
