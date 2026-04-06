@@ -36,6 +36,14 @@ const AGENT_EMOJI: Record<string, string> = {
   'unreal-agent': '🎮',
 }
 
+const WORKFLOW_DESCRIPTIONS: Record<string, string> = {
+  'game-brief': 'Identity, vision, pillars, audience, scope',
+  'gdd': 'Detailed game design — mechanics and systems',
+  'brainstorming': 'Creative ideation and concept exploration',
+  'game-architecture': 'Technical architecture and system design',
+  'sprint-planning': 'Sprint planning and task breakdown',
+}
+
 function completionRatio(doc: StudioDocument): string {
   const sections = Object.values(doc.meta.sections)
   if (sections.length === 0) return ''
@@ -114,6 +122,13 @@ export function DocumentCard({
 
       {/* Title */}
       <h3 className="text-sm font-semibold text-foreground">{doc.name}</h3>
+
+      {/* Workflow description */}
+      {doc.meta?.workflow_id && WORKFLOW_DESCRIPTIONS[doc.meta.workflow_id] && (
+        <p className="mt-0.5 text-xs text-muted-foreground/60 truncate">
+          {WORKFLOW_DESCRIPTIONS[doc.meta.workflow_id]}
+        </p>
+      )}
 
       {/* Summary (markdown docs only) */}
       {!isReference && doc.meta.summary && (
