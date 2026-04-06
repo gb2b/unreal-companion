@@ -80,12 +80,21 @@ export type StepBlock =
 
 export interface MicroStep {
   id: string
+  sectionId: string                // which section this step belongs to
   blocks: StepBlock[]            // ordered list of blocks — everything the LLM produced
   interactionType: InteractionBlockType | null   // shortcut to the last interaction block (if any)
   interactionData: InteractionData | null
   userResponse: string | null
+  selectedChoiceIds: string[]      // IDs of selected choices (for readonly display)
+  selectedChoiceLabels: string[]   // labels of selected choices (for readonly display)
   summary: string | null
   status: MicroStepStatus
+}
+
+export interface SectionVersion {
+  version: number
+  content: string
+  timestamp: string
 }
 
 export type SectionBarStatus = SectionStatus | 'skipped'

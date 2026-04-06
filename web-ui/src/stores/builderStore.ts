@@ -74,6 +74,8 @@ interface BuilderState {
   jumpToSection: (sectionId: string) => void
   scrollToSection: (sectionId: string) => void
   jumpToMicroStep: (index: number) => void
+  proposeModification: (stepIndex: number) => void
+  requestEditFromPreview: (sectionId: string, selectedText: string, prompt: string) => void
   reset: () => void
 }
 
@@ -149,9 +151,26 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       const steps = [...state.microSteps]
       const activeStep = steps[state.activeMicroStepIndex]
       if (activeStep && activeStep.status === 'active') {
+        // Extract selected choice IDs/labels from interaction data
+        let choiceIds: string[] = []
+        let choiceLabels: string[] = []
+        const interactionBlock = activeStep.blocks.find(b => b.kind === 'interaction')
+        if (interactionBlock && interactionBlock.kind === 'interaction') {
+          const choicesData = interactionBlock.data as { options?: { id: string; label: string }[] }
+          const options = choicesData?.options ?? []
+          const selectedLine = message.split('\n')[0]
+          if (selectedLine.startsWith('Selected: ')) {
+            const labels = selectedLine.replace('Selected: ', '').split(', ')
+            choiceLabels = labels
+            choiceIds = labels.map(label => options.find(o => o.label === label)?.id ?? label)
+          }
+        }
+
         steps[state.activeMicroStepIndex] = {
           ...activeStep,
           userResponse: message,
+          selectedChoiceIds: choiceIds,
+          selectedChoiceLabels: choiceLabels,
           status: 'answered',
           summary: message.length > 60 ? message.slice(0, 57) + '...' : message,
         }
@@ -162,10 +181,13 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
     // Create a new micro-step for the agent's response
     const newStep: MicroStep = {
       id: nextStepId(),
+      sectionId: state.activeSection || '',
       blocks: [],
       interactionType: null,
       interactionData: null,
       userResponse: null,
+      selectedChoiceIds: [],
+      selectedChoiceLabels: [],
       summary: null,
       status: 'active',
     }
@@ -617,6 +639,41 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       const { microSteps } = get()
       if (index < 0 || index >= microSteps.length) return
       set({ activeMicroStepIndex: index })
+    },
+
+    proposeModification: (stepIndex: number) => {
+      const state = get()
+      const oldStep = state.microSteps[stepIndex]
+      if (!oldStep || !oldStep.userResponse) return
+
+      const agentText = oldStep.blocks
+        .filter(b => b.kind === 'text')
+        .map(b => b.content)
+        .join('\n')
+        .slice(0, 200)
+
+      const modMessage = [
+        `I want to modify my previous answer.`,
+        `Original question: "${agentText.slice(0, 150)}"`,
+        `My previous answer was: "${oldStep.userResponse.slice(0, 150)}"`,
+        `I'd like to change this.`,
+      ].join('\n')
+
+      // Jump to end and submit
+      set({ activeMicroStepIndex: state.microSteps.length - 1 })
+      get().submitResponse(modMessage)
+    },
+
+    requestEditFromPreview: (sectionId: string, selectedText: string, prompt: string) => {
+      const editMessage = [
+        `[EDIT_REQUEST] Section: ${sectionId}`,
+        `Selected text: "${selectedText}"`,
+        `Requested change: ${prompt}`,
+      ].join('\n')
+
+      const state = get()
+      set({ activeMicroStepIndex: state.microSteps.length - 1 })
+      get().submitResponse(editMessage)
     },
 
     setSectionDisplayNames: (_names: Record<string, string>) => {
