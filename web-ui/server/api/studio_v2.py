@@ -211,8 +211,8 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             existing = doc_store.get_document(doc_id)
             if not existing:
                 # Create document stub
-                from datetime import datetime
-                display_name = f"{request.workflow_id.replace('-', ' ').title()} -- {datetime.now().strftime('%d/%m/%Y')}"
+                from datetime import date
+                display_name = f"{request.workflow_id.replace('-', ' ').title()} — {date.today().strftime('%Y-%m-%d')}"
                 doc_store.save_document(
                     doc_id,
                     f"# {request.workflow_id.replace('-', ' ').title()}\n\n",

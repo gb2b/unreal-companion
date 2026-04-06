@@ -91,7 +91,10 @@ export function DocumentsDashboard({
       </div>
       {showHero && (
         <OnboardingHero
-          onStartGameBrief={() => handleSelectFlow('game-brief', null, false)}
+          onStartGameBrief={() => {
+            const existingGameBrief = documents.find(d => d.meta?.workflow_id === 'game-brief') ?? null
+            handleSelectFlow('game-brief', existingGameBrief, false)
+          }}
           projectName={projectPath ? projectPath.split('/').pop() : undefined}
         />
       )}

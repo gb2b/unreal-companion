@@ -270,9 +270,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
                 data: d.data as unknown as InteractionData,
               })
               setBlocks(blocks)
+              // Don't re-assign blocks — setBlocks already updated steps[activeIdx].blocks
               steps[activeIdx] = {
                 ...steps[activeIdx],
-                blocks: steps[activeIdx].blocks, // already updated by setBlocks
                 interactionType: d.block_type as InteractionBlockType,
                 interactionData: d.data as unknown as InteractionData,
               }
@@ -299,9 +299,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
               const blocks = getBlocks()
               blocks.push({ kind: 'text', content: d.prompt })
               setBlocks(blocks)
+              // Don't re-assign blocks — setBlocks already updated steps[activeIdx].blocks
               steps[activeIdx] = {
                 ...steps[activeIdx],
-                blocks: steps[activeIdx].blocks,
                 interactionType: d.interaction_type as InteractionBlockType | null,
                 interactionData: d.interaction_data as unknown as InteractionData | null,
               }

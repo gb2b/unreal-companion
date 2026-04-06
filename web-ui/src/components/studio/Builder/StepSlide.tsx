@@ -5,10 +5,11 @@ import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
 
+// Tools whose spinner/card should not be shown — the result speaks for itself
+const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
+
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
 function ToolCallCard({ name, label, status }: { name: string; label: string; status: 'pending' | 'done' | 'error' }) {
-  // Don't show cards for UI-only tools — the result (choices, etc.) speaks for itself
-  const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
   if (HIDDEN_TOOLS.includes(name)) return null
 
   return (
@@ -176,33 +177,37 @@ export function StepSlide({
             }
           })}
 
-          {/* Simple "Thinking..." — only when no tool_call spinner is visible and not streaming */}
-          {isProcessing && !isStreaming && !blocks.some(b => b.kind === 'tool_call' && b.status === 'pending') && (
+          {/* Simple "Thinking..." — only when no VISIBLE tool_call spinner is pending and not streaming */}
+          {isProcessing && !isStreaming && !blocks.some(
+            b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
+          ) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground/50">
               <span className="animate-pulse">●</span>
               Thinking...
             </div>
           )}
 
-          {/* Text input — only when step is ready */}
-          {showInput && (
-            <div className="flex flex-col gap-1.5">
-              <textarea
-                value={textValue}
-                onChange={e => setTextValue(e.target.value)}
-                onKeyDown={handleSubmitKey}
-                disabled={isProcessing}
-                placeholder={placeholder}
-                rows={2}
-                data-autofocus
-                className="w-full resize-none rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
-              />
-              <p className="text-xs text-muted-foreground/50">{enterHint}</p>
-            </div>
-          )}
-
         </div>
       </div>
+
+      {/* Pinned input zone — outside the scroll area */}
+      {showInput && (
+        <div className="border-t border-border/30 px-6 py-4">
+          <div className="mx-auto w-full max-w-2xl flex flex-col gap-1.5">
+            <textarea
+              value={textValue}
+              onChange={e => setTextValue(e.target.value)}
+              onKeyDown={handleSubmitKey}
+              disabled={isProcessing}
+              placeholder={placeholder}
+              rows={2}
+              data-autofocus
+              className="w-full resize-none rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+            />
+            <p className="text-xs text-muted-foreground/50">{enterHint}</p>
+          </div>
+        </div>
+      )}
 
       <StepNavigation
         onBack={onBack}

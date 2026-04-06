@@ -143,6 +143,8 @@ class AgenticLoop:
                         # Emit SSE events from interceptor
                         for sse_event in handle_interceptor(tc["name"], tc["input"]):
                             yield sse_event
+                        # Yield ToolResult so the frontend spinner resolves
+                        yield ToolResult(id=tc["id"], result=json.dumps({"success": True}))
                         tool_results_content.append({
                             "type": "tool_result",
                             "tool_use_id": tc["id"],
