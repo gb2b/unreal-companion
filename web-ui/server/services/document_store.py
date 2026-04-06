@@ -212,6 +212,26 @@ class DocumentStore:
                     break
         self._save_meta(md_path, meta)
 
+    def delete_document(self, doc_id: str) -> bool:
+        """Delete a document and all associated files (.md, .meta.json, .steps.json, .history.json, .versions/, .prototypes/)."""
+        import shutil
+
+        md_path = self.root / f"{doc_id}.md"
+        if not md_path.exists():
+            return False
+
+        for ext in [".md", ".meta.json", ".steps.json", ".history.json"]:
+            f = self.root / f"{doc_id}{ext}"
+            if f.exists():
+                f.unlink()
+
+        for dirname in [".versions", ".prototypes"]:
+            d = self.root / f"{doc_id}{dirname}"
+            if d.exists():
+                shutil.rmtree(d)
+
+        return True
+
     def save_prototype(self, doc_id: str, name: str, html: str) -> str:
         """Save a prototype HTML file. Returns the relative path."""
         proto_dir = self.root / f"{doc_id}.prototypes"

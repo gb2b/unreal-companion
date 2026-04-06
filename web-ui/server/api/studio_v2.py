@@ -29,6 +29,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v2/studio", tags=["studio-v2"])
 
+
+async def _call_llm_simple(prompt: str, max_tokens: int = 1024) -> str:
+    """Quick LLM call (haiku) for translations, summaries, etc."""
+    import anthropic
+    client = anthropic.AsyncAnthropic()
+    response = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
 # Per-conversation context managers (in-memory for now)
 _context_managers: dict[str, ContextManager] = {}
 
@@ -335,6 +347,12 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
 class DocumentUpdateRequest(BaseModel):
     content: str
+    project_path: str = ""
+
+
+class DocumentContentUpdate(BaseModel):
+    content: str
+    project_path: str
 
 
 @router.get("/documents")
@@ -359,12 +377,19 @@ async def get_document(doc_id: str, project_path: str = ""):
 
 
 @router.put("/documents/{doc_id:path}")
-async def update_document(doc_id: str, body: DocumentUpdateRequest, project_path: str = ""):
-    """Manually update a document's content."""
-    if not project_path:
+async def update_document_content(doc_id: str, body: DocumentContentUpdate):
+    """Save document markdown content directly (user editing)."""
+    from datetime import datetime, timezone
+    if not body.project_path:
         raise HTTPException(400, "project_path required")
-    store = DocumentStore(project_path)
+    store = DocumentStore(body.project_path)
+    doc = store.get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, f"Document not found: {doc_id}")
     store.save_document(doc_id, body.content)
+    meta = store._load_meta(store.root / f"{doc_id}.md")
+    meta.updated = datetime.now(timezone.utc).isoformat()
+    store._save_meta(store.root / f"{doc_id}.md", meta)
     return {"success": True}
 
 
@@ -439,15 +464,10 @@ async def delete_document(doc_id: str, project_path: str = ""):
     """Delete a document and all its associated files."""
     if not project_path:
         raise HTTPException(400, "project_path required")
-    base = Path(project_path) / ".unreal-companion" / "docs"
-    for ext in [".md", ".meta.json", ".steps.json", ".history.json"]:
-        f = base / f"{doc_id}{ext}"
-        if f.exists():
-            f.unlink()
-    proto_dir = base / f"{doc_id}.prototypes"
-    if proto_dir.exists():
-        import shutil
-        shutil.rmtree(proto_dir)
+    store = DocumentStore(project_path)
+    deleted = store.delete_document(doc_id)
+    if not deleted:
+        raise HTTPException(404, f"Document not found: {doc_id}")
     return {"success": True}
 
 
@@ -683,6 +703,58 @@ async def get_project_context(project_path: str = ""):
     from datetime import datetime, timezone
     updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
     return {"content": content, "updated": updated}
+
+
+class TranslateRequest(BaseModel):
+    text: str
+    target_language: str
+
+
+@router.post("/translate")
+async def translate_text(body: TranslateRequest):
+    """Translate text to target language via LLM."""
+    prompt = f"Translate the following text to {body.target_language}. Return ONLY the translation, nothing else:\n\n{body.text}"
+    translated = await _call_llm_simple(prompt, max_tokens=256)
+    return {"translated": translated.strip()}
+
+
+class ProposeContextUpdateRequest(BaseModel):
+    project_path: str
+    deleted_doc_id: str
+    deleted_doc_name: str
+
+
+@router.post("/project-context/propose-update")
+async def propose_context_update(body: ProposeContextUpdateRequest):
+    """Ask LLM to propose updated project-context after document deletion."""
+    ctx_file = Path(body.project_path) / ".unreal-companion" / "project-context.md"
+    if not ctx_file.exists():
+        return {"current_content": "", "proposed_content": ""}
+    current = ctx_file.read_text(encoding="utf-8")
+    prompt = (
+        f'The document "{body.deleted_doc_name}" ({body.deleted_doc_id}) has been deleted from the project.\n\n'
+        f"Here is the current project context:\n---\n{current}\n---\n\n"
+        f"Propose an updated version that removes references to this document "
+        f"and adjusts the content accordingly. Return ONLY the updated markdown, nothing else."
+    )
+    proposed = await _call_llm_simple(prompt, max_tokens=2048)
+    return {"current_content": current, "proposed_content": proposed.strip()}
+
+
+class ProjectContextUpdate(BaseModel):
+    project_path: str
+    content: str
+
+
+@router.put("/project-context")
+async def update_project_context_content(body: ProjectContextUpdate):
+    """Save project-context.md content directly."""
+    if not body.project_path:
+        raise HTTPException(400, "project_path required")
+    ctx_file = Path(body.project_path) / ".unreal-companion" / "project-context.md"
+    ctx_file.parent.mkdir(parents=True, exist_ok=True)
+    ctx_file.write_text(body.content, encoding="utf-8")
+    return {"success": True}
 
 
 def _parse_section_contents(content: str) -> dict[str, str]:
