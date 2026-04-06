@@ -2,6 +2,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ProjectContextDiffDialog } from './ProjectContextDiffDialog'
+import { api } from '@/services/api'
 
 interface DocumentActionMenuProps {
   docId: string
@@ -17,6 +19,7 @@ type DialogState =
   | { type: 'delete' }
   | { type: 'reset' }
   | { type: 'rename' }
+  | { type: 'context-diff'; currentContent: string; proposedContent: string }
 
 export function DocumentActionMenu({
   docId,
@@ -27,6 +30,7 @@ export function DocumentActionMenu({
   onManageTags,
 }: DocumentActionMenuProps) {
   const [open, setOpen] = useState(false)
+  const [deletePending, setDeletePending] = useState(false)
   // true = align right edge of dropdown with button (default), false = align left edge
   const [alignRight, setAlignRight] = useState(true)
   const [dialog, setDialog] = useState<DialogState>({ type: 'none' })
@@ -104,10 +108,50 @@ export function DocumentActionMenu({
 
   async function confirmDelete() {
     setDialog({ type: 'none' })
+    setDeletePending(true)
+
     await fetch(
       `/api/v2/studio/documents/${encodeURIComponent(docId)}?project_path=${encodeURIComponent(projectPath)}`,
       { method: 'DELETE' }
     )
+
+    try {
+      const res = await api.post<{ current_content: string; proposed_content: string }>(
+        '/api/v2/studio/project-context/propose-update',
+        {
+          project_path: projectPath,
+          deleted_doc_id: docId,
+          deleted_doc_name: docId.split('/').pop() || docId,
+        }
+      )
+      if (res.current_content && res.proposed_content && res.current_content !== res.proposed_content) {
+        setDeletePending(false)
+        setDialog({
+          type: 'context-diff',
+          currentContent: res.current_content,
+          proposedContent: res.proposed_content,
+        })
+        return
+      }
+    } catch {
+      // No project context or LLM error — skip diff step
+    }
+
+    setDeletePending(false)
+    onDeleted()
+  }
+
+  async function handleDiffApply(finalContent: string) {
+    await api.put('/api/v2/studio/project-context', {
+      project_path: projectPath,
+      content: finalContent,
+    })
+    setDialog({ type: 'none' })
+    onDeleted()
+  }
+
+  function handleDiffSkip() {
+    setDialog({ type: 'none' })
     onDeleted()
   }
 
@@ -189,6 +233,28 @@ export function DocumentActionMenu({
         onConfirm={confirmReset}
         onCancel={() => setDialog({ type: 'none' })}
       />
+
+      {/* Context diff dialog */}
+      {dialog.type === 'context-diff' && (
+        <ProjectContextDiffDialog
+          isOpen={true}
+          currentContent={dialog.currentContent}
+          proposedContent={dialog.proposedContent}
+          deletedDocName={docId.split('/').pop() || docId}
+          onApply={handleDiffApply}
+          onSkip={handleDiffSkip}
+        />
+      )}
+
+      {/* Loading overlay while checking context */}
+      {deletePending && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-xl bg-card p-6 shadow-2xl border border-border">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+            <span className="text-sm text-muted-foreground">Checking project context…</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
