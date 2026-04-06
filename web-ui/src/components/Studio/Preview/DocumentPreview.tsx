@@ -11,6 +11,9 @@ interface DocumentPreviewProps {
   sectionStatuses: Record<string, SectionStatus>
   sectionContents?: Record<string, string>
   onSectionClick: (sectionId: string) => void
+  onTextSelect?: (sectionId: string, selectedText: string, rect: DOMRect) => void
+  sectionVersionCounts?: Record<string, number>
+  onShowVersions?: (sectionId: string) => void
 }
 
 function statusIcon(status: SectionStatus): { icon: string; color: string } {
@@ -27,8 +30,20 @@ export function DocumentPreview({
   sectionStatuses,
   sectionContents = {},
   onSectionClick,
+  onTextSelect,
+  sectionVersionCounts,
+  onShowVersions,
 }: DocumentPreviewProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+
+  const handleMouseUp = (sectionId: string) => {
+    if (!onTextSelect) return
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) return
+    const range = selection.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    onTextSelect(sectionId, selection.toString().trim(), rect)
+  }
 
   const toggleSection = (id: string) => {
     setExpandedSections(prev => {
@@ -80,6 +95,14 @@ export function DocumentPreview({
             >
               <span className={`text-xs ${color}`}>{icon}</span>
               <span className="text-sm font-medium text-foreground flex-1">{section.name}</span>
+              {sectionVersionCounts?.[section.id] && sectionVersionCounts[section.id] > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onShowVersions?.(section.id) }}
+                  className="text-[10px] text-muted-foreground/50 hover:text-primary"
+                >
+                  v{sectionVersionCounts[section.id]}
+                </button>
+              )}
               {status === 'todo' && (
                 <span className="text-[10px] text-orange-400">[TODO]</span>
               )}
@@ -92,7 +115,7 @@ export function DocumentPreview({
 
             {/* Expanded content */}
             {isExpanded && hasContent && (
-              <div className="ml-5 mr-2 mb-2 max-h-[300px] overflow-y-auto prose prose-xs prose-invert max-w-none text-muted-foreground [&_p]:my-0.5 [&_p]:text-xs [&_p]:leading-relaxed [&_strong]:text-foreground/80 [&_ul]:my-0.5 [&_li]:text-xs">
+              <div className="ml-5 mr-2 mb-2 max-h-[300px] overflow-y-auto prose prose-xs prose-invert max-w-none text-muted-foreground [&_p]:my-0.5 [&_p]:text-xs [&_p]:leading-relaxed [&_strong]:text-foreground/80 [&_ul]:my-0.5 [&_li]:text-xs" onMouseUp={() => handleMouseUp(section.id)}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {content!}
                 </ReactMarkdown>

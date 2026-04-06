@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useI18n } from '@/i18n/useI18n'
-import { SectionBar } from './SectionBar'
 import { ImmersiveZone } from './ImmersiveZone'
 import { InputBar } from './InputBar'
 import type { WorkflowV2 } from '@/types/studio'
@@ -17,7 +16,6 @@ export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowVi
     blocks,
     currentText,
     isStreaming,
-    sectionStatuses,
     activeSection,
     sendMessage,
   } = useConversationStore()
@@ -87,14 +85,6 @@ export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowVi
     })
   }
 
-  const handleSectionClick = (sectionId: string) => {
-    sendMessage(`Let's work on the ${sectionId} section.`, {
-      agent: workflow.agents.primary,
-      workflowId: workflow.id,
-      sectionFocus: sectionId,
-    })
-  }
-
   const handleInteractionResponse = (response: string) => {
     sendMessage(response, {
       agent: workflow.agents.primary,
@@ -104,14 +94,6 @@ export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowVi
 
   return (
     <div className="flex h-full flex-col">
-      {/* Section Bar */}
-      <SectionBar
-        sections={workflow.sections}
-        statuses={sectionStatuses}
-        activeSection={activeSection}
-        onSectionClick={handleSectionClick}
-      />
-
       <div className="flex flex-1 overflow-hidden">
         {/* Immersive Zone */}
         <div className="flex flex-1 flex-col">
