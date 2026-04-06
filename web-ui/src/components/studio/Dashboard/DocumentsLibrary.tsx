@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { DocumentCard } from './DocumentCard'
 import { TagFilter } from './TagFilter'
 import { TagManager } from './TagManager'
+import { ProjectContextCard } from './ProjectContextCard'
 import type { StudioDocument } from '@/types/studio'
 
 interface DocumentsLibraryProps {
@@ -12,11 +13,12 @@ interface DocumentsLibraryProps {
   onGoToWorkshop?: () => void
   projectPath?: string
   onRefresh?: () => void
+  onOpenProjectContext?: () => void
 }
 
 type SortMode = 'recent' | 'name' | 'status'
 
-export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, projectPath = '', onRefresh }: DocumentsLibraryProps) {
+export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, projectPath = '', onRefresh, onOpenProjectContext }: DocumentsLibraryProps) {
   const [sortBy, setSortBy] = useState<SortMode>('recent')
   const [filter, setFilter] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -134,6 +136,15 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, pr
           selectedTags={selectedTags}
           onToggleTag={toggleTag}
           onClearAll={() => setSelectedTags([])}
+        />
+      )}
+
+      {/* Project Context — header card */}
+      {projectPath && onOpenProjectContext && (
+        <ProjectContextCard
+          projectPath={projectPath}
+          onOpen={onOpenProjectContext}
+          documents={documents}
         />
       )}
 

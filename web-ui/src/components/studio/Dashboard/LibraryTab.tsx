@@ -48,6 +48,7 @@ export function LibraryTab({ projectPath, onOpenDocument, onGoToWorkshop }: Libr
       onGoToWorkshop={onGoToWorkshop}
       projectPath={projectPath}
       onRefresh={loadDocuments}
+      onOpenProjectContext={() => onOpenDocument('__project-context__')}
     />
   )
 }
