@@ -44,6 +44,13 @@ export interface DocumentMeta {
   input_documents: string[]
   prototypes: string[]
   conversation_id: string
+  tags: string[]
+  user_renamed: boolean
+  name: string
+  summary: string
+  // Reference file fields (only present for uploads)
+  content_type?: string
+  size_bytes?: number
 }
 
 export interface StudioDocument {

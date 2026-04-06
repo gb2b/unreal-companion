@@ -4,7 +4,8 @@ Studio V2 API -- SSE streaming chat + document management.
 import json
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -15,7 +16,7 @@ from services.llm_engine.context_manager import ContextManager
 from services.llm_engine.system_prompt import SystemPromptBuilder
 from services.mcp_bridge import execute_tool
 from services.agent_manager import agent_manager
-from services.document_store import DocumentStore, DocumentMeta
+from services.document_store import DocumentStore, DocumentMeta, default_tags_for_workflow
 from services.microstep_store import MicroStepStore
 from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
@@ -154,6 +155,31 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             except Exception as e:
                 return json.dumps({"success": False, "error": str(e)})
 
+        # Handle rename_document locally (not via MCP)
+        if name == "rename_document":
+            new_name = tool_input.get("new_name", "")
+            try:
+                store = DocumentStore(request.project_path)
+                meta_path = store.root / f"{doc_id}.meta.json"
+                if not meta_path.exists():
+                    return json.dumps({"success": False, "error": "Document not found"})
+                raw = json.loads(meta_path.read_text(encoding="utf-8"))
+                if raw.get("user_renamed", False):
+                    return json.dumps({"success": False, "error": "User has renamed this document. Do not rename."})
+                raw["name"] = new_name
+                meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+                # Also update the # Title in the .md file
+                md_path = store.root / f"{doc_id}.md"
+                if md_path.exists():
+                    content = md_path.read_text(encoding="utf-8")
+                    lines = content.split("\n")
+                    if lines and lines[0].startswith("#"):
+                        lines[0] = f"# {new_name}"
+                    md_path.write_text("\n".join(lines), encoding="utf-8")
+                return json.dumps({"success": True, "new_name": new_name})
+            except Exception as e:
+                return json.dumps({"success": False, "error": str(e)})
+
         # All other tools → MCP bridge
         try:
             result = await execute_tool(name, tool_input)
@@ -185,6 +211,8 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             existing = doc_store.get_document(doc_id)
             if not existing:
                 # Create document stub
+                from datetime import datetime
+                display_name = f"{request.workflow_id.replace('-', ' ').title()} -- {datetime.now().strftime('%d/%m/%Y')}"
                 doc_store.save_document(
                     doc_id,
                     f"# {request.workflow_id.replace('-', ' ').title()}\n\n",
@@ -193,6 +221,9 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                         agent=request.agent,
                         status="in_progress",
                         conversation_id=conv_id,
+                        tags=default_tags_for_workflow(request.workflow_id),
+                        user_renamed=False,
+                        name=display_name,
                     ),
                 )
                 logger.info(f"Created document stub: {doc_id}")
@@ -398,21 +429,186 @@ async def delete_document(doc_id: str, project_path: str = ""):
 
 
 @router.put("/documents/{doc_id:path}/rename")
-async def rename_document(doc_id: str, request: Request):
-    """Rename a document (update the title in the .md file first line)."""
+async def rename_document_endpoint(doc_id: str, request: Request):
+    """Rename a document (update the title in the .md file and set user_renamed in meta)."""
     body = await request.json()
     new_name = body.get("name", "")
     project_path = body.get("project_path", "")
     if not project_path or not new_name:
         raise HTTPException(400, "project_path and name required")
-    md_path = Path(project_path) / ".unreal-companion" / "docs" / f"{doc_id}.md"
+
+    base = Path(project_path) / ".unreal-companion" / "docs"
+    md_path = base / f"{doc_id}.md"
+    meta_path = base / f"{doc_id}.meta.json"
+
+    # Update .md title line
     if md_path.exists():
         content = md_path.read_text(encoding="utf-8")
         lines = content.split("\n")
         if lines and lines[0].startswith("#"):
             lines[0] = f"# {new_name}"
         md_path.write_text("\n".join(lines), encoding="utf-8")
+
+    # Update meta: set name + user_renamed
+    if meta_path.exists():
+        raw = json.loads(meta_path.read_text(encoding="utf-8"))
+        raw["name"] = new_name
+        raw["user_renamed"] = True
+        meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+
     return {"success": True}
+
+
+# --- Custom Tags Endpoints ---
+
+def _load_custom_tags(project_path: str) -> list[str]:
+    tags_path = Path(project_path) / ".unreal-companion" / "tags.json"
+    if not tags_path.exists():
+        return []
+    try:
+        return json.loads(tags_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _save_custom_tags(project_path: str, tags: list[str]) -> None:
+    tags_path = Path(project_path) / ".unreal-companion" / "tags.json"
+    tags_path.parent.mkdir(parents=True, exist_ok=True)
+    tags_path.write_text(json.dumps(sorted(tags), indent=2), encoding="utf-8")
+
+
+SYSTEM_TAGS = [
+    # Categories
+    "concept", "design", "technical", "production",
+    # Status
+    "complete", "in-progress", "draft",
+    # File types
+    "document", "image", "asset-3d", "reference",
+    # Flow types (auto-assigned)
+    "game-brief", "brainstorming", "gdd", "level-design",
+    "art-direction", "audio-design", "narrative",
+    "game-architecture", "diagram", "sprint-planning",
+    "dev-story", "code-review", "mood-board", "mind-map",
+]
+
+
+@router.get("/tags")
+async def list_tags(project_path: str = ""):
+    """List all available tags (system + custom)."""
+    custom_tags = _load_custom_tags(project_path) if project_path else []
+    return {
+        "system_tags": SYSTEM_TAGS,
+        "custom_tags": custom_tags,
+        "all_tags": SYSTEM_TAGS + custom_tags,
+    }
+
+
+@router.post("/tags")
+async def create_tag(request: Request):
+    """Create a custom tag."""
+    body = await request.json()
+    project_path = body.get("project_path", "")
+    tag_name = body.get("name", "").strip().lower().replace(" ", "-")
+    if not project_path or not tag_name:
+        raise HTTPException(400, "project_path and name required")
+    tags = _load_custom_tags(project_path)
+    if tag_name in tags:
+        return {"success": True, "message": "Tag already exists"}
+    tags.append(tag_name)
+    _save_custom_tags(project_path, tags)
+    return {"success": True, "tag": tag_name}
+
+
+@router.delete("/tags/{tag_name}")
+async def delete_tag(tag_name: str, project_path: str = ""):
+    """Delete a custom tag. Does NOT remove it from documents."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    tags = _load_custom_tags(project_path)
+    tags = [t for t in tags if t != tag_name]
+    _save_custom_tags(project_path, tags)
+    return {"success": True}
+
+
+@router.put("/documents/{doc_id:path}/tags")
+async def update_document_tags(doc_id: str, request: Request):
+    """Update tags for a document."""
+    body = await request.json()
+    project_path = body.get("project_path", "")
+    tags = body.get("tags", [])
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    meta_path = Path(project_path) / ".unreal-companion" / "docs" / f"{doc_id}.meta.json"
+    if not meta_path.exists():
+        raise HTTPException(404, "Document not found")
+    raw = json.loads(meta_path.read_text(encoding="utf-8"))
+    raw["tags"] = tags
+    meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+    return {"success": True}
+
+
+@router.post("/upload")
+async def upload_reference(
+    file: UploadFile = File(...),
+    project_path: str = Form(""),
+    source_document: str = Form(""),
+):
+    """Upload a file to docs/references/."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+
+    refs_dir = Path(project_path) / ".unreal-companion" / "docs" / "references"
+    refs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save the file, avoid overwriting existing files
+    filename = file.filename or "upload"
+    dest = refs_dir / filename
+    counter = 1
+    while dest.exists():
+        stem = Path(filename).stem
+        suffix = Path(filename).suffix
+        dest = refs_dir / f"{stem}-{counter}{suffix}"
+        counter += 1
+
+    content = await file.read()
+    dest.write_bytes(content)
+
+    # Determine file type tag
+    ext = dest.suffix.lower()
+    if ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"):
+        file_type_tag = "image"
+    elif ext in (".fbx", ".obj", ".gltf", ".glb", ".uasset"):
+        file_type_tag = "asset-3d"
+    else:
+        file_type_tag = "document"
+
+    # Create meta.json alongside the file
+    from datetime import datetime, timezone
+    meta = {
+        "name": dest.name,
+        "tags": ["reference", file_type_tag],
+        "uploaded_from": source_document,
+        "upload_date": datetime.now(timezone.utc).isoformat(),
+        "content_type": file.content_type or "",
+        "size_bytes": len(content),
+        "user_renamed": False,
+    }
+    meta_path = Path(str(dest) + ".meta.json")
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    doc_id = f"references/{dest.stem}"
+    return {"success": True, "doc_id": doc_id, "filename": dest.name, "tags": meta["tags"]}
+
+
+@router.get("/references/{filename:path}")
+async def serve_reference(filename: str, project_path: str = ""):
+    """Serve a reference file (image, PDF, etc.) for frontend preview."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    file_path = Path(project_path) / ".unreal-companion" / "docs" / "references" / filename
+    if not file_path.exists():
+        raise HTTPException(404, "File not found")
+    return FileResponse(file_path)
 
 
 @router.put("/steps/{doc_id:path}")

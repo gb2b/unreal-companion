@@ -121,6 +121,7 @@ export function WorkflowView({ workflow, projectPath, previewPanel }: WorkflowVi
             isStreaming={isStreaming}
             agentName={agentPersona.name}
             agentEmoji={agentPersona.emoji}
+            projectPath={projectPath}
             onInteractionResponse={handleInteractionResponse}
           />
           <InputBar

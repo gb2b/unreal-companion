@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
@@ -9,11 +9,27 @@ import { MicroTimeline } from './MicroTimeline'
 import { StepSlide } from './StepSlide'
 // Confetti removed — too random, replaced with subtler section flash animation
 import { OnboardingTour } from './OnboardingTour'
+import { ResumeBanner, RepeatableBanner } from './ResumeBanner'
 import './animations.css'
+
+export interface BuilderBannerConfig {
+  type: 'resume' | 'repeatable'
+  documentName?: string
+  documentId?: string
+  flowName?: string
+  existingCount?: number
+  /** True if the flow is repeatable — used to generate a unique docId on re-init */
+  repeatable?: boolean
+}
 
 interface BuilderViewProps {
   workflow: WorkflowV2
   projectPath: string
+  bannerConfig?: BuilderBannerConfig | null
+  /** When set, bypasses the default doc ID and uses this one (for new / repeatable docs) */
+  docIdOverride?: string
+  onNewDocument?: () => void
+  onViewInLibrary?: () => void
 }
 
 const SECTION_NAMES_FR: Record<string, string> = {
@@ -27,9 +43,10 @@ const SECTION_NAMES_FR: Record<string, string> = {
   review: 'Validation',
 }
 
-export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
+export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride, onNewDocument, onViewInLibrary }: BuilderViewProps) {
   const hasInitialized = useRef(false)
   const { language } = useI18n()
+  const [bannerVisible, setBannerVisible] = useState(true)
   // Confetti removed
 
   const {
@@ -59,8 +76,18 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
   useEffect(() => {
     if (hasInitialized.current) return
     hasInitialized.current = true
-    initWorkflow(workflow, projectPath)
-  }, [initWorkflow, workflow, projectPath])
+    // Use explicit override prop if provided; otherwise generate one for repeatable flows
+    const resolvedDocId = docIdOverride
+      ?? (bannerConfig?.type === 'repeatable'
+        ? `concept/${workflow.id}-${new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 15)}`
+        : undefined)
+    initWorkflow(workflow, projectPath, resolvedDocId)
+  }, [initWorkflow, workflow, projectPath]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset banner visibility whenever a new bannerConfig arrives
+  useEffect(() => {
+    setBannerVisible(true)
+  }, [bannerConfig])
 
   const activeMicroStep = microSteps[activeMicroStepIndex] ?? null
 
@@ -121,6 +148,25 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
 
       {/* Onboarding tour (first time) */}
       <OnboardingTour />
+
+      {/* Resume / repeatable banner */}
+      {bannerConfig && bannerVisible && bannerConfig.type === 'resume' && (
+        <ResumeBanner
+          documentName={bannerConfig.documentName ?? ''}
+          documentId={bannerConfig.documentId ?? ''}
+          onNewDocument={() => { setBannerVisible(false); onNewDocument?.() }}
+          onViewInLibrary={() => onViewInLibrary?.()}
+          onDismiss={() => setBannerVisible(false)}
+        />
+      )}
+      {bannerConfig && bannerVisible && bannerConfig.type === 'repeatable' && (
+        <RepeatableBanner
+          flowName={bannerConfig.flowName ?? ''}
+          existingCount={bannerConfig.existingCount ?? 0}
+          onViewInLibrary={() => onViewInLibrary?.()}
+          onDismiss={() => setBannerVisible(false)}
+        />
+      )}
 
       {/* Section Bar (top, full width) */}
       <SectionBar

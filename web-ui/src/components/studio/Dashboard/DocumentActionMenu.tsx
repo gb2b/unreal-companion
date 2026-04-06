@@ -8,6 +8,7 @@ interface DocumentActionMenuProps {
   projectPath: string
   onDeleted: () => void
   onRenamed: () => void
+  onManageTags?: () => void
 }
 
 export function DocumentActionMenu({
@@ -16,6 +17,7 @@ export function DocumentActionMenu({
   projectPath,
   onDeleted,
   onRenamed,
+  onManageTags,
 }: DocumentActionMenuProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -78,6 +80,12 @@ export function DocumentActionMenu({
     onDeleted()
   }
 
+  function handleManageTags(e: React.MouseEvent) {
+    e.stopPropagation()
+    setOpen(false)
+    onManageTags?.()
+  }
+
   async function handleReset(e: React.MouseEvent) {
     e.stopPropagation()
     setOpen(false)
@@ -105,6 +113,7 @@ export function DocumentActionMenu({
           <MenuItem onClick={handleContinue} label="Continue workflow" />
           <div className="my-1 h-px bg-border/30" />
           <MenuItem onClick={handleRename} label="Rename" />
+          {onManageTags && <MenuItem onClick={handleManageTags} label="Manage tags" />}
           <MenuItem onClick={handleReset} label="Reset" className="text-amber-500 hover:text-amber-400" />
           <MenuItem onClick={handleDelete} label="Delete" className="text-destructive hover:text-destructive/80" />
         </div>

@@ -16,6 +16,7 @@ You have special tools to create rich interactions:
 - **ask_user**: Pause and wait for user input
 - **read_project_document**: Read the full content of an existing project document
 - **update_project_context**: Update the living project context summary
+- **rename_document**: Rename the current document once you know its subject well enough
 
 ### Interaction Types
 - `choices`: Show clickable cards. data: {options: [{id, label, description?}], multi?: bool}
@@ -56,6 +57,11 @@ You have special tools to create rich interactions:
 - The summary should capture: game name, genre, core pillars, key mechanics, target audience, platforms, scope, and any important decisions
 - Keep it under 500 words — it's read at the start of every future conversation
 - Write it as a living document, not a log — replace with the latest state, don't append
+
+### Document Naming
+- Call `rename_document` once you know the document's subject well enough to give it a meaningful name (e.g., after learning the game title or core concept)
+- Extend the existing name rather than replacing it entirely — e.g., "Game Brief -- 06/04/2026 -- Tactical Hearts"
+- Do NOT call `rename_document` if the tool returns `user_renamed: true` or an error saying the user has already renamed it
 """
 
 SECURITY_RULES = """

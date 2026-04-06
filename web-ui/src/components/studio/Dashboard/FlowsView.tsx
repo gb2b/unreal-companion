@@ -4,8 +4,10 @@ import type { StudioDocument } from '@/types/studio'
 
 interface FlowsViewProps {
   documents: StudioDocument[]
-  onNewDocument: (workflowId: string) => void
+  onSelectFlow: (workflowId: string, existingDoc: StudioDocument | null, repeatable: boolean) => void
   onOpenDocument: (docId: string) => void
+  /** @deprecated use onSelectFlow */
+  onNewDocument?: (workflowId: string) => void
 }
 
 // ── Flow definitions ────────────────────────────────────────────────────────
@@ -90,13 +92,11 @@ const FLOW_CATEGORIES: FlowCategory[] = [
 function EssentialCard({
   flow,
   document,
-  onNew,
-  onOpen,
+  onSelectFlow,
 }: {
   flow: FlowDef
   document?: StudioDocument
-  onNew: () => void
-  onOpen: (id: string) => void
+  onSelectFlow: (existingDoc: StudioDocument | null) => void
 }) {
   const hasDoc = !!document
   const isComplete = document?.meta?.status === 'complete'
@@ -108,7 +108,7 @@ function EssentialCard({
     <motion.button
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={() => hasDoc ? onOpen(document!.id) : onNew()}
+      onClick={() => onSelectFlow(document || null)}
       className={`flex-1 rounded-xl border p-5 text-left transition-all hover:shadow-lg ${
         isComplete
           ? 'border-accent/30 bg-accent/5 hover:border-accent/50 hover:shadow-accent/10'
@@ -149,10 +149,18 @@ function EssentialCard({
   )
 }
 
-function FlowCard({ flow, onNew }: { flow: FlowDef; onNew: () => void }) {
+function FlowCard({
+  flow,
+  existingDoc,
+  onSelectFlow,
+}: {
+  flow: FlowDef
+  existingDoc: StudioDocument | null
+  onSelectFlow: (existingDoc: StudioDocument | null) => void
+}) {
   return (
     <button
-      onClick={onNew}
+      onClick={() => onSelectFlow(existingDoc)}
       className="flex items-start gap-3 rounded-lg border border-border/30 bg-card/50 p-3 text-left transition-all hover:border-primary/30 hover:bg-primary/5"
     >
       <span className="mt-0.5 text-lg">{flow.icon}</span>
@@ -166,8 +174,8 @@ function FlowCard({ flow, onNew }: { flow: FlowDef; onNew: () => void }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-export function FlowsView({ documents, onNewDocument, onOpenDocument }: FlowsViewProps) {
-  // Match existing documents to essential flows
+export function FlowsView({ documents, onSelectFlow }: FlowsViewProps) {
+  // Match existing documents to flows
   const findDoc = (workflowId: string) =>
     documents.find(d => d.meta?.workflow_id === workflowId)
 
@@ -184,8 +192,9 @@ export function FlowsView({ documents, onNewDocument, onOpenDocument }: FlowsVie
               key={flow.workflowId}
               flow={flow}
               document={findDoc(flow.workflowId)}
-              onNew={() => onNewDocument(flow.workflowId)}
-              onOpen={onOpenDocument}
+              onSelectFlow={(existingDoc) =>
+                onSelectFlow(flow.workflowId, existingDoc, flow.repeatable)
+              }
             />
           ))}
         </div>
@@ -204,13 +213,21 @@ export function FlowsView({ documents, onNewDocument, onOpenDocument }: FlowsVie
             {category.name}
           </h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {category.flows.map(flow => (
-              <FlowCard
-                key={flow.workflowId}
-                flow={flow}
-                onNew={() => onNewDocument(flow.workflowId)}
-              />
-            ))}
+            {category.flows.map(flow => {
+              const existingDoc = findDoc(flow.workflowId) || null
+              // For repeatable flows: pass existingDoc so banner shows count,
+              // but the parent will always create a new doc (repeatable=true)
+              return (
+                <FlowCard
+                  key={flow.workflowId}
+                  flow={flow}
+                  existingDoc={existingDoc}
+                  onSelectFlow={(doc) =>
+                    onSelectFlow(flow.workflowId, doc, flow.repeatable)
+                  }
+                />
+              )
+            })}
           </div>
         </motion.section>
       ))}

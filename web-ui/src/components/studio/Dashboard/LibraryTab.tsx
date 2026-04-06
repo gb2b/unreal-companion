@@ -1,6 +1,6 @@
 // web-ui/src/components/studio/Dashboard/LibraryTab.tsx
 // Wrapper for the Library tab — loads StudioDocument[] from the API
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/services/api'
 import { DocumentsLibrary } from './DocumentsLibrary'
 import type { StudioDocument } from '@/types/studio'
@@ -15,7 +15,7 @@ export function LibraryTab({ projectPath, onOpenDocument, onGoToWorkshop }: Libr
   const [documents, setDocuments] = useState<StudioDocument[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadDocuments = useCallback(() => {
     if (!projectPath) { setLoading(false); return }
     setLoading(true)
     api
@@ -27,6 +27,10 @@ export function LibraryTab({ projectPath, onOpenDocument, onGoToWorkshop }: Libr
       .finally(() => setLoading(false))
   }, [projectPath])
 
+  useEffect(() => {
+    loadDocuments()
+  }, [loadDocuments])
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -37,5 +41,13 @@ export function LibraryTab({ projectPath, onOpenDocument, onGoToWorkshop }: Libr
     )
   }
 
-  return <DocumentsLibrary documents={documents} onOpenDocument={onOpenDocument} onGoToWorkshop={onGoToWorkshop} />
+  return (
+    <DocumentsLibrary
+      documents={documents}
+      onOpenDocument={onOpenDocument}
+      onGoToWorkshop={onGoToWorkshop}
+      projectPath={projectPath}
+      onRefresh={loadDocuments}
+    />
+  )
 }

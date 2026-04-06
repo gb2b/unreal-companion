@@ -1,30 +1,59 @@
 // web-ui/src/components/studio/Dashboard/DocumentsLibrary.tsx
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { DocumentCard } from './DocumentCard'
+import { TagFilter } from './TagFilter'
+import { TagManager } from './TagManager'
 import type { StudioDocument } from '@/types/studio'
 
 interface DocumentsLibraryProps {
   documents: StudioDocument[]
   onOpenDocument: (docId: string) => void
   onGoToWorkshop?: () => void
+  projectPath?: string
+  onRefresh?: () => void
 }
 
 type SortMode = 'recent' | 'name' | 'status'
 
-export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop }: DocumentsLibraryProps) {
+export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, projectPath = '', onRefresh }: DocumentsLibraryProps) {
   const [sortBy, setSortBy] = useState<SortMode>('recent')
   const [filter, setFilter] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagManagerDocId, setTagManagerDocId] = useState<string | null>(null)
 
-  // Filter
-  const filtered = documents.filter(doc => {
-    if (!filter) return true
-    const q = filter.toLowerCase()
-    return (
-      doc.name?.toLowerCase().includes(q) ||
-      doc.id?.toLowerCase().includes(q) ||
-      doc.meta?.workflow_id?.toLowerCase().includes(q)
+  const tagManagerDoc = tagManagerDocId ? documents.find(d => d.id === tagManagerDocId) : null
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     )
+  }
+
+  // Collect all unique tags from all documents
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>()
+    documents.forEach(doc => {
+      ;(doc.meta?.tags || []).forEach(t => tagSet.add(t))
+    })
+    return Array.from(tagSet).sort()
+  }, [documents])
+
+  // Filter: text search + tag AND logic
+  const filtered = documents.filter(doc => {
+    if (filter) {
+      const q = filter.toLowerCase()
+      const matchesText =
+        doc.name?.toLowerCase().includes(q) ||
+        doc.id?.toLowerCase().includes(q) ||
+        doc.meta?.workflow_id?.toLowerCase().includes(q)
+      if (!matchesText) return false
+    }
+    if (selectedTags.length > 0) {
+      const docTags = doc.meta?.tags || []
+      return selectedTags.every(t => docTags.includes(t))
+    }
+    return true
   })
 
   // Sort
@@ -63,8 +92,8 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop }: 
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Toolbar */}
+    <div className="flex flex-col gap-3">
+      {/* Toolbar — top row */}
       <div className="flex items-center gap-3">
         {onGoToWorkshop && (
           <button
@@ -98,6 +127,16 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop }: 
         </div>
       </div>
 
+      {/* Tag filter row */}
+      {allTags.length > 0 && (
+        <TagFilter
+          availableTags={allTags}
+          selectedTags={selectedTags}
+          onToggleTag={toggleTag}
+          onClearAll={() => setSelectedTags([])}
+        />
+      )}
+
       {/* Documents grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {sorted.map((doc, i) => (
@@ -107,15 +146,39 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop }: 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.03 }}
           >
-            <DocumentCard document={doc} onClick={onOpenDocument} />
+            <DocumentCard
+              document={doc}
+              onClick={onOpenDocument}
+              projectPath={projectPath}
+              onRenamed={onRefresh}
+              onDeleted={onRefresh}
+              onManageTags={projectPath ? (docId) => setTagManagerDocId(docId) : undefined}
+            />
           </motion.div>
         ))}
       </div>
 
       {filtered.length === 0 && documents.length > 0 && (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No documents match "{filter}"
+          {selectedTags.length > 0
+            ? `No documents match the selected tag${selectedTags.length > 1 ? 's' : ''}`
+            : `No documents match "${filter}"`}
         </p>
+      )}
+
+      {/* Tag Manager Modal */}
+      {tagManagerDoc && projectPath && (
+        <TagManager
+          isOpen={true}
+          onClose={() => setTagManagerDocId(null)}
+          documentId={tagManagerDoc.id}
+          currentTags={tagManagerDoc.meta.tags || []}
+          projectPath={projectPath}
+          onTagsUpdated={() => {
+            setTagManagerDocId(null)
+            onRefresh?.()
+          }}
+        />
       )}
     </div>
   )

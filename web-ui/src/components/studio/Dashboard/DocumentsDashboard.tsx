@@ -6,17 +6,18 @@ import { OnboardingHero } from './OnboardingHero'
 import { FlowsView } from './FlowsView'
 import { ProgressRing } from '@/components/studio/Builder/ProgressRing'
 import type { StudioDocument } from '@/types/studio'
+import type { BuilderBannerConfig } from '@/components/studio/Builder/BuilderView'
 
 interface DocumentsDashboardProps {
   projectPath: string
   onOpenDocument: (docId: string) => void
-  onNewDocument: (workflowId: string) => void
+  onSelectWorkflow: (workflowId: string, bannerConfig: BuilderBannerConfig | null) => void
 }
 
 export function DocumentsDashboard({
   projectPath,
   onOpenDocument,
-  onNewDocument,
+  onSelectWorkflow,
 }: DocumentsDashboardProps) {
   const [documents, setDocuments] = useState<StudioDocument[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +43,35 @@ export function DocumentsDashboard({
 
   const showHero = documents.length < 3
 
+  const handleSelectFlow = (
+    workflowId: string,
+    existingDoc: StudioDocument | null,
+    repeatable: boolean
+  ) => {
+    if (!existingDoc) {
+      // No existing doc — go straight to builder, no banner
+      onSelectWorkflow(workflowId, null)
+      return
+    }
+    if (repeatable) {
+      // Repeatable flow — always create new, show info banner
+      const existingCount = documents.filter(d => d.meta?.workflow_id === workflowId).length
+      onSelectWorkflow(workflowId, {
+        type: 'repeatable',
+        flowName: existingDoc.meta?.workflow_id?.replace(/-/g, ' ') ?? workflowId,
+        existingCount,
+        repeatable: true,
+      })
+      return
+    }
+    // Non-repeatable with existing doc — resume with banner
+    onSelectWorkflow(workflowId, {
+      type: 'resume',
+      documentName: existingDoc.meta?.name || existingDoc.name || workflowId,
+      documentId: existingDoc.id,
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-6">
@@ -61,13 +91,13 @@ export function DocumentsDashboard({
       </div>
       {showHero && (
         <OnboardingHero
-          onStartGameBrief={() => onNewDocument('game-brief')}
+          onStartGameBrief={() => handleSelectFlow('game-brief', null, false)}
           projectName={projectPath ? projectPath.split('/').pop() : undefined}
         />
       )}
       <FlowsView
         documents={documents}
-        onNewDocument={onNewDocument}
+        onSelectFlow={handleSelectFlow}
         onOpenDocument={onOpenDocument}
       />
     </div>

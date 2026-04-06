@@ -43,7 +43,7 @@ import { TaskDetailPanel } from '@/components/board/TaskDetailPanel'
 import { DependencyGraph } from '@/components/board/DependencyGraph'
 import { DocumentsDashboard } from '@/components/studio/Dashboard/DocumentsDashboard'
 import { LibraryTab } from '@/components/studio/Dashboard/LibraryTab'
-import { BuilderView } from '@/components/studio/Builder/BuilderView'
+import { BuilderView, type BuilderBannerConfig } from '@/components/studio/Builder/BuilderView'
 import { DocumentViewer } from '@/components/studio/DocumentViewer'
 import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
@@ -151,6 +151,12 @@ export function StudioPage() {
   const [activeV2Workflow, setActiveV2Workflow] = useState<WorkflowV2 | null>(null)
   // Cache active workflow so BuilderView stays alive when URL has workflowId but state is null
   const [cachedV2Workflow, setCachedV2Workflow] = useState<WorkflowV2 | null>(null)
+  // Resume / repeatable banner config
+  const [builderBanner, setBuilderBanner] = useState<BuilderBannerConfig | null>(null)
+  // Key to force BuilderView remount when starting a new doc
+  const [builderKey, setBuilderKey] = useState(0)
+  // docId override when "New" is clicked from a resume banner
+  const [builderDocIdOverride, setBuilderDocIdOverride] = useState<string | undefined>(undefined)
 
   // Fetch data on mount
   useEffect(() => {
@@ -246,7 +252,7 @@ export function StudioPage() {
     navigate(`/studio/doc/${encodeURIComponent(docId)}`)
   }
 
-  const handleSelectV2Workflow = async (wfId: string) => {
+  const handleSelectV2Workflow = async (wfId: string, banner: BuilderBannerConfig | null = null) => {
     if (!projectPath) return
     try {
       // Try V2 workflow first
@@ -258,6 +264,9 @@ export function StudioPage() {
         // V2 format — use new immersive view
         setActiveV2Workflow(workflow)
         setCachedV2Workflow(workflow)
+        setBuilderBanner(banner)
+        setBuilderDocIdOverride(undefined)
+        setBuilderKey(k => k + 1)
         resetConversation()
         navigate(`/studio/build/${wfId}`)
       } else {
@@ -275,6 +284,11 @@ export function StudioPage() {
         navigate('/studio/today')
       }
     }
+  }
+
+  // Handler for DocumentsDashboard — receives workflowId + optional banner config
+  const handleSelectWorkflow = (wfId: string, banner: BuilderBannerConfig | null) => {
+    handleSelectV2Workflow(wfId, banner)
   }
 
   const handleBackFromV2Workflow = () => {
@@ -308,7 +322,24 @@ export function StudioPage() {
           <span className="text-sm font-medium text-muted-foreground">{displayedV2Workflow.name}</span>
         </div>
         <div className="flex-1 overflow-hidden">
-          <BuilderView workflow={displayedV2Workflow} projectPath={projectPath} />
+          <BuilderView
+            key={builderKey}
+            workflow={displayedV2Workflow}
+            projectPath={projectPath}
+            bannerConfig={builderBanner}
+            docIdOverride={builderDocIdOverride}
+            onNewDocument={() => {
+              // Force remount BuilderView with a new key + unique doc ID (fresh start)
+              const ts = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 15)
+              setBuilderDocIdOverride(`concept/${displayedV2Workflow.id}-${ts}`)
+              setBuilderBanner(null)
+              setBuilderKey(k => k + 1)
+            }}
+            onViewInLibrary={() => {
+              setBuilderBanner(null)
+              navigate('/studio/library')
+            }}
+          />
         </div>
       </div>
     )
@@ -415,7 +446,7 @@ export function StudioPage() {
               <DocumentsDashboard
                 projectPath={projectPath}
                 onOpenDocument={handleOpenDocument}
-                onNewDocument={(workflowId) => handleSelectV2Workflow(workflowId)}
+                onSelectWorkflow={handleSelectWorkflow}
               />
             </motion.div>
           )}

@@ -140,6 +140,17 @@ INTERCEPTOR_TOOLS = [
             "required": ["summary"],
         },
     },
+    {
+        "name": "rename_document",
+        "description": "Rename the current document. Only call this when you understand the subject well enough to give it a meaningful name. Append to the existing name, don't replace it entirely. Do NOT call this if the user has already renamed the document manually.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "new_name": {"type": "string", "description": "The new document name. Should extend the current name, e.g., 'Game Brief -- 06/04/2026 -- Tactical Hearts'"},
+            },
+            "required": ["new_name"],
+        },
+    },
 ]
 
 

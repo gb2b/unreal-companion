@@ -34,6 +34,39 @@ class DocumentMeta:
     input_documents: list[str] = field(default_factory=list)
     prototypes: list[str] = field(default_factory=list)
     conversation_id: str = ""
+    tags: list[str] = field(default_factory=list)
+    user_renamed: bool = False
+    name: str = ""  # Display name, e.g., "Game Brief -- 06/04/2026"
+    summary: str = ""  # First meaningful line of content
+
+
+# Category mapping
+WORKFLOW_CATEGORIES: dict[str, str] = {
+    "game-brief": "concept",
+    "brainstorming": "concept",
+    "mood-board": "concept",
+    "mind-map": "concept",
+    "gdd": "design",
+    "level-design": "design",
+    "art-direction": "design",
+    "audio-design": "design",
+    "narrative": "design",
+    "game-architecture": "technical",
+    "diagram": "technical",
+    "sprint-planning": "production",
+    "dev-story": "production",
+    "code-review": "production",
+}
+
+
+def default_tags_for_workflow(workflow_id: str) -> list[str]:
+    """Return system tags for a new document based on workflow_id."""
+    tags = ["document"]  # file type tag
+    if workflow_id:
+        tags.append(workflow_id)  # flow type tag
+        category = WORKFLOW_CATEGORIES.get(workflow_id, "concept")
+        tags.append(category)  # category tag
+    return tags
 
 
 class DocumentStore:
@@ -54,15 +87,54 @@ class DocumentStore:
         if not self.root.exists():
             return docs
 
+        # Markdown documents
         for md_file in sorted(self.root.rglob("*.md")):
             meta = self._load_meta(md_file)
             rel_path = md_file.relative_to(self.root)
             docs.append({
                 "id": str(rel_path.with_suffix("")),
                 "path": str(rel_path),
-                "name": md_file.stem.replace("-", " ").title(),
+                "name": meta.name or md_file.stem.replace("-", " ").title(),
                 "meta": asdict(meta),
             })
+
+        # Reference files (non-markdown uploads in references/)
+        refs_dir = self.root / "references"
+        if refs_dir.exists():
+            for ref_file in sorted(refs_dir.iterdir()):
+                if ref_file.suffix == ".md" or ref_file.name.endswith(".meta.json"):
+                    continue
+                meta_path = Path(str(ref_file) + ".meta.json")
+                meta_dict: dict = {}
+                if meta_path.exists():
+                    try:
+                        meta_dict = json.loads(meta_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                rel_path = ref_file.relative_to(self.root)
+                docs.append({
+                    "id": f"references/{ref_file.stem}",
+                    "path": str(rel_path),
+                    "name": meta_dict.get("name", ref_file.name),
+                    "meta": {
+                        "workflow_id": "",
+                        "agent": "",
+                        "status": "complete",
+                        "created": meta_dict.get("upload_date", ""),
+                        "updated": meta_dict.get("upload_date", ""),
+                        "sections": {},
+                        "input_documents": [],
+                        "prototypes": [],
+                        "conversation_id": "",
+                        "tags": meta_dict.get("tags", ["reference"]),
+                        "user_renamed": meta_dict.get("user_renamed", False),
+                        "name": meta_dict.get("name", ref_file.name),
+                        "summary": "",
+                        "content_type": meta_dict.get("content_type", ""),
+                        "size_bytes": meta_dict.get("size_bytes", 0),
+                    },
+                })
+
         return docs
 
     def get_document(self, doc_id: str) -> dict | None:
@@ -126,6 +198,13 @@ class DocumentStore:
         meta.sections[section_id].status = status
         meta.sections[section_id].updated = datetime.now(timezone.utc).isoformat()
         meta.updated = datetime.now(timezone.utc).isoformat()
+        # Extract summary from the first meaningful content line
+        if content and not meta.summary:
+            for line in content.split("\n"):
+                stripped = line.strip().lstrip("#").strip()
+                if stripped and len(stripped) > 10:
+                    meta.summary = stripped[:120]
+                    break
         self._save_meta(md_path, meta)
 
     def save_prototype(self, doc_id: str, name: str, html: str) -> str:
@@ -163,6 +242,10 @@ class DocumentStore:
                 input_documents=raw.get("input_documents", []),
                 prototypes=raw.get("prototypes", []),
                 conversation_id=raw.get("conversation_id", ""),
+                tags=raw.get("tags", []),
+                user_renamed=raw.get("user_renamed", False),
+                name=raw.get("name", ""),
+                summary=raw.get("summary", ""),
             )
         except Exception as e:
             logger.error(f"Failed to load meta {meta_path}: {e}")

@@ -7,6 +7,7 @@ import { SliderBlock } from './blocks/SliderBlock'
 import { RatingBlock } from './blocks/RatingBlock'
 import { UploadBlock } from './blocks/UploadBlock'
 import { ConfirmBlock } from './blocks/ConfirmBlock'
+import type { UploadResult } from '@/components/studio/Dashboard/UploadModal'
 
 interface ImmersiveZoneProps {
   blocks: StreamBlock[]
@@ -14,10 +15,18 @@ interface ImmersiveZoneProps {
   isStreaming: boolean
   agentName?: string
   agentEmoji?: string
+  projectPath?: string
   onInteractionResponse: (response: string) => void
 }
 
-export function ImmersiveZone({ blocks, currentText, isStreaming, agentName, agentEmoji, onInteractionResponse }: ImmersiveZoneProps) {
+export function ImmersiveZone({ blocks, currentText, isStreaming, agentName, agentEmoji, projectPath, onInteractionResponse }: ImmersiveZoneProps) {
+  const handleUploadResult = (result: UploadResult) => {
+    if (result.type === 'upload') {
+      onInteractionResponse(`[UPLOAD] Uploaded: ${result.name} (saved to references/${result.name})`)
+    } else {
+      onInteractionResponse(`[UPLOAD] Selected document: ${result.name} (id: ${result.id})`)
+    }
+  }
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -47,7 +56,11 @@ export function ImmersiveZone({ blocks, currentText, isStreaming, agentName, age
               <RatingBlock data={block.data as RatingData} onSubmit={v => onInteractionResponse(String(v))} />
             )}
             {block.kind === 'interaction' && block.blockType === 'upload' && (
-              <UploadBlock data={block.data as UploadData} onUpload={() => onInteractionResponse('[file uploaded]')} />
+              <UploadBlock
+                data={block.data as UploadData}
+                onUpload={handleUploadResult}
+                projectPath={projectPath}
+              />
             )}
             {block.kind === 'interaction' && block.blockType === 'confirm' && (
               <ConfirmBlock data={block.data as ConfirmData} onConfirm={ok => onInteractionResponse(ok ? 'approved' : 'revise')} />

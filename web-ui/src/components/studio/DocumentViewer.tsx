@@ -68,7 +68,10 @@ export function DocumentViewer({ docId, projectPath }: DocumentViewerProps) {
   const status = doc?.meta?.status ?? 'empty'
   const agent = doc?.meta?.agent
   const updated = doc?.meta?.updated
-
+  const tags = doc?.meta?.tags || []
+  const isReference = tags.includes('reference')
+  const isImage = tags.includes('image')
+  const isPdf = doc?.meta?.content_type === 'application/pdf' || doc?.path?.endsWith('.pdf')
   // Parse content into sections: ## Title\ncontent blocks
   const parseSections = (content: string): Array<{ title: string; content: string }> => {
     if (!content) return []
@@ -186,41 +189,105 @@ export function DocumentViewer({ docId, projectPath }: DocumentViewerProps) {
           {/* Document title */}
           <h1 className="mb-6 text-2xl font-bold">{doc.name}</h1>
 
-          {hasStructuredSections ? (
-            <div className="flex flex-col gap-8">
-              {sections.map((section, i) => (
-                <div key={i} className="rounded-xl border border-border/50 bg-card p-5">
-                  <h2 className="mb-3 text-base font-semibold text-foreground">{section.title}</h2>
-                  {section.content ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/80">
-                      <ReactMarkdown>{section.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-sm italic text-muted-foreground">[To be completed]</p>
-                  )}
+          {/* Reference file viewer */}
+          {isReference && (
+            <div className="flex flex-col gap-4">
+              {isImage && (
+                <div className="overflow-hidden rounded-xl border border-border/50 bg-muted/20">
+                  <img
+                    src={`/api/v2/studio/references/${encodeURIComponent(doc.name)}?project_path=${encodeURIComponent(projectPath)}`}
+                    alt={doc.name}
+                    className="w-full object-contain"
+                  />
                 </div>
-              ))}
-            </div>
-          ) : doc.content ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/80">
-              <ReactMarkdown>{doc.content}</ReactMarkdown>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border/50 p-8 text-center text-sm text-muted-foreground">
-              This document has no content yet.
-              {workflowId && (
-                <span>
-                  {' '}
-                  <button
-                    onClick={() => navigate(`/studio/build/${workflowId}`)}
-                    className="text-primary underline hover:no-underline"
-                  >
-                    Open in Workshop
-                  </button>{' '}
-                  to start filling it in.
-                </span>
               )}
+              {isPdf && (
+                <div className="flex flex-col gap-3">
+                  <a
+                    href={`/api/v2/studio/references/${encodeURIComponent(doc.name)}?project_path=${encodeURIComponent(projectPath)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-primary hover:bg-muted/40"
+                  >
+                    Open PDF
+                  </a>
+                  <iframe
+                    src={`/api/v2/studio/references/${encodeURIComponent(doc.name)}?project_path=${encodeURIComponent(projectPath)}`}
+                    className="h-[600px] w-full rounded-xl border border-border/50"
+                    title={doc.name}
+                  />
+                </div>
+              )}
+              {!isImage && !isPdf && (
+                <div className="rounded-xl border border-border/50 bg-card p-6">
+                  <p className="text-sm text-muted-foreground">
+                    This file cannot be previewed directly.
+                  </p>
+                  <a
+                    href={`/api/v2/studio/references/${encodeURIComponent(doc.name)}?project_path=${encodeURIComponent(projectPath)}`}
+                    download={doc.name}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-primary hover:bg-muted/40"
+                  >
+                    Download {doc.name}
+                  </a>
+                </div>
+              )}
+              {/* Upload metadata */}
+              <div className="rounded-xl border border-border/50 bg-card/50 px-5 py-4 text-xs text-muted-foreground">
+                <div className="grid grid-cols-2 gap-2">
+                  {doc.meta.content_type && <span>Type: {doc.meta.content_type}</span>}
+                  {doc.meta.size_bytes != null && (
+                    <span>
+                      Size:{' '}
+                      {doc.meta.size_bytes < 1024 * 1024
+                        ? `${(doc.meta.size_bytes / 1024).toFixed(1)} KB`
+                        : `${(doc.meta.size_bytes / (1024 * 1024)).toFixed(1)} MB`}
+                    </span>
+                  )}
+                  {doc.meta.created && <span>Uploaded: {formatDate(doc.meta.created)}</span>}
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Markdown document sections (only for non-reference docs) */}
+          {!isReference && (
+            hasStructuredSections ? (
+              <div className="flex flex-col gap-8">
+                {sections.map((section, i) => (
+                  <div key={i} className="rounded-xl border border-border/50 bg-card p-5">
+                    <h2 className="mb-3 text-base font-semibold text-foreground">{section.title}</h2>
+                    {section.content ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/80">
+                        <ReactMarkdown>{section.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">[To be completed]</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : doc.content ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/80">
+                <ReactMarkdown>{doc.content}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/50 p-8 text-center text-sm text-muted-foreground">
+                This document has no content yet.
+                {workflowId && (
+                  <span>
+                    {' '}
+                    <button
+                      onClick={() => navigate(`/studio/build/${workflowId}`)}
+                      className="text-primary underline hover:no-underline"
+                    >
+                      Open in Workshop
+                    </button>{' '}
+                    to start filling it in.
+                  </span>
+                )}
+              </div>
+            )
           )}
         </div>
       </div>

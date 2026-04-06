@@ -66,7 +66,7 @@ interface BuilderState {
   outputTokens: number
 
   // Actions
-  initWorkflow: (workflow: WorkflowV2, projectPath: string) => Promise<void>
+  initWorkflow: (workflow: WorkflowV2, projectPath: string, docIdOverride?: string) => Promise<void>
   setSectionDisplayNames: (names: Record<string, string>) => void
   submitResponse: (response: string) => Promise<void>
   skipSection: () => void
@@ -102,13 +102,13 @@ const INITIAL_STATE = {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-function debouncedSaveSteps(microSteps: MicroStep[], workflow: WorkflowV2 | null, projectPath: string) {
+function debouncedSaveSteps(microSteps: MicroStep[], workflow: WorkflowV2 | null, projectPath: string, docId?: string) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     if (!workflow || !projectPath) return
-    const docId = `concept/${workflow.id}`
+    const resolvedDocId = docId ?? `concept/${workflow.id}`
     fetch(
-      `/api/v2/studio/steps/${encodeURIComponent(docId)}`,
+      `/api/v2/studio/steps/${encodeURIComponent(resolvedDocId)}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -432,8 +432,8 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         outputTokens: outTkn,
       })
 
-      const { workflow, projectPath } = get()
-      debouncedSaveSteps(steps, workflow, projectPath)
+      const { workflow, projectPath, documentId } = get()
+      debouncedSaveSteps(steps, workflow, projectPath, documentId ?? undefined)
     })
 
     try {
@@ -466,7 +466,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
   return {
     ...INITIAL_STATE,
 
-    initWorkflow: async (workflow, projectPath) => {
+    initWorkflow: async (workflow, projectPath, docIdOverride) => {
       abortController?.abort()
       stepCounter = 0
       const persona = AGENT_PERSONAS[workflow.agents.primary] || {
@@ -477,16 +477,18 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       // Set initial active section to the first section
       const firstSectionId = workflow.sections[0]?.id || null
 
+      const docId = docIdOverride ?? `concept/${workflow.id}`
+
       set({
         ...INITIAL_STATE,
         workflow,
         projectPath,
         agent: persona,
         activeSection: firstSectionId,
+        documentId: docId,
       })
 
       // Check if a document already exists for this workflow
-      const docId = `concept/${workflow.id}`
       let existingSectionStatuses: Record<string, SectionStatus> = {}
       try {
         const res = await fetch(`/api/v2/studio/documents/resume`, {
