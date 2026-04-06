@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { FileText } from 'lucide-react'
+import { FileText, Save, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { api } from '@/services/api'
@@ -29,6 +29,8 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [dirty, setDirty] = useState(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isProjectContext = docId === '__project-context__'
@@ -63,34 +65,60 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
     }
   }, [docId, projectPath, isProjectContext])
 
+  const doSave = useCallback(async (contentToSave: string) => {
+    setSaving(true)
+    try {
+      if (isProjectContext) {
+        await api.put('/api/v2/studio/project-context', {
+          project_path: projectPath,
+          content: contentToSave,
+        })
+      } else {
+        await api.put(`/api/v2/studio/documents/${encodeURIComponent(docId)}`, {
+          project_path: projectPath,
+          content: contentToSave,
+        })
+      }
+      setLastSaved(new Date())
+      setDirty(false)
+    } catch (e) {
+      console.error('Auto-save failed:', e)
+    } finally {
+      setSaving(false)
+    }
+  }, [docId, projectPath, isProjectContext])
+
   const handleChange = useCallback((newContent: string) => {
     setContent(newContent)
+    setDirty(true)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
-      setSaving(true)
-      try {
-        if (isProjectContext) {
-          await api.put('/api/v2/studio/project-context', {
-            project_path: projectPath,
-            content: newContent,
-          })
-        } else {
-          await api.put(`/api/v2/studio/documents/${encodeURIComponent(docId)}`, {
-            project_path: projectPath,
-            content: newContent,
-          })
-        }
-      } catch (e) {
-        console.error('Auto-save failed:', e)
-      } finally {
-        setSaving(false)
-      }
-    }, 1000)
-  }, [docId, projectPath, isProjectContext])
+    saveTimerRef.current = setTimeout(() => doSave(newContent), 1000)
+  }, [doSave])
+
+  const handleManualSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    doSave(content)
+  }, [doSave, content])
+
+  // Update "saved X ago" display
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [])
+
+  const formatTimeSince = (date: Date) => {
+    const secs = Math.floor((Date.now() - date.getTime()) / 1000)
+    if (secs < 5) return 'just now'
+    if (secs < 60) return `${secs}s ago`
+    const mins = Math.floor(secs / 60)
+    if (mins < 60) return `${mins}m ago`
+    return `${Math.floor(mins / 60)}h ago`
+  }
 
   if (loading) {
     return (
@@ -130,17 +158,37 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
         updated={doc.meta?.updated}
         status={doc.meta?.status}
       />
-      <div className="flex items-center gap-2 border-b border-border/30 bg-card/40 px-4 py-1 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 border-b border-border/30 bg-card/40 px-4 py-1.5 text-xs text-muted-foreground">
+        {/* Save button */}
+        <button
+          onClick={handleManualSave}
+          disabled={saving || !dirty}
+          className="flex items-center gap-1.5 rounded-md px-2 py-0.5 transition-colors hover:bg-muted disabled:opacity-40"
+          title="Save (Ctrl+S)"
+        >
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
+          Save
+        </button>
+
+        <span className="h-3 w-px bg-border/40" />
+
+        {/* Status */}
         {saving ? (
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 text-amber-500">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
             Saving…
           </span>
-        ) : (
+        ) : lastSaved ? (
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Saved
+            Saved {formatTimeSince(lastSaved)}
           </span>
+        ) : (
+          <span className="text-muted-foreground/50">Not saved yet</span>
         )}
       </div>
       <div className="flex-1 min-h-0">

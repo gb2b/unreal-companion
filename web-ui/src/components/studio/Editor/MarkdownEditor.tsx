@@ -1,5 +1,5 @@
 // web-ui/src/components/studio/Editor/MarkdownEditor.tsx
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
@@ -8,6 +8,10 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
+import {
+  Bold, Italic, Heading1, Heading2, Heading3,
+  List, ListOrdered, Quote, Code, Minus, Link,
+} from 'lucide-react'
 
 interface MarkdownEditorProps {
   content: string
@@ -15,6 +19,7 @@ interface MarkdownEditorProps {
   placeholder?: string
 }
 
+// Custom theme to match the app's Cyber Mint dark theme
 const cyberMintTheme = EditorView.theme({
   '&': {
     backgroundColor: 'hsl(220 20% 4%)',
@@ -25,6 +30,7 @@ const cyberMintTheme = EditorView.theme({
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
     fontSize: '14px',
     padding: '16px',
+    lineHeight: '1.7',
   },
   '.cm-gutters': {
     backgroundColor: 'hsl(220 20% 6%)',
@@ -44,6 +50,51 @@ const cyberMintTheme = EditorView.theme({
     outline: 'none',
   },
 })
+
+// Toolbar button definitions
+interface ToolbarAction {
+  icon: React.ReactNode
+  label: string
+  prefix: string
+  suffix?: string
+  block?: boolean // true = acts on full line(s)
+}
+
+const TOOLBAR_ACTIONS: ToolbarAction[] = [
+  { icon: <Heading1 className="h-4 w-4" />, label: 'Heading 1', prefix: '# ', block: true },
+  { icon: <Heading2 className="h-4 w-4" />, label: 'Heading 2', prefix: '## ', block: true },
+  { icon: <Heading3 className="h-4 w-4" />, label: 'Heading 3', prefix: '### ', block: true },
+  { icon: <Bold className="h-4 w-4" />, label: 'Bold', prefix: '**', suffix: '**' },
+  { icon: <Italic className="h-4 w-4" />, label: 'Italic', prefix: '_', suffix: '_' },
+  { icon: <Code className="h-4 w-4" />, label: 'Code', prefix: '`', suffix: '`' },
+  { icon: <List className="h-4 w-4" />, label: 'Bullet list', prefix: '- ', block: true },
+  { icon: <ListOrdered className="h-4 w-4" />, label: 'Numbered list', prefix: '1. ', block: true },
+  { icon: <Quote className="h-4 w-4" />, label: 'Quote', prefix: '> ', block: true },
+  { icon: <Minus className="h-4 w-4" />, label: 'Divider', prefix: '\n---\n', block: true },
+  { icon: <Link className="h-4 w-4" />, label: 'Link', prefix: '[', suffix: '](url)' },
+]
+
+function EditorToolbar({ onAction }: { onAction: (action: ToolbarAction) => void }) {
+  return (
+    <div className="flex items-center gap-0.5 border-b border-border/30 bg-card/60 px-3 py-1">
+      {TOOLBAR_ACTIONS.map((action, i) => (
+        <span key={action.label} className="contents">
+          {/* Separator after H3, after Code, after Numbered list */}
+          {(i === 3 || i === 6 || i === 9) && (
+            <span className="mx-1 h-4 w-px bg-border/30" />
+          )}
+          <button
+            onClick={() => onAction(action)}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title={action.label}
+          >
+            {action.icon}
+          </button>
+        </span>
+      ))}
+    </div>
+  )
+}
 
 export function MarkdownEditor({ content, onChange, placeholder }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
@@ -94,19 +145,66 @@ export function MarkdownEditor({ content, onChange, placeholder }: MarkdownEdito
     }
   }, [content])
 
+  const handleToolbarAction = useCallback((action: ToolbarAction) => {
+    const view = viewRef.current
+    if (!view) return
+
+    const { state } = view
+    const { from, to } = state.selection.main
+    const selected = state.sliceDoc(from, to)
+
+    let insert: string
+    if (action.block) {
+      // Block actions: prefix each line
+      if (selected) {
+        insert = selected.split('\n').map(line => `${action.prefix}${line}`).join('\n')
+      } else {
+        insert = `${action.prefix}${action.label}`
+      }
+    } else {
+      // Inline actions: wrap selection
+      const text = selected || action.label
+      insert = `${action.prefix}${text}${action.suffix || ''}`
+    }
+
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: from + insert.length },
+    })
+    view.focus()
+  }, [])
+
   return (
-    <PanelGroup orientation="horizontal" className="h-full">
-      <Panel defaultSize={50} minSize={30}>
-        <div ref={editorRef} className="h-full overflow-auto" />
-      </Panel>
-      <PanelResizeHandle className="w-1 bg-border/30 hover:bg-primary/30 transition-colors" />
-      <Panel defaultSize={50} minSize={30}>
-        <div className="h-full overflow-y-auto bg-background p-6">
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    <div className="flex h-full flex-col">
+      <EditorToolbar onAction={handleToolbarAction} />
+      <PanelGroup orientation="horizontal" className="flex-1 min-h-0">
+        <Panel defaultSize={50} minSize={30}>
+          <div ref={editorRef} className="h-full overflow-auto" />
+        </Panel>
+        <PanelResizeHandle className="w-1 bg-border/30 hover:bg-primary/30 transition-colors" />
+        <Panel defaultSize={50} minSize={30}>
+          <div className="h-full overflow-y-auto bg-background px-8 py-6">
+            <article className="prose prose-lg dark:prose-invert max-w-none
+              prose-headings:font-bold prose-headings:tracking-tight
+              prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8 prose-h1:border-b prose-h1:border-border/30 prose-h1:pb-3
+              prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-8 prose-h2:text-primary/90
+              prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-6
+              prose-p:text-base prose-p:leading-7 prose-p:mb-4 prose-p:text-foreground/80
+              prose-strong:text-foreground prose-strong:font-semibold
+              prose-ul:my-4 prose-ul:space-y-1
+              prose-ol:my-4 prose-ol:space-y-1
+              prose-li:text-base prose-li:text-foreground/80
+              prose-blockquote:border-l-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic
+              prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm prose-code:text-primary prose-code:before:content-none prose-code:after:content-none
+              prose-hr:border-border/40 prose-hr:my-8
+              prose-a:text-primary prose-a:underline-offset-2
+              prose-img:rounded-xl prose-img:border prose-img:border-border/30
+            ">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || '*Start writing to see preview…*'}</ReactMarkdown>
+            </article>
           </div>
-        </div>
-      </Panel>
-    </PanelGroup>
+        </Panel>
+      </PanelGroup>
+    </div>
   )
 }
