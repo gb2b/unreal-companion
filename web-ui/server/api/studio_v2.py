@@ -670,6 +670,21 @@ async def rollback_section(doc_id: str, section_id: str, version: int, project_p
     return {"success": True, "version": version, "content": target["content"]}
 
 
+@router.get("/project-context")
+async def get_project_context(project_path: str = ""):
+    """Get the project-context.md content (LLM living memory)."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    ctx_file = Path(project_path) / ".unreal-companion" / "project-context.md"
+    if not ctx_file.exists():
+        return {"content": "", "updated": None}
+    content = ctx_file.read_text(encoding="utf-8")
+    stat = ctx_file.stat()
+    from datetime import datetime, timezone
+    updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+    return {"content": content, "updated": updated}
+
+
 def _parse_section_contents(content: str) -> dict[str, str]:
     """Parse markdown into {section_id: content} by splitting on ## headers."""
     sections: dict[str, str] = {}

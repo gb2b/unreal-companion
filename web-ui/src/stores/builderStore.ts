@@ -158,11 +158,17 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         if (interactionBlock && interactionBlock.kind === 'interaction') {
           const choicesData = interactionBlock.data as { options?: { id: string; label: string }[] }
           const options = choicesData?.options ?? []
-          const selectedLine = message.split('\n')[0]
-          if (selectedLine.startsWith('Selected: ')) {
-            const labels = selectedLine.replace('Selected: ', '').split(', ')
-            choiceLabels = labels
-            choiceIds = labels.map(label => options.find(o => o.label === label)?.id ?? label)
+          // Match user's response against known option labels (clean, no "Selected:" prefix)
+          const firstLine = message.split('\n')[0]
+          const candidateLabels = firstLine.split(', ')
+          const matched = candidateLabels.filter(cl =>
+            options.some(o => o.label.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim() === cl.trim())
+          )
+          if (matched.length > 0) {
+            choiceLabels = options
+              .filter(o => matched.some(m => o.label.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim() === m.trim()))
+              .map(o => o.label)
+            choiceIds = choiceLabels.map(label => options.find(o => o.label === label)?.id ?? label)
           }
         }
 
@@ -346,7 +352,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             if (d.content) {
               contents[d.section_id] = d.content
             }
-            if (d.status === 'in_progress') section = d.section_id
+            // Only switch active section if there's no current section yet
+            // Cross-section updates (e.g., updating "references" while in "init") should NOT change active section
+            if (d.status === 'in_progress' && !section) section = d.section_id
             break
           }
           case 'section_complete': {
@@ -611,8 +619,14 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
     goBack: () => {
       const { activeMicroStepIndex, microSteps } = get()
       if (activeMicroStepIndex <= 0) return
-      const prevIdx = activeMicroStepIndex - 1
-      // Re-activate the previous step
+      // Skip ghost steps (no text, no interaction) when going back
+      let prevIdx = activeMicroStepIndex - 1
+      while (prevIdx > 0) {
+        const step = microSteps[prevIdx]
+        const hasContent = step.blocks.some(b => b.kind === 'text' || b.kind === 'streaming' || b.kind === 'interaction')
+        if (hasContent) break
+        prevIdx--
+      }
       const steps = [...microSteps]
       steps[prevIdx] = { ...steps[prevIdx], status: 'active' }
       set({ activeMicroStepIndex: prevIdx, microSteps: steps })

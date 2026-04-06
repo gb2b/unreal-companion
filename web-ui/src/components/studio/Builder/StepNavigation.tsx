@@ -18,7 +18,7 @@ export function StepNavigation({
   hasResponse,
 }: StepNavigationProps) {
   return (
-    <div className="flex items-center justify-between border-t border-border/30 bg-background/80 px-6 py-3 backdrop-blur">
+    <div className="mt-auto flex shrink-0 items-center justify-between border-t border-border/30 bg-background/80 px-6 py-3 backdrop-blur">
       {/* Back */}
       <button
         onClick={onBack}

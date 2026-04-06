@@ -13,18 +13,20 @@ interface TimelineSommaireProps {
 }
 
 function getStepSummary(step: MicroStep, index: number): string {
-  if (step.summary) return step.summary
-  const lastText = [...step.blocks].reverse().find(b => b.kind === 'text') as { kind: 'text'; content: string } | undefined
-  if (lastText) {
-    const text = lastText.content
-    const dot = text.indexOf('.')
-    const newline = text.indexOf('\n')
-    let end = text.length
-    if (dot !== -1) end = Math.min(end, dot)
-    if (newline !== -1) end = Math.min(end, newline)
-    const slice = text.slice(0, end).trim()
-    return slice.length <= 50 ? slice : slice.slice(0, 49) + '…'
+  // For answered steps: show the agent's question (from text blocks), not the user's response
+  const firstText = step.blocks.find(b => b.kind === 'text') as { kind: 'text'; content: string } | undefined
+  if (firstText) {
+    const text = firstText.content
+    // Try to extract the last question or key sentence
+    const lines = text.split('\n').filter(l => l.trim())
+    // Find a line with a question mark, or use the last meaningful line
+    const question = lines.find(l => l.includes('?'))
+    const target = question || lines[lines.length - 1] || text
+    const clean = target.replace(/^[#*>\-\s]+/, '').trim()
+    return clean.length <= 50 ? clean : clean.slice(0, 49) + '…'
   }
+  // Fallback to summary (user response) only if no agent text
+  if (step.summary) return step.summary
   return `Step ${index + 1}`
 }
 
@@ -56,9 +58,14 @@ export function TimelineSommaire({
     activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [activeMicroStepIndex])
 
-  // Group steps by sectionId
+  // Group steps by sectionId — skip "ghost" steps (only tool calls, no agent text or interaction)
   const stepsBySection: Record<string, { step: MicroStep; globalIndex: number }[]> = {}
   microSteps.forEach((step, i) => {
+    const hasText = step.blocks.some(b => b.kind === 'text' || b.kind === 'streaming')
+    const hasInteraction = step.blocks.some(b => b.kind === 'interaction')
+    // Skip steps that have no meaningful content (just tool calls)
+    if (!hasText && !hasInteraction && step.status !== 'active') return
+
     const sid = step.sectionId || ''
     if (!stepsBySection[sid]) stepsBySection[sid] = []
     stepsBySection[sid].push({ step, globalIndex: i })

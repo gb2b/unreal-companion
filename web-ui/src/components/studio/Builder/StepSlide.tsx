@@ -102,7 +102,9 @@ export function StepSlide({
       const choicesData = microStep?.interactionData as any
       const options = choicesData?.options || []
       const labels = selectedChoices.map(id => options.find((o: any) => o.id === id)?.label || id)
-      parts.push(`Selected: ${labels.join(', ')}`)
+      // Clean format: strip emojis from labels for the LLM message
+      const cleanLabels = labels.map((l: string) => l.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim())
+      parts.push(cleanLabels.join(', '))
     }
     if (hasTextInput) {
       parts.push(textValue.trim())
@@ -123,8 +125,8 @@ export function StepSlide({
   )
 
   return (
-    <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-6">
+    <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
+      <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
 
           {/* Render all blocks in order — additive, nothing disappears */}
@@ -182,32 +184,18 @@ export function StepSlide({
             }
           })}
 
-          {/* Readonly: show previous answer when viewing old steps */}
-          {isReadonly && microStep && (
-            <div className="mt-2 rounded-lg border border-border/30 bg-muted/30 p-4">
-              <p className="mb-1 text-xs font-medium text-muted-foreground/60">
-                {language === 'fr' ? 'Votre réponse :' : 'Your answer:'}
-              </p>
-              {microStep.selectedChoiceLabels.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {microStep.selectedChoiceLabels.map((label, i) => (
-                    <span key={i} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs text-primary">
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {microStep.userResponse && (() => {
-                const text = microStep.selectedChoiceLabels.length > 0
-                  ? microStep.userResponse.split('\n').slice(1).join('\n').trim()
-                  : microStep.userResponse
-                return text ? <p className="text-sm text-foreground/70">{text}</p> : null
-              })()}
+          {/* Readonly: compact indicator for answered steps — only if step has agent content */}
+          {isReadonly && microStep?.userResponse && blocks.some(b => b.kind === 'text' || b.kind === 'interaction') && (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-[10px] text-accent">✓</span>
+              <span className="text-xs text-muted-foreground/50 truncate max-w-md">
+                {microStep.userResponse.length > 80 ? microStep.userResponse.slice(0, 77) + '…' : microStep.userResponse}
+              </span>
               <button
                 onClick={() => onProposeModification(activeMicroStepIndex)}
-                className="mt-3 text-xs text-primary/70 hover:text-primary underline underline-offset-2"
+                className="ml-auto shrink-0 text-[10px] text-primary/50 hover:text-primary underline underline-offset-2"
               >
-                {language === 'fr' ? 'Proposer une modification' : 'Propose a modification'}
+                {language === 'fr' ? 'Modifier' : 'Edit'}
               </button>
             </div>
           )}
