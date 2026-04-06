@@ -380,6 +380,41 @@ async def save_step(doc_id: str, project_path: str = "", step: dict = {}):
     return {"success": True}
 
 
+@router.delete("/documents/{doc_id:path}")
+async def delete_document(doc_id: str, project_path: str = ""):
+    """Delete a document and all its associated files."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    base = Path(project_path) / ".unreal-companion" / "docs"
+    for ext in [".md", ".meta.json", ".steps.json", ".history.json"]:
+        f = base / f"{doc_id}{ext}"
+        if f.exists():
+            f.unlink()
+    proto_dir = base / f"{doc_id}.prototypes"
+    if proto_dir.exists():
+        import shutil
+        shutil.rmtree(proto_dir)
+    return {"success": True}
+
+
+@router.put("/documents/{doc_id:path}/rename")
+async def rename_document(doc_id: str, request: Request):
+    """Rename a document (update the title in the .md file first line)."""
+    body = await request.json()
+    new_name = body.get("name", "")
+    project_path = body.get("project_path", "")
+    if not project_path or not new_name:
+        raise HTTPException(400, "project_path and name required")
+    md_path = Path(project_path) / ".unreal-companion" / "docs" / f"{doc_id}.md"
+    if md_path.exists():
+        content = md_path.read_text(encoding="utf-8")
+        lines = content.split("\n")
+        if lines and lines[0].startswith("#"):
+            lines[0] = f"# {new_name}"
+        md_path.write_text("\n".join(lines), encoding="utf-8")
+    return {"success": True}
+
+
 @router.put("/steps/{doc_id:path}")
 async def save_all_steps(doc_id: str, request: Request):
     """Save all micro-steps at once."""

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { Loader2, Sparkles, AlertTriangle, X } from 'lucide-react'
 import { MainHeader, AppMode } from '@/components/layout/MainHeader'
 import { StudioPage } from '@/components/pages/StudioPage'
@@ -16,51 +17,54 @@ import { useConnectionStore } from '@/stores/connectionStore'
 import { useThemeStore } from '@/stores/themeStore'
 
 function App() {
-  const [mode, setMode] = useState<AppMode>('studio')
-  const [showSettings, setShowSettings] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [pageKey, setPageKey] = useState(0) // Used to reset pages to home
   const [llmWarningDismissed, setLlmWarningDismissed] = useState(false)
 
   const { currentProject, projects, fetchProjects } = useProjectStore()
   const { fetchConfig, hasAnthropicKey, hasOpenAIKey, hasGoogleKey } = useLLMStore()
   const { fetchStatus } = useConnectionStore()
   const { applyTheme } = useThemeStore()
-  
+
+  // Derive mode from URL path
+  const mode: AppMode = location.pathname.startsWith('/editor') ? 'editor' : 'studio'
+
   // Check if onboarding is needed
   const hasAnyApiKey = hasAnthropicKey || hasOpenAIKey || hasGoogleKey
-  
+
   // Initialize stores on app load - non-blocking
   useEffect(() => {
     const init = async () => {
       setIsLoading(true)
-      
+
       // Run these in parallel for faster startup
       await Promise.all([
         fetchProjects().catch(console.error),
         fetchConfig().catch(console.error),
       ])
-      
+
       // Non-blocking status check
       fetchStatus().catch(console.error)
-      
+
       // Apply theme
       applyTheme()
-      
+
       setIsInitialized(true)
       setIsLoading(false)
     }
     init()
-    
+
     // Refresh status periodically - non-blocking
     const interval = setInterval(() => fetchStatus().catch(console.error), 10000)
     return () => clearInterval(interval)
   }, [fetchProjects, fetchConfig, fetchStatus, applyTheme])
-  
+
   // Show onboarding if no projects (regardless of API key status)
   useEffect(() => {
     if (isInitialized && projects.length === 0) {
@@ -70,6 +74,8 @@ function App() {
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const isSettings = location.pathname === '/settings'
+
     // Cmd/Ctrl + K: Toggle command palette
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault()
@@ -78,43 +84,43 @@ function App() {
     // Cmd/Ctrl + ,: Settings
     if ((e.metaKey || e.ctrlKey) && e.key === ',') {
       e.preventDefault()
-      setShowSettings(v => !v)
+      if (isSettings) {
+        navigate(-1)
+      } else {
+        navigate('/settings')
+      }
     }
-    // Escape: Close overlays
+    // Escape: Close settings
     if (e.key === 'Escape') {
-      if (showSettings) setShowSettings(false)
+      if (isSettings) navigate(-1)
     }
     // Cmd/Ctrl + 1: Studio mode
     if ((e.metaKey || e.ctrlKey) && e.key === '1') {
       e.preventDefault()
-      setMode('studio')
-      setShowSettings(false)
+      navigate('/studio/today')
     }
     // Cmd/Ctrl + 2: Editor mode
     if ((e.metaKey || e.ctrlKey) && e.key === '2') {
       e.preventDefault()
-      setMode('editor')
-      setShowSettings(false)
+      navigate('/editor')
     }
-  }, [showSettings])
+  }, [location.pathname, navigate])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
-  
+
   useWebSocket(currentProject?.id || null)
 
   // Handle navigation from command palette
   const handleNavigate = (page: string) => {
     if (page === 'settings') {
-      setShowSettings(true)
+      navigate('/settings')
     } else if (page === 'studio' || page === 'dashboard' || page === 'workspace') {
-      setMode('studio')
-      setShowSettings(false)
+      navigate('/studio/today')
     } else if (page === 'editor' || page === 'chat') {
-      setMode('editor')
-      setShowSettings(false)
+      navigate('/editor')
     }
   }
 
@@ -153,15 +159,21 @@ function App() {
       <MainHeader
         mode={mode}
         onModeChange={(newMode) => {
-          setMode(newMode)
-          setShowSettings(false)
+          if (newMode === 'studio') {
+            navigate('/studio/today')
+          } else {
+            navigate('/editor')
+          }
         }}
-        onSettingsClick={() => setShowSettings(!showSettings)}
+        onSettingsClick={() => navigate('/settings')}
         onNewProject={() => setNewProjectOpen(true)}
         onLogoClick={() => {
           // Return to home of current mode
-          setShowSettings(false)
-          setPageKey(k => k + 1) // Increment key to reset page state
+          if (mode === 'editor') {
+            navigate('/editor')
+          } else {
+            navigate('/studio/today')
+          }
         }}
       />
 
@@ -173,7 +185,7 @@ function App() {
             <span className="text-sm">
               No AI provider configured. AI features won't work until you add an API key in{' '}
               <button
-                onClick={() => setShowSettings(true)}
+                onClick={() => navigate('/settings')}
                 className="underline hover:no-underline font-medium"
               >
                 Settings
@@ -192,25 +204,27 @@ function App() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden">
         <ErrorBoundary>
-          {showSettings ? (
-            <SettingsPage onClose={() => setShowSettings(false)} />
-          ) : mode === 'studio' ? (
-            <StudioPage key={`studio-${pageKey}`} />
-          ) : (
-            <EditorPage key={`editor-${pageKey}`} />
-          )}
+          <Routes>
+            <Route path="/" element={<Navigate to="/studio/today" replace />} />
+            <Route path="/studio" element={<Navigate to="/studio/today" replace />} />
+            <Route path="/studio/doc/:docId" element={<StudioPage />} />
+            <Route path="/studio/build/:workflowId" element={<StudioPage />} />
+            <Route path="/studio/:tab" element={<StudioPage />} />
+            <Route path="/editor" element={<EditorPage />} />
+            <Route path="/settings" element={<SettingsPage onClose={() => navigate(-1)} />} />
+          </Routes>
         </ErrorBoundary>
       </main>
-      
+
       {/* Modals */}
-      <NewProjectModal 
-        isOpen={newProjectOpen} 
-        onClose={() => setNewProjectOpen(false)} 
+      <NewProjectModal
+        isOpen={newProjectOpen}
+        onClose={() => setNewProjectOpen(false)}
       />
-      
+
       <Toaster />
-      <CommandPalette 
-        isOpen={commandPaletteOpen} 
+      <CommandPalette
+        isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         onNavigate={handleNavigate}
       />

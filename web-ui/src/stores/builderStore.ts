@@ -251,12 +251,19 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             // version of the previously streamed text, not new content.
             setBlocks(blocks)
             streamText = ''
+            procText = ''  // Clear processing text once LLM finishes producing text
             break
           }
           case 'interaction_block': {
             const d = event.data as InteractionBlockEvent
             if (steps[activeIdx]) {
               const blocks = getBlocks()
+              // Mark any pending tool_calls as done — the interaction IS the result
+              for (let i = 0; i < blocks.length; i++) {
+                if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
+                  blocks[i] = { ...blocks[i], status: 'done' } as any
+                }
+              }
               blocks.push({
                 kind: 'interaction',
                 type: d.block_type as InteractionBlockType,
@@ -344,7 +351,11 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             const blocks = getBlocks()
             blocks.push({ kind: 'tool_call', name: toolName, label, status: 'pending' })
             setBlocks(blocks)
-            procText = label
+            // Don't set processingText for hidden tools — the interaction itself is the visual
+            const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
+            if (!HIDDEN_TOOLS.includes(toolName)) {
+              procText = label
+            }
             break
           }
           case 'tool_result': {

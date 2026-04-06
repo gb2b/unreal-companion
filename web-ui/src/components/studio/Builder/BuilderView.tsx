@@ -1,4 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
+import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
 import { useI18n } from '@/i18n/useI18n'
@@ -130,9 +131,9 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
         displayNames={sectionDisplayNames}
       />
 
-      {/* Main area: 3-column flex */}
+      {/* Main area: MicroTimeline (fixed) + resizable center/right */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: MicroTimeline (w-64, shrink-0) */}
+        {/* Left: MicroTimeline (fixed width, stays outside Group) */}
         <MicroTimeline
           steps={microSteps}
           activeIndex={activeMicroStepIndex}
@@ -140,33 +141,36 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
           sectionName={activeSection ?? undefined}
         />
 
-        {/* Center: StepSlide (flex-1) */}
-        <StepSlide
-          microStep={activeMicroStep}
-          streamingText={currentStreamText}
-          isProcessing={isProcessing}
-          processingText={processingText}
-          agentName={agent.name}
-          agentEmoji={agent.emoji}
-          activeMicroStepIndex={activeMicroStepIndex}
-          onSubmitResponse={submitResponse}
-          onBack={goBack}
-          onSkip={skipSection}
-        />
-
-        {/* Right: PreviewPanel (w-[400px], shrink-0) */}
-        <div data-tour="preview" className="w-[400px] shrink-0">
-          <PreviewPanel
-            sections={allSections}
-            sectionStatuses={sectionStatuses}
-            sectionContents={sectionContents}
-            documentContent=""
-            documents={[]}
-            prototypes={prototypes}
-            onSectionClick={scrollToSection}
-            onDocumentClick={() => {}}
-          />
-        </div>
+        {/* Center + Right: resizable via react-resizable-panels */}
+        <Group className="flex-1">
+          <Panel defaultSize={65} minSize={40}>
+            <StepSlide
+              microStep={activeMicroStep}
+              streamingText={currentStreamText}
+              isProcessing={isProcessing}
+              processingText={processingText}
+              agentName={agent.name}
+              agentEmoji={agent.emoji}
+              activeMicroStepIndex={activeMicroStepIndex}
+              onSubmitResponse={submitResponse}
+              onBack={goBack}
+              onSkip={skipSection}
+            />
+          </Panel>
+          <Separator className="w-1 bg-border/30 hover:bg-primary/30 transition-colors cursor-col-resize" />
+          <Panel defaultSize={35} minSize={20} data-tour="preview">
+            <PreviewPanel
+              sections={allSections}
+              sectionStatuses={sectionStatuses}
+              sectionContents={sectionContents}
+              documentContent=""
+              documents={[]}
+              prototypes={prototypes}
+              onSectionClick={scrollToSection}
+              onDocumentClick={() => {}}
+            />
+          </Panel>
+        </Group>
       </div>
     </div>
   )

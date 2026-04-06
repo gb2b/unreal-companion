@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles,
@@ -43,6 +44,7 @@ import { DependencyGraph } from '@/components/board/DependencyGraph'
 import { DocumentsDashboard } from '@/components/studio/Dashboard/DocumentsDashboard'
 import { LibraryTab } from '@/components/studio/Dashboard/LibraryTab'
 import { BuilderView } from '@/components/studio/Builder/BuilderView'
+import { DocumentViewer } from '@/components/studio/DocumentViewer'
 import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
@@ -116,8 +118,28 @@ export function StudioPage() {
   const { activeSession, startWorkflow, resumeSession, reset: resetWorkflow } = useWorkflowStore()
   const { reset: resetConversation } = useConversationStore()
   const { t } = useTranslation()
+  const { tab, workflowId, docId } = useParams<{ tab?: string; workflowId?: string; docId?: string }>()
+  const navigate = useNavigate()
 
-  const [view, setView] = useState<StudioView>('today')
+  // Map URL tab to internal StudioView (workshop → documents)
+  const tabToView = (t: string | undefined): StudioView => {
+    if (t === 'workshop') return 'documents'
+    const valid: StudioView[] = ['today', 'board', 'documents', 'library', 'team', 'workflow', 'studioWorkflow']
+    return valid.includes(t as StudioView) ? (t as StudioView) : 'today'
+  }
+
+  // Derive view from URL params
+  const view: StudioView = workflowId ? 'studioWorkflow' : tabToView(tab)
+
+  const setView = (v: StudioView) => {
+    if (v === 'today') navigate('/studio/today')
+    else if (v === 'documents') navigate('/studio/workshop')
+    else if (v === 'library') navigate('/studio/library')
+    else if (v === 'board') navigate('/studio/board')
+    else if (v === 'team') navigate('/studio/team')
+    else if (v === 'workflow') navigate('/studio/today') // legacy fallback
+    else navigate(`/studio/${v}`)
+  }
   const [agents, setAgents] = useState<Agent[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -127,6 +149,8 @@ export function StudioPage() {
   // Studio V2 state
   const [newDocModalOpen, setNewDocModalOpen] = useState(false)
   const [activeV2Workflow, setActiveV2Workflow] = useState<WorkflowV2 | null>(null)
+  // Cache active workflow so BuilderView stays alive when URL has workflowId but state is null
+  const [cachedV2Workflow, setCachedV2Workflow] = useState<WorkflowV2 | null>(null)
 
   // Fetch data on mount
   useEffect(() => {
@@ -169,25 +193,28 @@ export function StudioPage() {
     fetchData()
   }, [currentProject])
 
-  // Switch to workflow view immediately when workflow is pending, streaming, or active
+  // Switch to today view when legacy workflow is pending, streaming, or active (so it renders there)
   const { pendingWorkflow, isStartStreaming } = useWorkflowStore()
   useEffect(() => {
     if (activeSession || pendingWorkflow || isStartStreaming) {
-      setView('workflow')
+      if (view !== 'workflow' && view !== 'today') {
+        navigate('/studio/today')
+      }
     }
-  }, [activeSession, pendingWorkflow, isStartStreaming])
+  }, [activeSession, pendingWorkflow, isStartStreaming]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectAgent = (agent: Agent) => {
     setSelectedAgent(agent)
   }
 
-  const handleStartWorkflow = async (workflowId: string) => {
+  const handleStartWorkflow = async (wfId: string) => {
     if (!currentProject) return
     // Use companion_path if available, otherwise derive project folder from uproject_path
     const projectPath = currentProject.companion_path
       ? currentProject.companion_path.replace(/\/.unreal-companion$/, '')
       : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || ''
-    await startWorkflow(workflowId, currentProject.id, projectPath)
+    await startWorkflow(wfId, currentProject.id, projectPath)
+    navigate('/studio/today') // Legacy workflow shows in today view
   }
 
   const handleResumeWorkflow = async (sessionId: string) => {
@@ -204,7 +231,7 @@ export function StudioPage() {
 
   const handleBackFromWorkflow = () => {
     resetWorkflow()
-    setView('today')
+    navigate('/studio/today')
   }
 
   // === Studio V2 handlers ===
@@ -215,65 +242,62 @@ export function StudioPage() {
         : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || '')
     : ''
 
-  const handleOpenDocument = async (docId: string) => {
-    if (!projectPath) return
-    try {
-      // Fetch document list to resolve its workflow_id from meta
-      const docs = await api.get<{ documents: import('@/types/studio').StudioDocument[] }>(
-        `/api/v2/studio/documents?project_path=${encodeURIComponent(projectPath)}`
-      )
-      const doc = docs.documents?.find(d => d.id === docId)
-      const workflowId = doc?.meta?.workflow_id
-      if (workflowId) {
-        await handleSelectV2Workflow(workflowId)
-      } else {
-        setView('studioWorkflow')
-      }
-    } catch {
-      setView('studioWorkflow')
-    }
+  const handleOpenDocument = (docId: string) => {
+    navigate(`/studio/doc/${encodeURIComponent(docId)}`)
   }
 
-  const handleSelectV2Workflow = async (workflowId: string) => {
+  const handleSelectV2Workflow = async (wfId: string) => {
     if (!projectPath) return
     try {
       // Try V2 workflow first
       const workflow = await api.get<WorkflowV2>(
-        `/api/v2/studio/workflows/${workflowId}?project_path=${encodeURIComponent(projectPath)}`
+        `/api/v2/studio/workflows/${wfId}?project_path=${encodeURIComponent(projectPath)}`
       ).catch(() => null)
 
       if (workflow && workflow.sections) {
         // V2 format — use new immersive view
         setActiveV2Workflow(workflow)
+        setCachedV2Workflow(workflow)
         resetConversation()
-        setView('studioWorkflow')
+        navigate(`/studio/build/${wfId}`)
       } else {
         // Fallback to V1 workflow system (existing step-based)
         if (currentProject) {
-          await startWorkflow(workflowId, currentProject.id, projectPath)
-          setView('workflow')
+          await startWorkflow(wfId, currentProject.id, projectPath)
+          navigate('/studio/today')
         }
       }
     } catch (e) {
       console.error('Failed to load workflow:', e)
       // Ultimate fallback — try V1
       if (currentProject) {
-        await startWorkflow(workflowId, currentProject.id, projectPath)
-        setView('workflow')
+        await startWorkflow(wfId, currentProject.id, projectPath)
+        navigate('/studio/today')
       }
     }
   }
 
   const handleBackFromV2Workflow = () => {
     setActiveV2Workflow(null)
+    setCachedV2Workflow(null)
     resetConversation()
-    setView('documents')
+    navigate('/studio/workshop')
   }
 
   // === Render ===
 
+  // Document viewer — read-only, shown at /studio/doc/:docId
+  if (docId) {
+    return (
+      <div className="h-full">
+        <DocumentViewer docId={docId} projectPath={projectPath} />
+      </div>
+    )
+  }
+
   // Studio V2 — immersive workflow view (full screen, 3-panel)
-  if (view === 'studioWorkflow' && activeV2Workflow) {
+  const displayedV2Workflow = activeV2Workflow || cachedV2Workflow
+  if (view === 'studioWorkflow' && displayedV2Workflow) {
     return (
       <div className="h-full flex flex-col">
         <div className="h-12 border-b border-border bg-card/80 backdrop-blur flex items-center px-4 gap-4">
@@ -281,17 +305,17 @@ export function StudioPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Workshop
           </Button>
-          <span className="text-sm font-medium text-muted-foreground">{activeV2Workflow.name}</span>
+          <span className="text-sm font-medium text-muted-foreground">{displayedV2Workflow.name}</span>
         </div>
         <div className="flex-1 overflow-hidden">
-          <BuilderView workflow={activeV2Workflow} projectPath={projectPath} />
+          <BuilderView workflow={displayedV2Workflow} projectPath={projectPath} />
         </div>
       </div>
     )
   }
 
   // Legacy workflow view (full screen) - show when session active, pending, or streaming
-  if (view === 'workflow' && (activeSession || pendingWorkflow || isStartStreaming)) {
+  if ((view === 'workflow' || view === 'today') && (activeSession || pendingWorkflow || isStartStreaming)) {
     return (
       <div className="h-full flex flex-col">
         <div className="h-12 border-b border-border bg-card/80 backdrop-blur flex items-center px-4 gap-4">

@@ -101,14 +101,32 @@ class DocumentStore:
             ))
             return
 
+        md_path = self.root / f"{doc_id}.md"
+
+        # Update the .md file content — insert/replace the section
+        if content:
+            current_content = doc.get("content", "")
+            section_header = f"## {section_id}"
+            # Check if section already exists in the document
+            if section_header in current_content:
+                # Replace existing section (from header to next ## or end)
+                import re
+                pattern = rf"(## {re.escape(section_id)}\n)(.*?)(?=\n## |\Z)"
+                replacement = f"## {section_id}\n\n{content}\n"
+                new_content = re.sub(pattern, replacement, current_content, flags=re.DOTALL)
+            else:
+                # Append new section
+                new_content = current_content.rstrip() + f"\n\n## {section_id}\n\n{content}\n"
+            md_path.write_text(new_content, encoding="utf-8")
+
         # Update metadata
-        meta = self._load_meta(self.root / f"{doc_id}.md")
+        meta = self._load_meta(md_path)
         if section_id not in meta.sections:
             meta.sections[section_id] = SectionMeta()
         meta.sections[section_id].status = status
         meta.sections[section_id].updated = datetime.now(timezone.utc).isoformat()
         meta.updated = datetime.now(timezone.utc).isoformat()
-        self._save_meta(self.root / f"{doc_id}.md", meta)
+        self._save_meta(md_path, meta)
 
     def save_prototype(self, doc_id: str, name: str, html: str) -> str:
         """Save a prototype HTML file. Returns the relative path."""
