@@ -30,9 +30,11 @@ interface StepSlideProps {
   agentName: string
   agentEmoji: string
   activeMicroStepIndex: number
+  totalMicroSteps: number
   onSubmitResponse: (response: string) => void
   onBack: () => void
   onSkip: () => void
+  onProposeModification: (stepIndex: number) => void
 }
 
 export function StepSlide({
@@ -43,9 +45,11 @@ export function StepSlide({
   agentName,
   agentEmoji,
   activeMicroStepIndex,
+  totalMicroSteps,
   onSubmitResponse,
   onBack,
   onSkip,
+  onProposeModification,
 }: StepSlideProps) {
   const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
@@ -65,6 +69,7 @@ export function StepSlide({
   const hasSelection = selectedChoices.length > 0
   const hasTextInput = textValue.trim().length > 0
   const hasResponse = hasSelection || hasTextInput
+  const isReadonly = microStep?.status === 'answered' && activeMicroStepIndex < totalMicroSteps - 1
 
   // Dynamic placeholder
   const placeholder = hasSelection
@@ -165,7 +170,7 @@ export function StepSlide({
                       type={block.type}
                       data={block.data}
                       onResponse={handleInteractionSelect}
-                      disabled={isProcessing}
+                      disabled={isProcessing || !!isReadonly}
                     />
                   </div>
                 )
@@ -176,6 +181,36 @@ export function StepSlide({
                 return null
             }
           })}
+
+          {/* Readonly: show previous answer when viewing old steps */}
+          {isReadonly && microStep && (
+            <div className="mt-2 rounded-lg border border-border/30 bg-muted/30 p-4">
+              <p className="mb-1 text-xs font-medium text-muted-foreground/60">
+                {language === 'fr' ? 'Votre réponse :' : 'Your answer:'}
+              </p>
+              {microStep.selectedChoiceLabels.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {microStep.selectedChoiceLabels.map((label, i) => (
+                    <span key={i} className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs text-primary">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {microStep.userResponse && (() => {
+                const text = microStep.selectedChoiceLabels.length > 0
+                  ? microStep.userResponse.split('\n').slice(1).join('\n').trim()
+                  : microStep.userResponse
+                return text ? <p className="text-sm text-foreground/70">{text}</p> : null
+              })()}
+              <button
+                onClick={() => onProposeModification(activeMicroStepIndex)}
+                className="mt-3 text-xs text-primary/70 hover:text-primary underline underline-offset-2"
+              >
+                {language === 'fr' ? 'Proposer une modification' : 'Propose a modification'}
+              </button>
+            </div>
+          )}
 
           {/* Simple "Thinking..." — only when no VISIBLE tool_call spinner is pending and not streaming */}
           {isProcessing && !isStreaming && !blocks.some(
@@ -191,7 +226,7 @@ export function StepSlide({
       </div>
 
       {/* Pinned input zone — outside the scroll area */}
-      {showInput && (
+      {showInput && !isReadonly && (
         <div className="border-t border-border/30 px-6 py-4">
           <div className="mx-auto w-full max-w-2xl flex flex-col gap-1.5">
             <textarea

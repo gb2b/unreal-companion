@@ -2,10 +2,8 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
-import { useI18n } from '@/i18n/useI18n'
-import { SectionBar } from '@/components/studio/Workflow/SectionBar'
 import { PreviewPanel } from '@/components/studio/Preview/PreviewPanel'
-import { MicroTimeline } from './MicroTimeline'
+import { TimelineSommaire } from './TimelineSommaire'
 import { StepSlide } from './StepSlide'
 // Confetti removed — too random, replaced with subtler section flash animation
 import { OnboardingTour } from './OnboardingTour'
@@ -32,20 +30,8 @@ interface BuilderViewProps {
   onViewInLibrary?: () => void
 }
 
-const SECTION_NAMES_FR: Record<string, string> = {
-  init: 'Initialisation',
-  identity: 'Identité',
-  vision: 'Vision',
-  pillars: 'Piliers',
-  references: 'Références',
-  audience: 'Public cible',
-  scope: 'Périmètre',
-  review: 'Validation',
-}
-
 export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride, onNewDocument, onViewInLibrary }: BuilderViewProps) {
   const hasInitialized = useRef(false)
-  const { language } = useI18n()
   const [bannerVisible, setBannerVisible] = useState(true)
   // Confetti removed
 
@@ -57,6 +43,8 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
     jumpToMicroStep,
     goBack,
     skipSection,
+    proposeModification,
+    requestEditFromPreview,
     sectionStatuses,
     sectionContents,
     activeSection,
@@ -71,7 +59,6 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
   } = useBuilderStore()
 
   const allSections = [...workflow.sections, ...dynamicSections]
-  const sectionDisplayNames = language === 'fr' ? SECTION_NAMES_FR : undefined
 
   useEffect(() => {
     if (hasInitialized.current) return
@@ -168,23 +155,17 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
         />
       )}
 
-      {/* Section Bar (top, full width) */}
-      <SectionBar
-        sections={allSections}
-        statuses={sectionStatuses}
-        activeSection={activeSection}
-        onSectionClick={jumpToSection}
-        displayNames={sectionDisplayNames}
-      />
-
-      {/* Main area: MicroTimeline (fixed) + resizable center/right */}
+      {/* Main area: TimelineSommaire (fixed) + resizable center/right */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: MicroTimeline (fixed width, stays outside Group) */}
-        <MicroTimeline
-          steps={microSteps}
-          activeIndex={activeMicroStepIndex}
+        {/* Left: TimelineSommaire (fixed width, stays outside Group) */}
+        <TimelineSommaire
+          sections={allSections}
+          sectionStatuses={sectionStatuses}
+          microSteps={microSteps}
+          activeMicroStepIndex={activeMicroStepIndex}
+          activeSection={activeSection}
           onStepClick={jumpToMicroStep}
-          sectionName={activeSection ?? undefined}
+          onSectionClick={jumpToSection}
         />
 
         {/* Center + Right: resizable via react-resizable-panels */}
@@ -198,9 +179,11 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               agentName={agent.name}
               agentEmoji={agent.emoji}
               activeMicroStepIndex={activeMicroStepIndex}
+              totalMicroSteps={microSteps.length}
               onSubmitResponse={submitResponse}
               onBack={goBack}
               onSkip={skipSection}
+              onProposeModification={proposeModification}
             />
           </Panel>
           <Separator className="w-1 bg-border/30 hover:bg-primary/30 transition-colors cursor-col-resize" />
@@ -214,6 +197,9 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               prototypes={prototypes}
               onSectionClick={scrollToSection}
               onDocumentClick={() => {}}
+              projectPath={projectPath}
+              documentId={useBuilderStore.getState().documentId ?? ''}
+              onEditRequest={requestEditFromPreview}
             />
           </Panel>
         </Group>
