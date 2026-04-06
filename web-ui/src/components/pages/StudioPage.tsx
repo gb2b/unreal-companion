@@ -44,7 +44,7 @@ import { DependencyGraph } from '@/components/board/DependencyGraph'
 import { DocumentsDashboard } from '@/components/studio/Dashboard/DocumentsDashboard'
 import { LibraryTab } from '@/components/studio/Dashboard/LibraryTab'
 import { BuilderView, type BuilderBannerConfig } from '@/components/studio/Builder/BuilderView'
-import { DocumentViewer } from '@/components/studio/DocumentViewer'
+import { EditorView as DocumentEditorView } from '@/components/studio/Editor/EditorView'
 import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
@@ -314,11 +314,11 @@ export function StudioPage() {
 
   // === Render ===
 
-  // Document viewer — read-only, shown at /studio/doc/:docId
+  // Document editor — shown at /studio/doc/:docId
   if (docId) {
     return (
       <div className="h-full">
-        <DocumentViewer docId={docId} projectPath={projectPath} />
+        <DocumentEditorView docId={docId} projectPath={projectPath} />
       </div>
     )
   }
