@@ -1,6 +1,7 @@
 // web-ui/src/components/studio/Dashboard/DocumentActionMenu.tsx
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface DocumentActionMenuProps {
   docId: string
@@ -11,6 +12,12 @@ interface DocumentActionMenuProps {
   onManageTags?: () => void
 }
 
+type DialogState =
+  | { type: 'none' }
+  | { type: 'delete' }
+  | { type: 'reset' }
+  | { type: 'rename' }
+
 export function DocumentActionMenu({
   docId,
   workflowId,
@@ -20,7 +27,11 @@ export function DocumentActionMenu({
   onManageTags,
 }: DocumentActionMenuProps) {
   const [open, setOpen] = useState(false)
+  // true = align right edge of dropdown with button (default), false = align left edge
+  const [alignRight, setAlignRight] = useState(true)
+  const [dialog, setDialog] = useState<DialogState>({ type: 'none' })
   const ref = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
   // Close on outside click
@@ -33,6 +44,17 @@ export function DocumentActionMenu({
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  // Check if dropdown overflows the left edge of the viewport and flip if needed
+  useEffect(() => {
+    if (!open || !dropdownRef.current) return
+    const rect = dropdownRef.current.getBoundingClientRect()
+    if (rect.left < 0) {
+      setAlignRight(false)
+    } else {
+      setAlignRight(true)
+    }
   }, [open])
 
   function stopProp(e: React.MouseEvent) {
@@ -56,28 +78,16 @@ export function DocumentActionMenu({
     navigate(`/studio/build/${encodeURIComponent(workflowId)}`)
   }
 
-  async function handleRename(e: React.MouseEvent) {
+  function handleRename(e: React.MouseEvent) {
     e.stopPropagation()
     setOpen(false)
-    const newName = window.prompt('New document name:')
-    if (!newName?.trim()) return
-    await fetch(`/api/v2/studio/documents/${encodeURIComponent(docId)}/rename`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim(), project_path: projectPath }),
-    })
-    onRenamed()
+    setDialog({ type: 'rename' })
   }
 
-  async function handleDelete(e: React.MouseEvent) {
+  function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
     setOpen(false)
-    if (!window.confirm('Delete this document? This cannot be undone.')) return
-    await fetch(
-      `/api/v2/studio/documents/${encodeURIComponent(docId)}?project_path=${encodeURIComponent(projectPath)}`,
-      { method: 'DELETE' }
-    )
-    onDeleted()
+    setDialog({ type: 'delete' })
   }
 
   function handleManageTags(e: React.MouseEvent) {
@@ -86,15 +96,39 @@ export function DocumentActionMenu({
     onManageTags?.()
   }
 
-  async function handleReset(e: React.MouseEvent) {
+  function handleReset(e: React.MouseEvent) {
     e.stopPropagation()
     setOpen(false)
-    if (!window.confirm('Reset this document? All content will be deleted and the workflow will restart fresh.')) return
+    setDialog({ type: 'reset' })
+  }
+
+  async function confirmDelete() {
+    setDialog({ type: 'none' })
+    await fetch(
+      `/api/v2/studio/documents/${encodeURIComponent(docId)}?project_path=${encodeURIComponent(projectPath)}`,
+      { method: 'DELETE' }
+    )
+    onDeleted()
+  }
+
+  async function confirmReset() {
+    setDialog({ type: 'none' })
     await fetch(
       `/api/v2/studio/documents/${encodeURIComponent(docId)}?project_path=${encodeURIComponent(projectPath)}`,
       { method: 'DELETE' }
     )
     navigate(`/studio/build/${encodeURIComponent(workflowId)}`)
+  }
+
+  async function confirmRename(newName?: string) {
+    setDialog({ type: 'none' })
+    if (!newName?.trim()) return
+    await fetch(`/api/v2/studio/documents/${encodeURIComponent(docId)}/rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName.trim(), project_path: projectPath }),
+    })
+    onRenamed()
   }
 
   return (
@@ -108,7 +142,10 @@ export function DocumentActionMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-7 z-50 min-w-[160px] rounded-lg border border-border/50 bg-card py-1 shadow-lg shadow-black/10">
+        <div
+          ref={dropdownRef}
+          className={`absolute top-7 z-50 min-w-[160px] rounded-lg border border-border/50 bg-card py-1 shadow-lg shadow-black/10 ${alignRight ? 'right-0' : 'left-0'}`}
+        >
           <MenuItem onClick={handleOpen} label="Open" />
           <MenuItem onClick={handleContinue} label="Continue workflow" />
           <div className="my-1 h-px bg-border/30" />
@@ -118,6 +155,40 @@ export function DocumentActionMenu({
           <MenuItem onClick={handleDelete} label="Delete" className="text-destructive hover:text-destructive/80" />
         </div>
       )}
+
+      {/* Rename dialog */}
+      <ConfirmDialog
+        isOpen={dialog.type === 'rename'}
+        title="Rename document"
+        message="Enter a new name for this document."
+        inputLabel="New name"
+        inputPlaceholder="Document name"
+        confirmLabel="Rename"
+        onConfirm={confirmRename}
+        onCancel={() => setDialog({ type: 'none' })}
+      />
+
+      {/* Delete dialog */}
+      <ConfirmDialog
+        isOpen={dialog.type === 'delete'}
+        title="Delete document"
+        message="Delete this document? This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setDialog({ type: 'none' })}
+      />
+
+      {/* Reset dialog */}
+      <ConfirmDialog
+        isOpen={dialog.type === 'reset'}
+        title="Reset document"
+        message="Reset this document? All content will be deleted and the workflow will restart fresh."
+        confirmLabel="Reset"
+        destructive
+        onConfirm={confirmReset}
+        onCancel={() => setDialog({ type: 'none' })}
+      />
     </div>
   )
 }

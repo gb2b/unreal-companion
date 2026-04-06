@@ -248,6 +248,20 @@ export function StudioPage() {
         : currentProject.uproject_path?.replace(/\/[^/]+\.uproject$/, '') || '')
     : ''
 
+  // Auto-load workflow when URL has workflowId but state is empty (e.g. after browser refresh)
+  useEffect(() => {
+    if (workflowId && !activeV2Workflow && !cachedV2Workflow && projectPath) {
+      api.get<WorkflowV2>(
+        `/api/v2/studio/workflows/${workflowId}?project_path=${encodeURIComponent(projectPath)}`
+      ).then(workflow => {
+        if (workflow && workflow.sections) {
+          setActiveV2Workflow(workflow)
+          setCachedV2Workflow(workflow)
+        }
+      }).catch(console.error)
+    }
+  }, [workflowId, activeV2Workflow, cachedV2Workflow, projectPath])
+
   const handleOpenDocument = (docId: string) => {
     navigate(`/studio/doc/${encodeURIComponent(docId)}`)
   }
