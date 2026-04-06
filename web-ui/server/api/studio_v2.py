@@ -17,6 +17,7 @@ from services.llm_engine.system_prompt import SystemPromptBuilder
 from services.mcp_bridge import execute_tool
 from services.agent_manager import agent_manager
 from services.document_store import DocumentStore, DocumentMeta, default_tags_for_workflow
+from services.section_version_store import SectionVersionStore
 from services.microstep_store import MicroStepStore
 from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
@@ -644,6 +645,29 @@ async def save_all_steps(doc_id: str, request: Request):
     store = MicroStepStore(project_path)
     store.save_all_steps(doc_id, steps)
     return {"success": True}
+
+
+@router.get("/documents/{doc_id:path}/sections/{section_id}/versions")
+async def list_section_versions(doc_id: str, section_id: str, project_path: str = ""):
+    """List all versions of a document section."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = SectionVersionStore(project_path)
+    return store.list_versions(doc_id, section_id)
+
+
+@router.post("/documents/{doc_id:path}/sections/{section_id}/rollback/{version:int}")
+async def rollback_section(doc_id: str, section_id: str, version: int, project_path: str = ""):
+    """Rollback a section to a previous version."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    version_store = SectionVersionStore(project_path)
+    target = version_store.get_version(doc_id, section_id, version)
+    if not target:
+        raise HTTPException(404, f"Version {version} not found")
+    doc_store = DocumentStore(project_path)
+    doc_store.update_section(doc_id, section_id, target["content"], "complete")
+    return {"success": True, "version": version, "content": target["content"]}
 
 
 def _parse_section_contents(content: str) -> dict[str, str]:

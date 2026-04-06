@@ -12,6 +12,7 @@ import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from services.section_version_store import SectionVersionStore
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +191,10 @@ class DocumentStore:
                 # Append new section
                 new_content = current_content.rstrip() + f"\n\n## {section_id}\n\n{content}\n"
             md_path.write_text(new_content, encoding="utf-8")
+
+            # Save version for diff/rollback
+            version_store = SectionVersionStore(str(self.root.parent.parent))
+            version_store.save_version(doc_id, section_id, content)
 
         # Update metadata
         meta = self._load_meta(md_path)
