@@ -73,26 +73,6 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, pr
     return 0
   })
 
-  if (documents.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="mb-4 text-5xl opacity-40">📚</span>
-        <h3 className="text-lg font-semibold">Your library is empty</h3>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Documents you create in the Workshop will appear here.
-        </p>
-        {onGoToWorkshop && (
-          <button
-            onClick={onGoToWorkshop}
-            className="mt-4 rounded-lg bg-gradient-to-r from-primary to-accent px-5 py-2 text-sm font-semibold text-primary-foreground transition-all hover:shadow-lg hover:shadow-primary/20"
-          >
-            Open Workshop →
-          </button>
-        )}
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-3">
       {/* Toolbar — top row */}
@@ -148,28 +128,44 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, pr
         />
       )}
 
-      {/* Documents grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {sorted.map((doc, i) => (
-          <motion.div
-            key={doc.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
-          >
-            <DocumentCard
-              document={doc}
-              onClick={onOpenDocument}
-              projectPath={projectPath}
-              onRenamed={onRefresh}
-              onDeleted={onRefresh}
-              onManageTags={projectPath ? (docId) => setTagManagerDocId(docId) : undefined}
-            />
-          </motion.div>
-        ))}
-      </div>
-
-      {filtered.length === 0 && documents.length > 0 && (
+      {/* Documents grid or empty state */}
+      {sorted.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {sorted.map((doc, i) => (
+            <motion.div
+              key={doc.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
+              <DocumentCard
+                document={doc}
+                onClick={onOpenDocument}
+                projectPath={projectPath}
+                onRenamed={onRefresh}
+                onDeleted={onRefresh}
+                onManageTags={projectPath ? (docId) => setTagManagerDocId(docId) : undefined}
+              />
+            </motion.div>
+          ))}
+        </div>
+      ) : documents.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <span className="mb-4 text-5xl opacity-40">📚</span>
+          <h3 className="text-lg font-semibold">Your library is empty</h3>
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+            Documents you create in the Workshop will appear here.
+          </p>
+          {onGoToWorkshop && (
+            <button
+              onClick={onGoToWorkshop}
+              className="mt-4 rounded-lg bg-gradient-to-r from-primary to-accent px-5 py-2 text-sm font-semibold text-primary-foreground transition-all hover:shadow-lg hover:shadow-primary/20"
+            >
+              Open Workshop →
+            </button>
+          )}
+        </div>
+      ) : (
         <p className="py-8 text-center text-sm text-muted-foreground">
           {selectedTags.length > 0
             ? `No documents match the selected tag${selectedTags.length > 1 ? 's' : ''}`
