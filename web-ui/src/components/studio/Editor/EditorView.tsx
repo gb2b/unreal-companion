@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { FileText, Save, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,6 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [dirty, setDirty] = useState(false)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isProjectContext = docId === '__project-context__'
 
@@ -82,7 +81,7 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
       setLastSaved(new Date())
       setDirty(false)
     } catch (e) {
-      console.error('Auto-save failed:', e)
+      console.error('Save failed:', e)
     } finally {
       setSaving(false)
     }
@@ -91,12 +90,9 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
   const handleChange = useCallback((newContent: string) => {
     setContent(newContent)
     setDirty(true)
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => doSave(newContent), 1000)
-  }, [doSave])
+  }, [])
 
   const handleManualSave = useCallback(() => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     doSave(content)
   }, [doSave, content])
 
@@ -105,10 +101,6 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 10000)
     return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [])
 
   const formatTimeSince = (date: Date) => {
@@ -181,7 +173,7 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
             <span>Saved {formatTimeSince(lastSaved)}</span>
           </div>
         ) : (
-          <span className="text-muted-foreground/50">Auto-save enabled</span>
+          <span className="text-muted-foreground/50">No changes</span>
         )}
       </div>
       <div className="flex-1 min-h-0">
