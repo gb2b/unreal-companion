@@ -158,37 +158,30 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
         updated={doc.meta?.updated}
         status={doc.meta?.status}
       />
-      <div className="flex items-center gap-3 border-b border-border/30 bg-card/40 px-4 py-1.5 text-xs text-muted-foreground">
-        {/* Save button */}
-        <button
-          onClick={handleManualSave}
-          disabled={saving || !dirty}
-          className="flex items-center gap-1.5 rounded-md px-2 py-0.5 transition-colors hover:bg-muted disabled:opacity-40"
-          title="Save (Ctrl+S)"
-        >
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
-          ) : (
-            <Save className="h-3.5 w-3.5" />
-          )}
-          Save
-        </button>
-
-        <span className="h-3 w-px bg-border/40" />
-
-        {/* Status */}
+      <div className="flex items-center gap-3 border-b border-border/30 bg-card/60 px-4 py-1.5 text-sm">
         {saving ? (
-          <span className="flex items-center gap-1.5 text-amber-500">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
-            Saving…
-          </span>
+          /* Saving state — prominent */
+          <div className="flex items-center gap-2 text-amber-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="font-medium">Saving…</span>
+          </div>
+        ) : dirty ? (
+          /* Unsaved changes */
+          <button
+            onClick={handleManualSave}
+            className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-400 transition-colors hover:bg-amber-500/20"
+          >
+            <Save className="h-3.5 w-3.5" />
+            <span className="font-medium">Save now</span>
+          </button>
         ) : lastSaved ? (
-          <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Saved {formatTimeSince(lastSaved)}
-          </span>
+          /* Saved state */
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>Saved {formatTimeSince(lastSaved)}</span>
+          </div>
         ) : (
-          <span className="text-muted-foreground/50">Not saved yet</span>
+          <span className="text-muted-foreground/50">Auto-save enabled</span>
         )}
       </div>
       <div className="flex-1 min-h-0">
