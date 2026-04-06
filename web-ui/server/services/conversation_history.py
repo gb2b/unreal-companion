@@ -34,6 +34,12 @@ class ConversationHistory:
         except Exception:
             return []
 
+    def get_recent(self, doc_id: str, max_messages: int = 6) -> list[dict]:
+        """Load only the most recent messages, filtering out internal markers."""
+        history = self.load(doc_id)
+        filtered = [m for m in history if not m.get("content", "").startswith("[WORKFLOW_START]")]
+        return filtered[-max_messages:] if len(filtered) > max_messages else filtered
+
     def append(self, doc_id: str, messages: list[dict]):
         """Append messages to the conversation history."""
         history = self.load(doc_id)

@@ -22,6 +22,7 @@ from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
 from services.conversation_history import ConversationHistory
+from services.context_brief import build_context_brief
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         builder.add_project_context(summary)
 
     # Add workflow briefing and document template if workflow specified
+    workflow_sections_dicts: list[dict] = []
     if request.workflow_id:
         search_paths = get_workflow_search_paths(None)
         wf = load_workflow_v2(request.workflow_id, search_paths)
@@ -119,10 +121,10 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             if wf.briefing:
                 builder.add_workflow_briefing(wf.briefing)
             if wf.sections:
-                section_dicts = [{"id": s.id, "name": s.name, "required": s.required,
+                workflow_sections_dicts = [{"id": s.id, "name": s.name, "required": s.required,
                                   "hints": s.hints, "interaction_types": s.interaction_types}
                                  for s in wf.sections]
-                builder.add_document_template(section_dicts, {})
+                builder.add_document_template(workflow_sections_dicts, {})
 
     system = builder.build()
 
@@ -242,11 +244,31 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     if request.project_path and doc_id:
         conv_history = ConversationHistory(request.project_path)
         if is_workflow_start:
-            # New workflow start — reset history (don't load old conversations)
             conv_history.save_full(doc_id, [])
         else:
-            # Normal message — load previous history for context
-            previous_messages = conv_history.load(doc_id)
+            # Build context brief from document state
+            doc_store_ctx = DocumentStore(request.project_path)
+            doc_data = doc_store_ctx.get_document(doc_id)
+            ctx_section_statuses: dict[str, str] = {}
+            ctx_section_contents: dict[str, str] = {}
+            if doc_data:
+                raw_sections = doc_data.get("meta", {}).get("sections", {})
+                for sid, smeta in raw_sections.items():
+                    ctx_section_statuses[sid] = smeta.get("status", "empty") if isinstance(smeta, dict) else "empty"
+                ctx_section_contents = _parse_section_contents(doc_data.get("content", ""))
+
+            context_brief = build_context_brief(
+                project_path=request.project_path,
+                doc_id=doc_id,
+                section_statuses=ctx_section_statuses,
+                section_contents=ctx_section_contents,
+                workflow_sections=workflow_sections_dicts,
+            )
+            builder.add_context_brief(context_brief)
+            system = builder.build()  # Rebuild with context brief
+
+            # Trimmed history — only last 6 messages
+            previous_messages = conv_history.get_recent(doc_id, max_messages=6)
             if previous_messages:
                 messages = previous_messages + [{"role": "user", "content": request.message}]
 
@@ -622,3 +644,25 @@ async def save_all_steps(doc_id: str, request: Request):
     store = MicroStepStore(project_path)
     store.save_all_steps(doc_id, steps)
     return {"success": True}
+
+
+def _parse_section_contents(content: str) -> dict[str, str]:
+    """Parse markdown into {section_id: content} by splitting on ## headers."""
+    sections: dict[str, str] = {}
+    current_id = ""
+    current_lines: list[str] = []
+
+    for line in content.split("\n"):
+        if line.startswith("## "):
+            if current_id:
+                sections[current_id] = "\n".join(current_lines).strip()
+            header = line[3:].strip()
+            current_id = header.lower().replace(" ", "-")
+            current_lines = []
+        elif current_id:
+            current_lines.append(line)
+
+    if current_id:
+        sections[current_id] = "\n".join(current_lines).strip()
+
+    return sections

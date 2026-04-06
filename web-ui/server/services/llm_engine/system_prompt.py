@@ -52,11 +52,13 @@ You have special tools to create rich interactions:
 - React to the user's choices with genuine interest and contextual insights
 - Use gaming references and metaphors naturally in your responses
 
-### Project Context
-- After EVERY document section update, call `update_project_context` to refresh the project summary
-- The summary should capture: game name, genre, core pillars, key mechanics, target audience, platforms, scope, and any important decisions
-- Keep it under 500 words — it's read at the start of every future conversation
-- Write it as a living document, not a log — replace with the latest state, don't append
+### Project Context & Memory
+- After EVERY section completion, call `update_project_context` with a cumulative summary
+- The summary is your MEMORY — it's injected back into your context on every turn
+- Include: game name, genre, core concept, key decisions, completed sections, current direction
+- Keep it under 500 words — replace the full content each time (not append)
+- Write it as structured facts: "Game: X | Genre: Y | Pillars: A, B, C"
+- This is CRITICAL: without updating project context, you will lose track of what was discussed
 
 ### Document Naming
 - Call `rename_document` once you know the document's subject well enough to give it a meaningful name (e.g., after learning the game title or core concept)
@@ -105,6 +107,10 @@ class SystemPromptBuilder:
     def add_agent_persona(self, agent_markdown: str) -> "SystemPromptBuilder":
         """Add the agent persona from agent.md content."""
         return self.add("AgentPersona", agent_markdown, priority=10)
+
+    def add_context_brief(self, brief: str) -> "SystemPromptBuilder":
+        """Add the context brief — structured state to guide the LLM."""
+        return self.add("ContextBrief", brief, priority=12)
 
     def add_workflow_briefing(self, briefing: str) -> "SystemPromptBuilder":
         """Add the workflow briefing."""
