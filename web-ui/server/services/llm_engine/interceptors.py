@@ -10,14 +10,15 @@ from .events import InteractionBlock, DocumentUpdate, PrototypeReady, SectionCom
 logger = logging.getLogger(__name__)
 
 # Tool names that are intercepted (not sent to Unreal)
+# Tools that are intercepted by the agentic loop (emit SSE events, not sent to Unreal/MCP)
+# NOTE: read_project_document and update_project_context are NOT here —
+# they are handled by tool_executor in studio_v2.py (they return content to the LLM)
 INTERCEPTOR_NAMES = frozenset({
     "show_interaction",
     "show_prototype",
     "update_document",
     "mark_section_complete",
     "ask_user",
-    "read_project_document",
-    "update_project_context",
     "report_progress",
     "add_section",
 })

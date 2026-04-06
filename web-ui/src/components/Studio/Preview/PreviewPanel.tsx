@@ -6,6 +6,7 @@ import type { WorkflowSection, SectionStatus, Prototype } from '@/types/studio'
 interface PreviewPanelProps {
   sections: WorkflowSection[]
   sectionStatuses: Record<string, SectionStatus>
+  sectionContents?: Record<string, string>
   documentContent: string
   documents: unknown[]
   prototypes: Prototype[]
@@ -16,6 +17,7 @@ interface PreviewPanelProps {
 export function PreviewPanel({
   sections,
   sectionStatuses,
+  sectionContents,
   documentContent,
   prototypes,
   onSectionClick,
@@ -67,6 +69,7 @@ export function PreviewPanel({
               documentContent={documentContent}
               sections={sections}
               sectionStatuses={sectionStatuses}
+              sectionContents={sectionContents}
               onSectionClick={onSectionClick}
             />
           </div>

@@ -64,7 +64,9 @@ class TestInterceptors:
 
     def test_all_interceptor_tools_have_definitions(self):
         defined = {t["name"] for t in INTERCEPTOR_TOOLS}
-        assert INTERCEPTOR_NAMES == defined
+        # INTERCEPTOR_NAMES is a subset of defined tools
+        # (some tools like read_project_document are defined but handled by tool_executor, not interceptors)
+        assert INTERCEPTOR_NAMES.issubset(defined), f"Missing definitions: {INTERCEPTOR_NAMES - defined}"
 
     def test_handle_show_interaction(self):
         events = handle_interceptor("show_interaction", {

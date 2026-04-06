@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
 import { useI18n } from '@/i18n/useI18n'
@@ -40,6 +40,7 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
     goBack,
     skipSection,
     sectionStatuses,
+    sectionContents,
     activeSection,
     microSteps,
     activeMicroStepIndex,
@@ -158,6 +159,7 @@ export function BuilderView({ workflow, projectPath }: BuilderViewProps) {
           <PreviewPanel
             sections={allSections}
             sectionStatuses={sectionStatuses}
+            sectionContents={sectionContents}
             documentContent=""
             documents={[]}
             prototypes={prototypes}

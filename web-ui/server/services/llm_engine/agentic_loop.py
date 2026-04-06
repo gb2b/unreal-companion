@@ -131,14 +131,13 @@ class AgenticLoop:
                 tool_results_content = []
                 for tc in tool_calls:
                     if tc["name"] == "ask_user":
-                        # Pause: return tool result indicating we need user input
                         paused = True
                         tool_results_content.append({
                             "type": "tool_result",
                             "tool_use_id": tc["id"],
                             "content": "Waiting for user response.",
                         })
-                        continue
+                        break  # Stop processing remaining tools
 
                     if is_interceptor(tc["name"]):
                         # Emit SSE events from interceptor
@@ -149,8 +148,12 @@ class AgenticLoop:
                             "tool_use_id": tc["id"],
                             "content": json.dumps({"success": True}),
                         })
+                        # Tools that present content to the user = stop the loop
+                        if tc["name"] in ("show_interaction", "show_prototype"):
+                            paused = True
+                            break  # Stop processing remaining tools
                     else:
-                        # Execute real tool via executor
+                        # Execute real tool via executor (read_project_document, update_project_context, MCP tools)
                         result_str = await self.tool_executor(tc["name"], tc["input"])
                         yield ToolResult(id=tc["id"], result=result_str)
                         tool_results_content.append({
@@ -169,8 +172,20 @@ class AgenticLoop:
                 continue
 
             elif stop_reason == "max_tokens":
-                # Auto-continue
-                working_messages.append({"role": "assistant", "content": full_text})
+                # Auto-continue — use proper content block format
+                assistant_content = []
+                if full_text:
+                    assistant_content.append({"type": "text", "text": full_text})
+                # Include any partial tool calls that were in progress
+                for tc in tool_calls:
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": tc["id"],
+                        "name": tc["name"],
+                        "input": tc["input"],
+                    })
+                if assistant_content:
+                    working_messages.append({"role": "assistant", "content": assistant_content})
                 working_messages.append({"role": "user", "content": "Please continue from where you left off."})
                 continue
 

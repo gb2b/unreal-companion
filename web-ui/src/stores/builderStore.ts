@@ -42,6 +42,7 @@ interface BuilderState {
   // Document
   documentId: string | null
   sectionStatuses: Record<string, SectionStatus>
+  sectionContents: Record<string, string>  // section_id → markdown content (live updates)
 
   // Current position
   activeSection: string | null
@@ -84,6 +85,7 @@ const INITIAL_STATE = {
   documentId: null,
   sectionStatuses: {},
   activeSection: null,
+  sectionContents: {},
   microSteps: [],
   activeMicroStepIndex: 0,
   isProcessing: false,
@@ -106,7 +108,7 @@ function debouncedSaveSteps(microSteps: MicroStep[], workflow: WorkflowV2 | null
     if (!workflow || !projectPath) return
     const docId = `concept/${workflow.id}`
     fetch(
-      `/api/v2/studio/documents/${encodeURIComponent(docId)}/steps`,
+      `/api/v2/studio/steps/${encodeURIComponent(docId)}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -195,6 +197,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       const steps = [...s.microSteps]
       const activeIdx = s.activeMicroStepIndex
       let statuses = { ...s.sectionStatuses }
+      let contents = { ...s.sectionContents }
       let protos = [...s.prototypes]
       let dynSections = [...s.dynamicSections]
       let section = s.activeSection
@@ -218,6 +221,8 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       }
 
       for (const event of batch) {
+        console.log('[builder]', event.type, event.type === 'text_delta' ? '(delta)' : JSON.stringify(event.data).substring(0, 80))
+
         switch (event.type) {
           case 'text_delta': {
             const d = event.data as TextDeltaEvent
@@ -236,13 +241,14 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           case 'text_done': {
             const d = event.data as TextDoneEvent
             const blocks = getBlocks()
-            // Replace the last streaming block with a text block (or push a new text block)
-            const lastIdx = blocks.map(b => b.kind).lastIndexOf('streaming')
-            if (lastIdx !== -1) {
-              blocks[lastIdx] = { kind: 'text', content: d.content }
-            } else {
-              blocks.push({ kind: 'text', content: d.content })
+            // Find the streaming block and replace it with the final text
+            const streamIdx = blocks.findIndex(b => b.kind === 'streaming')
+            if (streamIdx !== -1) {
+              blocks[streamIdx] = { kind: 'text', content: d.content }
             }
+            // If no streaming block found, don't add — it means the text was already
+            // handled (e.g., tool_call converted it). text_done is always the final
+            // version of the previously streamed text, not new content.
             setBlocks(blocks)
             streamText = ''
             break
@@ -308,6 +314,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           case 'document_update': {
             const d = event.data as DocumentUpdateEvent
             statuses[d.section_id] = d.status as SectionStatus
+            if (d.content) {
+              contents[d.section_id] = d.content
+            }
             if (d.status === 'in_progress') section = d.section_id
             break
           }
@@ -324,21 +333,30 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           case 'tool_call': {
             const d = event.data as any
             const toolName = d?.name || ''
-            const label = TOOL_LABELS[toolName] || 'Processing'
-            const blocks = getBlocks()
-            // If last block is streaming, convert it to text first
-            const last = blocks[blocks.length - 1]
-            if (last?.kind === 'streaming') {
-              blocks[blocks.length - 1] = { kind: 'text', content: last.content }
-              streamText = ''
+            const toolInput = d?.input || {}
+            let label = TOOL_LABELS[toolName] || 'Processing'
+            // Enrich label with context from tool input
+            if (toolName === 'update_document' && toolInput.section_id) {
+              label = `Updating ${toolInput.section_id}`
+            } else if (toolName === 'mark_section_complete' && toolInput.section_id) {
+              label = `Completing ${toolInput.section_id}`
             }
-            blocks.push({ kind: 'tool_call', name: toolName, label })
+            const blocks = getBlocks()
+            blocks.push({ kind: 'tool_call', name: toolName, label, status: 'pending' })
             setBlocks(blocks)
             procText = label
             break
           }
           case 'tool_result': {
-            // Tool completed — nothing to display
+            // Mark the last pending tool_call as done
+            const blocks = getBlocks()
+            for (let i = blocks.length - 1; i >= 0; i--) {
+              if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
+                blocks[i] = { ...blocks[i], status: 'done' } as any
+                break
+              }
+            }
+            setBlocks(blocks)
             break
           }
           case 'thinking': {
@@ -385,11 +403,17 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         }
       }
 
+      // Debug: log blocks state after batch
+      if (steps[activeIdx]) {
+        console.log('[builder] blocks after batch:', steps[activeIdx].blocks.map(b => b.kind).join(' → '))
+      }
+
       set({
         currentStreamText: streamText,
         processingText: procText,
         microSteps: steps,
         sectionStatuses: statuses,
+        sectionContents: contents,
         prototypes: protos,
         dynamicSections: dynSections,
         activeSection: section,
@@ -479,7 +503,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       // Load existing micro-steps — if found, restore and skip init message
       try {
         const stepsRes = await fetch(
-          `/api/v2/studio/documents/${encodeURIComponent(docId)}/steps?project_path=${encodeURIComponent(projectPath)}`
+          `/api/v2/studio/steps/${encodeURIComponent(docId)}?project_path=${encodeURIComponent(projectPath)}`
         )
         if (stepsRes.ok) {
           const stepsData = await stepsRes.json()

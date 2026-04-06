@@ -12,7 +12,6 @@ export function AgentPrompt({
   content,
   agentName,
   agentEmoji,
-  isStreaming = false,
 }: AgentPromptProps) {
 
   return (
@@ -63,9 +62,7 @@ export function AgentPrompt({
             {content}
           </ReactMarkdown>
         )}
-        {isStreaming && (
-          <span className="inline-block h-4 w-0.5 animate-pulse bg-primary align-text-bottom" />
-        )}
+        {/* No cursor — the "Thinking..." indicator below the blocks is sufficient */}
       </div>
     </div>
   )

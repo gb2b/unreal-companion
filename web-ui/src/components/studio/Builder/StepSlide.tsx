@@ -3,25 +3,20 @@ import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
-import { ProcessingState } from './ProcessingState'
 import { StepNavigation } from './StepNavigation'
 
-/** Collapsed card shown for tool calls */
-function ToolCallCard({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/20 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground/70">
-      <span className="text-accent">✓</span>
-      {label}
-    </div>
-  )
-}
+/** Tool call card — only shown for meaningful tools, hidden for show_interaction */
+function ToolCallCard({ name, label, status }: { name: string; label: string; status: 'pending' | 'done' | 'error' }) {
+  // Don't show cards for UI-only tools — the result (choices, etc.) speaks for itself
+  const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
+  if (HIDDEN_TOOLS.includes(name)) return null
 
-/** Simple inline thinking indicator for a block */
-function ThinkingIndicator({ text }: { text: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/20 bg-card/30 px-3 py-1.5 text-xs text-muted-foreground/60">
-      <span className="animate-spin">⟳</span>
-      <span className="truncate">{text || 'Thinking…'}</span>
+    <div className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground/50">
+      {status === 'pending' && <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />}
+      {status === 'done' && <span className="text-accent text-[10px]">✓</span>}
+      {status === 'error' && <span className="text-red-400 text-[10px]">✗</span>}
+      <span>{label}</span>
     </div>
   )
 }
@@ -43,7 +38,7 @@ export function StepSlide({
   microStep,
   streamingText: _streamingText,
   isProcessing,
-  processingText,
+  processingText: _processingText,
   agentName,
   agentEmoji,
   activeMicroStepIndex,
@@ -130,7 +125,7 @@ export function StepSlide({
           {blocks.map((block, i) => {
             switch (block.kind) {
               case 'tool_call':
-                return <ToolCallCard key={i} label={block.label} />
+                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} />
               case 'text':
                 return (
                   <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>
@@ -174,19 +169,19 @@ export function StepSlide({
                   </div>
                 )
               case 'thinking':
-                return <ThinkingIndicator key={i} text={block.content} />
+                // Thinking blocks are transient — don't render as persistent blocks
+                return null
               default:
                 return null
             }
           })}
 
-          {/* Global processing indicator — shown while processing and not yet streaming */}
-          {isProcessing && !isStreaming && (
-            <ProcessingState
-              text={processingText}
-              agentName={agentName}
-              agentEmoji={agentEmoji}
-            />
+          {/* Simple "Thinking..." — only when no tool_call spinner is visible and not streaming */}
+          {isProcessing && !isStreaming && !blocks.some(b => b.kind === 'tool_call' && b.status === 'pending') && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground/50">
+              <span className="animate-pulse">●</span>
+              Thinking...
+            </div>
           )}
 
           {/* Text input — only when step is ready */}

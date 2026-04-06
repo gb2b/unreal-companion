@@ -1,51 +1,76 @@
 // web-ui/src/components/Studio/Preview/DocumentPreview.tsx
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { WorkflowSection, SectionStatus } from '@/types/studio'
 
 interface DocumentPreviewProps {
   documentContent: string
   sections: WorkflowSection[]
   sectionStatuses: Record<string, SectionStatus>
+  sectionContents?: Record<string, string>
   onSectionClick: (sectionId: string) => void
 }
 
-function statusBadge(status: SectionStatus): string {
+function statusIcon(status: SectionStatus): { icon: string; color: string } {
   switch (status) {
-    case 'complete': return 'text-green-400'
-    case 'in_progress': return 'text-yellow-400'
-    case 'todo': return 'text-orange-400'
-    default: return 'text-muted-foreground/50'
+    case 'complete': return { icon: '✓', color: 'text-accent' }
+    case 'in_progress': return { icon: '●', color: 'text-primary' }
+    case 'todo': return { icon: '○', color: 'text-orange-400' }
+    default: return { icon: '—', color: 'text-muted-foreground/30' }
   }
 }
 
-export function DocumentPreview({ sections, sectionStatuses, onSectionClick }: DocumentPreviewProps) {
+export function DocumentPreview({
+  sections,
+  sectionStatuses,
+  sectionContents = {},
+  onSectionClick,
+}: DocumentPreviewProps) {
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <h3 className="text-sm font-semibold text-foreground">Document</h3>
-      <div className="flex flex-col gap-2">
-        {sections.map(section => {
-          const status = sectionStatuses[section.id] || 'empty'
-          return (
-            <button
-              key={section.id}
-              onClick={() => onSectionClick(section.id)}
-              className="flex items-start gap-2 rounded-md p-2 text-left transition-colors hover:bg-muted"
-            >
-              <span className={`mt-0.5 text-sm ${statusBadge(status)}`}>
-                {status === 'complete' ? '\u2713' : status === 'in_progress' ? '\u25CB' : '\u2014'}
-              </span>
-              <div>
-                <span className="text-sm font-medium text-foreground">{section.name}</span>
-                {status === 'todo' && (
-                  <span className="ml-2 text-xs text-orange-400">[TODO]</span>
-                )}
-                {status === 'empty' && (
-                  <p className="text-xs text-muted-foreground">[To be completed]</p>
-                )}
+    <div className="flex flex-col gap-1 p-4">
+      <h3 className="mb-2 text-sm font-semibold text-foreground">Document</h3>
+
+      {sections.map(section => {
+        const status = sectionStatuses[section.id] || 'empty'
+        const content = sectionContents[section.id]
+        const { icon, color } = statusIcon(status)
+        const hasContent = !!content?.trim()
+
+        return (
+          <button
+            key={section.id}
+            onClick={() => onSectionClick(section.id)}
+            className={`flex flex-col gap-1 rounded-lg p-2.5 text-left transition-all hover:bg-muted/50 ${
+              status === 'in_progress' ? 'bg-primary/5 border-l-2 border-primary' :
+              status === 'complete' ? 'border-l-2 border-accent/50' :
+              ''
+            }`}
+          >
+            {/* Section header */}
+            <div className="flex items-center gap-2">
+              <span className={`text-xs ${color}`}>{icon}</span>
+              <span className="text-sm font-medium text-foreground">{section.name}</span>
+              {status === 'todo' && (
+                <span className="text-[10px] text-orange-400">[TODO]</span>
+              )}
+            </div>
+
+            {/* Section content — rendered as markdown */}
+            {hasContent && (
+              <div className="ml-5 prose prose-xs prose-invert max-w-none text-muted-foreground [&_p]:my-0.5 [&_p]:text-xs [&_p]:leading-relaxed [&_strong]:text-foreground/80 [&_ul]:my-0.5 [&_li]:text-xs">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {content!.length > 300 ? content!.slice(0, 297) + '...' : content!}
+                </ReactMarkdown>
               </div>
-            </button>
-          )
-        })}
-      </div>
+            )}
+
+            {/* Empty state */}
+            {!hasContent && status === 'empty' && (
+              <span className="ml-5 text-[10px] text-muted-foreground/40">[To be completed]</span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }

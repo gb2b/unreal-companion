@@ -65,11 +65,11 @@ export type MicroStepStatus = 'active' | 'answered' | 'skipped'
 
 /** A block in the micro-step timeline — everything accumulates, nothing disappears */
 export type StepBlock =
-  | { kind: 'tool_call'; name: string; label: string }     // collapsed card: "Updating document..."
-  | { kind: 'text'; content: string }                       // agent text (markdown)
-  | { kind: 'streaming'; content: string }                  // text being streamed (temporary, replaced by 'text' on text_done)
-  | { kind: 'interaction'; type: InteractionBlockType; data: InteractionData }  // choices/slider/etc
-  | { kind: 'thinking'; content: string }                   // processing indicator
+  | { kind: 'tool_call'; name: string; label: string; status: 'pending' | 'done' | 'error' }
+  | { kind: 'text'; content: string }
+  | { kind: 'streaming'; content: string }
+  | { kind: 'interaction'; type: InteractionBlockType; data: InteractionData }
+  | { kind: 'thinking'; content: string }
 
 export interface MicroStep {
   id: string

@@ -20,6 +20,7 @@ from services.microstep_store import MicroStepStore
 from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
+from services.conversation_history import ConversationHistory
 
 logger = logging.getLogger(__name__)
 
@@ -124,12 +125,9 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
     system = builder.build()
 
-    # Build messages
+    # Build messages — placeholder, will be set after doc_id is resolved
     messages = [{"role": "user", "content": request.message}]
-
-    # Check if summarization needed
-    if ctx_mgr.needs_summarization:
-        messages, _ = ctx_mgr.summarize_messages(messages)
+    conv_history = None
 
     # Tool executor: handles local tools, then forwards to MCP bridge
     async def tool_executor(name: str, tool_input: dict) -> str:
@@ -209,11 +207,29 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         except Exception as e:
             logger.warning(f"Failed to init document {doc_id}: {e}")
 
+    # Load conversation history now that doc_id is resolved
+    if request.project_path and doc_id:
+        conv_history = ConversationHistory(request.project_path)
+        if is_workflow_start:
+            # New workflow start — reset history (don't load old conversations)
+            conv_history.save_full(doc_id, [])
+        else:
+            # Normal message — load previous history for context
+            previous_messages = conv_history.load(doc_id)
+            if previous_messages:
+                messages = previous_messages + [{"role": "user", "content": request.message}]
+
+    # Check if summarization needed (when context gets too large)
+    if ctx_mgr.needs_summarization:
+        messages, _ = ctx_mgr.summarize_messages(messages)
+
     # Run the agentic loop as an SSE stream
     loop = AgenticLoop(provider, tool_executor)
 
     async def event_generator():
         from dataclasses import asdict
+        assistant_text_parts = []  # Collect assistant text for history
+
         try:
             async for event in loop.run(
                 messages=messages,
@@ -221,25 +237,44 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 tools=tools,
                 max_tokens=4096,
             ):
+                # Collect assistant text for conversation history
+                if event.event == "text_done":
+                    event_data = asdict(event)
+                    assistant_text_parts.append(event_data.get("content", ""))
+
                 # Persist document_update events to disk
                 if event.event == "document_update" and request.project_path and doc_id:
                     try:
                         persist_store = DocumentStore(request.project_path)
-                        event_data = asdict(event)
-                        section_id = event_data.get("section_id", "")
-                        content = event_data.get("content", "")
-                        status = event_data.get("status", "in_progress")
-                        if section_id and content:
-                            persist_store.update_section(doc_id, section_id, content, status)
+                        event_data_doc = asdict(event)
+                        section_id = event_data_doc.get("section_id", "")
+                        content = event_data_doc.get("content", "")
+                        status = event_data_doc.get("status", "in_progress")
+                        if section_id:
+                            persist_store.update_section(doc_id, section_id, content or "", status)
                     except Exception as e:
                         logger.warning(f"Failed to persist document_update for {doc_id}: {e}")
 
                 # EventSourceResponse expects dicts with 'event' and 'data' keys
                 data = {k: v for k, v in asdict(event).items() if k != "event"}
                 yield {"event": event.event, "data": json.dumps(data, ensure_ascii=False)}
+
         except Exception as e:
             logger.error(f"Agentic loop error: {e}", exc_info=True)
             yield {"event": "error", "data": json.dumps({"message": str(e)}, ensure_ascii=False)}
+
+        finally:
+            # Save conversation history after stream ends
+            if conv_history and doc_id and assistant_text_parts:
+                try:
+                    # Append the user message + assistant response to history
+                    new_messages = [
+                        {"role": "user", "content": request.message},
+                        {"role": "assistant", "content": "\n\n".join(assistant_text_parts)},
+                    ]
+                    conv_history.append(doc_id, new_messages)
+                except Exception as e:
+                    logger.warning(f"Failed to save conversation history: {e}")
 
     return EventSourceResponse(event_generator())
 
@@ -326,7 +361,7 @@ async def list_prototypes(doc_id: str, project_path: str = ""):
     return {"prototypes": doc["meta"].get("prototypes", [])}
 
 
-@router.get("/documents/{doc_id:path}/steps")
+@router.get("/steps/{doc_id:path}")
 async def get_steps(doc_id: str, project_path: str = ""):
     """Load micro-steps for a document."""
     if not project_path:
@@ -335,7 +370,7 @@ async def get_steps(doc_id: str, project_path: str = ""):
     return {"steps": store.load_steps(doc_id)}
 
 
-@router.post("/documents/{doc_id:path}/steps")
+@router.post("/steps/{doc_id:path}")
 async def save_step(doc_id: str, project_path: str = "", step: dict = {}):
     """Save a single micro-step."""
     if not project_path:
@@ -345,7 +380,7 @@ async def save_step(doc_id: str, project_path: str = "", step: dict = {}):
     return {"success": True}
 
 
-@router.put("/documents/{doc_id:path}/steps")
+@router.put("/steps/{doc_id:path}")
 async def save_all_steps(doc_id: str, request: Request):
     """Save all micro-steps at once."""
     body = await request.json()
