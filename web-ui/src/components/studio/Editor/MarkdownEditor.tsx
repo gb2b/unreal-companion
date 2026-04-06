@@ -183,23 +183,8 @@ export function MarkdownEditor({ content, onChange, placeholder }: MarkdownEdito
         </Panel>
         <PanelResizeHandle className="w-1 bg-border/30 hover:bg-primary/30 transition-colors" />
         <Panel defaultSize={50} minSize={30}>
-          <div className="h-full overflow-y-auto bg-background px-8 py-6">
-            <article className="prose prose-lg dark:prose-invert max-w-none
-              prose-headings:font-bold prose-headings:tracking-tight
-              prose-h1:text-3xl prose-h1:mb-6 prose-h1:mt-8 prose-h1:border-b prose-h1:border-border/30 prose-h1:pb-3
-              prose-h2:text-2xl prose-h2:mb-4 prose-h2:mt-8 prose-h2:text-primary/90
-              prose-h3:text-xl prose-h3:mb-3 prose-h3:mt-6
-              prose-p:text-base prose-p:leading-7 prose-p:mb-4 prose-p:text-foreground/80
-              prose-strong:text-foreground prose-strong:font-semibold
-              prose-ul:my-4 prose-ul:space-y-1
-              prose-ol:my-4 prose-ol:space-y-1
-              prose-li:text-base prose-li:text-foreground/80
-              prose-blockquote:border-l-primary/40 prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-lg prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic
-              prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm prose-code:text-primary prose-code:before:content-none prose-code:after:content-none
-              prose-hr:border-border/40 prose-hr:my-8
-              prose-a:text-primary prose-a:underline-offset-2
-              prose-img:rounded-xl prose-img:border prose-img:border-border/30
-            ">
+          <div className="h-full overflow-y-auto bg-background px-8 py-8">
+            <article className="md-preview">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || '*Start writing to see preview…*'}</ReactMarkdown>
             </article>
           </div>
