@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef } from 'react'
+import { Paperclip } from 'lucide-react'
 import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
+import { AttachModal } from './AttachModal'
+import type { AttachResult } from './AttachModal'
 
 // Tools whose spinner/card should not be shown — the result speaks for itself
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
@@ -35,6 +38,7 @@ interface StepSlideProps {
   onBack: () => void
   onSkip: () => void
   onProposeModification: (stepIndex: number) => void
+  projectPath?: string
 }
 
 export function StepSlide({
@@ -50,12 +54,14 @@ export function StepSlide({
   onBack,
   onSkip,
   onProposeModification,
+  projectPath,
 }: StepSlideProps) {
   const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
   const [selectedChoices, setSelectedChoices] = useState<string[]>([])
   const [agentReaction, setAgentReaction] = useState<string | null>(null)
   const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [attachOpen, setAttachOpen] = useState(false)
 
   // === Derived state from blocks ===
   const blocks = microStep?.blocks ?? []
@@ -123,6 +129,13 @@ export function StepSlide({
     },
     [hasResponse, isProcessing, handleContinue],
   )
+
+  const handleAttach = (result: AttachResult) => {
+    const msg = result.type === 'upload'
+      ? `[DOCUMENT_ATTACHED] ${result.docId}\nSummary: ${result.summary || 'Scanning...'}`
+      : `[DOCUMENT_LINKED] ${result.docId}\nSummary: ${result.summary || 'No summary available'}`
+    onSubmitResponse(msg)
+  }
 
   return (
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
@@ -217,6 +230,14 @@ export function StepSlide({
       {showInput && !isReadonly && (
         <div className="border-t border-border/30 px-6 py-4">
           <div className="mx-auto w-full max-w-2xl flex flex-col gap-1.5">
+            <div className="flex items-start gap-2">
+              <button
+                onClick={() => setAttachOpen(true)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Attach document"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
             <textarea
               value={textValue}
               onChange={e => setTextValue(e.target.value)}
@@ -227,6 +248,7 @@ export function StepSlide({
               data-autofocus
               className="w-full resize-none rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
             />
+            </div>
             <p className="text-xs text-muted-foreground/50">{enterHint}</p>
           </div>
         </div>
@@ -239,6 +261,13 @@ export function StepSlide({
         canGoBack={activeMicroStepIndex > 0}
         isProcessing={isProcessing}
         hasResponse={hasResponse}
+      />
+
+      <AttachModal
+        isOpen={attachOpen}
+        onClose={() => setAttachOpen(false)}
+        onAttach={handleAttach}
+        projectPath={projectPath || ''}
       />
     </div>
   )

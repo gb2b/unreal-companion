@@ -184,6 +184,7 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               onBack={goBack}
               onSkip={skipSection}
               onProposeModification={proposeModification}
+              projectPath={projectPath}
             />
           </Panel>
           <Separator className="w-1 bg-border/30 hover:bg-primary/30 transition-colors cursor-col-resize" />
