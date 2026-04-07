@@ -520,6 +520,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
 
       // Check if a document already exists for this workflow
       let existingSectionStatuses: Record<string, SectionStatus> = {}
+      let existingSectionContents: Record<string, string> = {}
       try {
         const res = await fetch(`/api/v2/studio/documents/resume`, {
           method: 'POST',
@@ -537,8 +538,30 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
               existingSectionStatuses[sectionId] = 'in_progress'
             }
           }
-          if (Object.keys(existingSectionStatuses).length > 0) {
-            set({ sectionStatuses: existingSectionStatuses })
+          // Parse .md content into sectionContents
+          const mdContent = data?.content || ''
+          if (mdContent) {
+            let currentId = ''
+            let currentLines: string[] = []
+            for (const line of mdContent.split('\n')) {
+              if (line.startsWith('## ')) {
+                if (currentId) {
+                  const text = currentLines.join('\n').trim()
+                  if (text) existingSectionContents[currentId] = text
+                }
+                currentId = line.slice(3).trim().toLowerCase().replace(/\s+/g, '-')
+                currentLines = []
+              } else if (currentId) {
+                currentLines.push(line)
+              }
+            }
+            if (currentId) {
+              const text = currentLines.join('\n').trim()
+              if (text) existingSectionContents[currentId] = text
+            }
+          }
+          if (Object.keys(existingSectionStatuses).length > 0 || Object.keys(existingSectionContents).length > 0) {
+            set({ sectionStatuses: existingSectionStatuses, sectionContents: existingSectionContents })
           }
         }
       } catch { /* ignore — document may not exist yet */ }
