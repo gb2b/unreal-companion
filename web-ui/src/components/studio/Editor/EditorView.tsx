@@ -137,26 +137,26 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
 
   // Translate description based on user language
   const { language } = useI18n()
-  const [translatedDesc, setTranslatedDesc] = useState(description)
+  const [translatedDesc, setTranslatedDesc] = useState('')
 
   useEffect(() => {
-    if (!description || language === 'en') {
-      setTranslatedDesc(description)
-      return
-    }
+    if (!description) { setTranslatedDesc(''); return }
+    if (language === 'en') { setTranslatedDesc(description); return }
+
+    // Show original while translating
+    setTranslatedDesc(description)
+
     const cacheKey = `desc-full-${docId}-${language}`
     const cached = localStorage.getItem(cacheKey)
-    if (cached) {
-      setTranslatedDesc(cached)
-      return
-    }
+    if (cached) { setTranslatedDesc(cached); return }
+
     api.post<{ translated: string }>('/api/v2/studio/translate', {
       text: description,
       target_language: language,
     }).then(res => {
       setTranslatedDesc(res.translated)
       localStorage.setItem(cacheKey, res.translated)
-    }).catch(() => setTranslatedDesc(description))
+    }).catch(() => {/* keep original */})
   }, [description, language, docId])
 
   if (loading) {
