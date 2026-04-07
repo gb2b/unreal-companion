@@ -138,17 +138,19 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
   // Translate description based on user language
   const { language } = useI18n()
   const [translatedDesc, setTranslatedDesc] = useState('')
+  const [translating, setTranslating] = useState(false)
 
   useEffect(() => {
-    if (!description) { setTranslatedDesc(''); return }
-    if (language === 'en') { setTranslatedDesc(description); return }
-
-    // Show original while translating
-    setTranslatedDesc(description)
+    if (!description) { setTranslatedDesc(''); setTranslating(false); return }
+    if (language === 'en') { setTranslatedDesc(description); setTranslating(false); return }
 
     const cacheKey = `desc-full-${docId}-${language}`
     const cached = localStorage.getItem(cacheKey)
-    if (cached) { setTranslatedDesc(cached); return }
+    if (cached) { setTranslatedDesc(cached); setTranslating(false); return }
+
+    // Not cached — show skeleton while translating
+    setTranslatedDesc('')
+    setTranslating(true)
 
     api.post<{ translated: string }>('/api/v2/studio/translate', {
       text: description,
@@ -156,7 +158,9 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
     }).then(res => {
       setTranslatedDesc(res.translated)
       localStorage.setItem(cacheKey, res.translated)
-    }).catch(() => {/* keep original */})
+    }).catch(() => {
+      setTranslatedDesc(description) // fallback to english
+    }).finally(() => setTranslating(false))
   }, [description, language, docId])
 
   if (loading) {
@@ -243,6 +247,7 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
           placeholder="Start writing…"
           docName={doc.name}
           description={translatedDesc}
+          descriptionLoading={translating}
         />
       </div>
     </div>

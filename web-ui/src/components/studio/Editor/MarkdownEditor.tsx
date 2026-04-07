@@ -19,6 +19,7 @@ interface MarkdownEditorProps {
   placeholder?: string
   docName?: string
   description?: string
+  descriptionLoading?: boolean
 }
 
 // Custom theme to match the app's Cyber Mint dark theme
@@ -98,7 +99,7 @@ function EditorToolbar({ onAction }: { onAction: (action: ToolbarAction) => void
   )
 }
 
-export function MarkdownEditor({ content, onChange, placeholder, docName, description }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, placeholder, docName, description, descriptionLoading }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -187,12 +188,17 @@ export function MarkdownEditor({ content, onChange, placeholder, docName, descri
         <Panel defaultSize={50} minSize={30}>
           <div className="flex h-full flex-col">
             {/* Document banner — outside markdown */}
-            {(docName || description) && (
+            {(docName || description || descriptionLoading) && (
               <div className="shrink-0 border-b border-border/20 bg-muted/20 px-6 py-3">
                 <div className="text-xs font-medium text-foreground/70">{docName}</div>
-                {description && (
+                {descriptionLoading ? (
+                  <div className="mt-1 space-y-1">
+                    <div className="h-2.5 w-3/4 animate-pulse rounded bg-muted-foreground/10" />
+                    <div className="h-2.5 w-1/2 animate-pulse rounded bg-muted-foreground/10" />
+                  </div>
+                ) : description ? (
                   <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{description}</div>
-                )}
+                ) : null}
               </div>
             )}
             <div className="flex-1 overflow-y-auto px-8 py-6">
