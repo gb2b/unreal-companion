@@ -129,30 +129,8 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
     return `${Math.floor(mins / 60)}h ago`
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <span className="text-sm">Loading…</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !doc) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-        <FileText className="h-12 w-12 text-muted-foreground/40" />
-        <p className="font-semibold">{error ?? 'Document not found'}</p>
-        <Button variant="outline" size="sm" onClick={() => navigate('/studio/library')}>
-          Back to Library
-        </Button>
-      </div>
-    )
-  }
-
-  const workflowId = doc.meta?.workflow_id || undefined
+  // Compute description (always, before early returns)
+  const workflowId = doc?.meta?.workflow_id || undefined
   const description = isProjectContext
     ? PROJECT_CONTEXT_DESCRIPTION
     : (workflowId ? WORKFLOW_DESCRIPTIONS[workflowId] ?? '' : '')
@@ -180,6 +158,29 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
       localStorage.setItem(cacheKey, res.translated)
     }).catch(() => setTranslatedDesc(description))
   }, [description, language, docId])
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+          <span className="text-sm">Loading…</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !doc) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+        <FileText className="h-12 w-12 text-muted-foreground/40" />
+        <p className="font-semibold">{error ?? 'Document not found'}</p>
+        <Button variant="outline" size="sm" onClick={() => navigate('/studio/library')}>
+          Back to Library
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col">
