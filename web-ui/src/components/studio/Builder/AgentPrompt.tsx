@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown'
+import { MermaidBlock } from '../Editor/MermaidBlock'
 import remarkGfm from 'remark-gfm'
 
 interface AgentPromptProps {
@@ -43,11 +44,17 @@ export function AgentPrompt({
                 <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-foreground">{children}</ol>
               ),
               li: ({ children }) => <li className="text-sm text-foreground">{children}</li>,
-              code: ({ children }) => (
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-primary">
-                  {children}
-                </code>
-              ),
+              code: ({ className, children }) => {
+                const match = /language-(\w+)/.exec(className || '')
+                if (match && match[1] === 'mermaid') {
+                  return <MermaidBlock code={String(children).replace(/\n$/, '')} />
+                }
+                return (
+                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-primary">
+                    {children}
+                  </code>
+                )
+              },
               h1: ({ children }) => (
                 <h1 className="mb-2 text-base font-bold text-foreground">{children}</h1>
               ),
