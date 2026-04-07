@@ -664,6 +664,23 @@ async def save_all_steps(doc_id: str, request: Request):
     return {"success": True}
 
 
+@router.get("/documents/{doc_id:path}/section-version-counts")
+async def get_section_version_counts(doc_id: str, project_path: str = ""):
+    """Get version counts for all sections of a document in a single call."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    store = SectionVersionStore(project_path)
+    versions_dir = store.root / f"{doc_id}.versions"
+    counts: dict[str, int] = {}
+    if versions_dir.exists():
+        for f in versions_dir.glob("*.json"):
+            section_id = f.stem
+            versions = store.list_versions(doc_id, section_id)
+            if versions:
+                counts[section_id] = len(versions)
+    return counts
+
+
 @router.get("/documents/{doc_id:path}/sections/{section_id}/versions")
 async def list_section_versions(doc_id: str, section_id: str, project_path: str = ""):
     """List all versions of a document section."""
