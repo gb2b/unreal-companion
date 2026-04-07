@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { FileText, Save, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,8 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [autoSave, setAutoSave] = useState(true)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isProjectContext = docId === '__project-context__'
 
@@ -92,7 +94,21 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
     setDirty(true)
   }, [])
 
+  // Auto-save: schedule save after 1s of inactivity
+  const contentRef = useRef(content)
+  contentRef.current = content
+  const autoSaveRef = useRef(autoSave)
+  autoSaveRef.current = autoSave
+
+  useEffect(() => {
+    if (!dirty || !autoSaveRef.current) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => doSave(contentRef.current), 1000)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  }, [dirty, content, doSave])
+
   const handleManualSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     doSave(content)
   }, [doSave, content])
 
@@ -151,23 +167,28 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
         status={doc.meta?.status}
       />
       <div className="flex items-center gap-3 border-b border-border/30 bg-card/60 px-4 py-1.5 text-sm">
+        {/* Save status */}
         {saving ? (
-          /* Saving state — prominent */
           <div className="flex items-center gap-2 text-amber-400">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span className="font-medium">Saving…</span>
           </div>
         ) : dirty ? (
-          /* Unsaved changes */
-          <button
-            onClick={handleManualSave}
-            className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-400 transition-colors hover:bg-amber-500/20"
-          >
-            <Save className="h-3.5 w-3.5" />
-            <span className="font-medium">Save now</span>
-          </button>
+          autoSave ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+              <span>Unsaved changes</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleManualSave}
+              className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-400 transition-colors hover:bg-amber-500/20"
+            >
+              <Save className="h-3.5 w-3.5" />
+              <span className="font-medium">Save now</span>
+            </button>
+          )
         ) : lastSaved ? (
-          /* Saved state */
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             <span>Saved {formatTimeSince(lastSaved)}</span>
@@ -175,6 +196,19 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
         ) : (
           <span className="text-muted-foreground/50">No changes</span>
         )}
+
+        <div className="flex-1" />
+
+        {/* Auto-save toggle */}
+        <button
+          onClick={() => setAutoSave(v => !v)}
+          className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${autoSave ? 'bg-primary' : 'bg-muted'}`}>
+            <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${autoSave ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+          </span>
+          Auto-save
+        </button>
       </div>
       <div className="flex-1 min-h-0">
         <MarkdownEditor
