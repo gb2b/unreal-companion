@@ -585,26 +585,57 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       } catch { /* no steps yet */ }
 
       // Auto-start: send the init message
+      // Build context-rich init message
       const sectionList = workflow.sections
         .map(s => `- ${s.name}${s.required ? ' (required)' : ' (optional)'}`)
         .join('\n')
 
-      const hasExistingContent = Object.keys(existingSectionStatuses).length > 0
+      // Fetch project context
+      let projectContext = ''
+      try {
+        const ctxRes = await fetch(`/api/v2/studio/project-context?project_path=${encodeURIComponent(projectPath)}`)
+        if (ctxRes.ok) {
+          const ctxData = await ctxRes.json()
+          projectContext = ctxData.content || ''
+        }
+      } catch { /* ignore */ }
+
+      // Fetch all documents with summaries
+      let docsInfo = ''
+      try {
+        const docsRes = await fetch(`/api/v2/studio/documents?project_path=${encodeURIComponent(projectPath)}`)
+        if (docsRes.ok) {
+          const docsData = await docsRes.json()
+          const docs = docsData.documents || []
+          const docLines = docs.map((d: any) => {
+            const status = d.meta?.status || 'empty'
+            const summary = d.meta?.index?.summary || d.meta?.summary || ''
+            const isRef = (d.meta?.tags || []).includes('reference')
+            const prefix = isRef ? '📎' : '📄'
+            return `- ${prefix} ${d.name} (${status})${summary ? ' — ' + summary : ''}`
+          })
+          if (docLines.length > 0) docsInfo = docLines.join('\n')
+        }
+      } catch { /* ignore */ }
+
+      const hasContext = projectContext || docsInfo || Object.keys(existingSectionStatuses).length > 0
+
       const initMessage = [
         `[WORKFLOW_START]`,
         `Workflow: ${workflow.name}`,
         `Description: ${workflow.description}`,
         `Sections to fill:\n${sectionList}`,
         ``,
-        hasExistingContent
-          ? `This document already has some sections filled (see project context). Resume where we left off.`
-          : `Greet the user and start the workflow. Introduce yourself with your persona.`,
-        `Propose how to get started: either answer some questions to fill the document,`,
-        `or upload an existing document/brief to pre-fill sections.`,
-        `Show a choices block with: "Start from scratch", "Upload existing document", "Quick start (fill basics fast)".`,
-        `IMPORTANT: Respond with exactly ONE text message followed by ONE show_interaction call.`,
-        `Do NOT send multiple text blocks — combine everything in one message.`,
-      ].join('\n')
+        `## Project State`,
+        projectContext ? projectContext : 'Empty — no project context yet.',
+        ``,
+        docsInfo ? `## Available Documents\n${docsInfo}` : '',
+        ``,
+        hasContext
+          ? `Adapt your approach based on the project state above. Use document tools (doc_read_summary, doc_read_section, doc_grep) to pull relevant details from available documents. Don't re-ask questions that are already answered in the project context.`
+          : `This is a new project with no existing context. Introduce yourself with your persona and start the workflow.`,
+        `Respond with exactly ONE text message. If you want to ask the user something, follow it with ONE show_interaction call.`,
+      ].filter(Boolean).join('\n')
 
       // Detect language from i18n store
       let lang = 'en'
