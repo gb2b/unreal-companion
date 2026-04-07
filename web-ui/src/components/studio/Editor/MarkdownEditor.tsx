@@ -21,6 +21,8 @@ interface MarkdownEditorProps {
   docName?: string
   description?: string
   descriptionLoading?: boolean
+  /** Hide preview panel — show only the code editor. Used in narrow panels (Builder). */
+  editorOnly?: boolean
 }
 
 // Custom theme to match the app's Cyber Mint dark theme
@@ -100,7 +102,7 @@ function EditorToolbar({ onAction }: { onAction: (action: ToolbarAction) => void
   )
 }
 
-export function MarkdownEditor({ content, onChange, placeholder, docName, description, descriptionLoading }: MarkdownEditorProps) {
+export function MarkdownEditor({ content, onChange, placeholder, docName, description, descriptionLoading, editorOnly }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -177,6 +179,17 @@ export function MarkdownEditor({ content, onChange, placeholder, docName, descri
     })
     view.focus()
   }, [])
+
+  if (editorOnly) {
+    return (
+      <div className="flex h-full flex-col">
+        <EditorToolbar onAction={handleToolbarAction} />
+        <div className="flex-1 min-h-0">
+          <div ref={editorRef} className="h-full overflow-auto" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col">

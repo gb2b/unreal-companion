@@ -25,6 +25,7 @@ interface PreviewPanelProps {
   projectPath?: string
   documentId?: string
   onEditRequest?: (sectionId: string, selectedText: string, prompt: string) => void
+  documentName?: string
 }
 
 export function PreviewPanel({
@@ -36,10 +37,12 @@ export function PreviewPanel({
   projectPath,
   documentId,
   onEditRequest,
+  documentName,
 }: PreviewPanelProps) {
   const { language } = useI18n()
   const [activeTab, setActiveTab] = useState<PreviewTab>('document')
   const [docMode, setDocMode] = useState<'preview' | 'editor'>('preview')
+  const [contextMode, setContextMode] = useState<'preview' | 'editor'>('preview')
   const [viewingPrototype, setViewingPrototype] = useState(false)
   const [selectionState, setSelectionState] = useState<{
     sectionId: string
@@ -133,39 +136,43 @@ export function PreviewPanel({
           </button>
         ))}
 
-        {/* Document sub-toggle + prototype button */}
-        {activeTab === 'document' && (
-          <div className="ml-auto flex items-center gap-1">
-            <div className="flex items-center rounded-md border border-border/30 p-0.5">
-              <button
-                onClick={() => setDocMode('preview')}
-                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  docMode === 'preview' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Eye className="h-3 w-3" />
-                Preview
-              </button>
-              <button
-                onClick={() => setDocMode('editor')}
-                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  docMode === 'editor' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <PenLine className="h-3 w-3" />
-                Editor
-              </button>
+        {/* Sub-toggle for document/context tabs */}
+        {(activeTab === 'document' || activeTab === 'context') && (() => {
+          const mode = activeTab === 'document' ? docMode : contextMode
+          const setMode = activeTab === 'document' ? setDocMode : setContextMode
+          return (
+            <div className="ml-auto flex items-center gap-1">
+              <div className="flex items-center rounded-md border border-border/30 p-0.5">
+                <button
+                  onClick={() => setMode('preview')}
+                  className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                    mode === 'preview' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Eye className="h-3 w-3" />
+                  Preview
+                </button>
+                <button
+                  onClick={() => setMode('editor')}
+                  className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                    mode === 'editor' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <PenLine className="h-3 w-3" />
+                  Editor
+                </button>
+              </div>
+              {activeTab === 'document' && hasPrototype && (
+                <button
+                  onClick={() => setViewingPrototype(!viewingPrototype)}
+                  className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                >
+                  {viewingPrototype ? '← Doc' : '🎮'}
+                </button>
+              )}
             </div>
-            {hasPrototype && (
-              <button
-                onClick={() => setViewingPrototype(!viewingPrototype)}
-                className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
-              >
-                {viewingPrototype ? '← Doc' : '🎮'}
-              </button>
-            )}
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {/* Tab content */}
@@ -180,8 +187,14 @@ export function PreviewPanel({
                 sandbox="allow-scripts allow-same-origin"
               />
             ) : docMode === 'preview' ? (
-              <div className="h-full overflow-y-auto px-6 py-6">
-                <article className="md-preview">
+              <div className="h-full flex flex-col">
+                {documentName && (
+                  <div className="shrink-0 border-b border-border/20 bg-muted/20 px-4 py-2">
+                    <span className="text-xs font-medium text-foreground/70">{documentName}</span>
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                <article className="md-preview md-preview-compact">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -197,6 +210,7 @@ export function PreviewPanel({
                     {buildFullMarkdown(sections, sectionContents || {}, sectionStatuses)}
                   </ReactMarkdown>
                 </article>
+                </div>
               </div>
             ) : (
               <div className="h-full">
@@ -240,9 +254,15 @@ export function PreviewPanel({
         )}
 
         {activeTab === 'context' && (
-          <div className="h-full overflow-y-auto">
-            <ContextPanel projectPath={projectPath} />
-          </div>
+          contextMode === 'preview' ? (
+            <div className="h-full overflow-y-auto">
+              <ContextPanel projectPath={projectPath} />
+            </div>
+          ) : (
+            <div className="h-full">
+              <InlineContextEditor projectPath={projectPath || ''} />
+            </div>
+          )
         )}
       </div>
     </div>
@@ -329,7 +349,59 @@ function InlineDocEditor({
         <span className="text-muted-foreground/50">Edit the document markdown directly</span>
       </div>
       <div className="flex-1 min-h-0">
-        <MarkdownEditor content={content} onChange={setContent} placeholder="Document content..." />
+        <MarkdownEditor content={content} onChange={setContent} placeholder="Document content..." editorOnly />
+      </div>
+    </div>
+  )
+}
+
+
+/** Inline editor for project-context.md within the Builder. */
+function InlineContextEditor({ projectPath }: { projectPath: string }) {
+  const [content, setContent] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!projectPath) return
+    fetch(`/api/v2/studio/project-context?project_path=${encodeURIComponent(projectPath)}`)
+      .then(r => r.json())
+      .then(d => setContent(d.content || ''))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [projectPath])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await fetch('/api/v2/studio/project-context', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_path: projectPath, content }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch { /* ignore */ }
+    finally { setSaving(false) }
+  }
+
+  if (loading) return <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Loading...</div>
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b border-border/30 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
+        </button>
+        <span className="text-muted-foreground/50">Edit project context</span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <MarkdownEditor content={content} onChange={setContent} placeholder="Project context..." editorOnly />
       </div>
     </div>
   )

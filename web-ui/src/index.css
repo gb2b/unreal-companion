@@ -874,3 +874,43 @@
   border: 1px solid hsl(var(--border) / 0.3);
   margin: 1rem 0;
 }
+
+/* ─── Compact variant for narrow panels (Builder sidebar) ─── */
+.md-preview-compact {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.md-preview-compact h1 {
+  font-size: 1.35rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+.md-preview-compact h1:first-child { margin-top: 0; }
+.md-preview-compact h2 {
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.md-preview-compact h3 {
+  font-size: 1rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.4rem;
+}
+.md-preview-compact p {
+  margin-bottom: 0.6rem;
+  line-height: 1.6;
+}
+.md-preview-compact ul,
+.md-preview-compact ol {
+  margin-top: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+.md-preview-compact li { margin-bottom: 0.2rem; }
+.md-preview-compact blockquote {
+  padding: 0.5rem 1rem;
+  margin: 0.75rem 0;
+}
+.md-preview-compact hr { margin: 1.5rem 0; }
+.md-preview-compact pre { margin: 0.75rem 0; padding: 0.75rem 1rem; }
