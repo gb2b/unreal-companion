@@ -1,10 +1,12 @@
 // web-ui/src/components/studio/Dashboard/DocumentsLibrary.tsx
 import { useState, useMemo } from 'react'
+import { Upload } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { DocumentCard } from './DocumentCard'
 import { TagFilter } from './TagFilter'
 import { TagManager } from './TagManager'
 import { ProjectContextCard } from './ProjectContextCard'
+import { AttachModal } from '../Builder/AttachModal'
 import type { StudioDocument } from '@/types/studio'
 
 interface DocumentsLibraryProps {
@@ -23,6 +25,7 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, pr
   const [filter, setFilter] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagManagerDocId, setTagManagerDocId] = useState<string | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
 
   const tagManagerDoc = tagManagerDocId ? documents.find(d => d.id === tagManagerDocId) : null
 
@@ -85,6 +88,13 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, pr
             + New
           </button>
         )}
+        <button
+          onClick={() => setUploadOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Upload
+        </button>
         <input
           type="text"
           value={filter}
@@ -185,6 +195,16 @@ export function DocumentsLibrary({ documents, onOpenDocument, onGoToWorkshop, pr
             setTagManagerDocId(null)
             onRefresh?.()
           }}
+        />
+      )}
+
+      {/* Upload Modal */}
+      {uploadOpen && projectPath && (
+        <AttachModal
+          isOpen={true}
+          onClose={() => { setUploadOpen(false); onRefresh?.() }}
+          onAttach={() => { setUploadOpen(false); onRefresh?.() }}
+          projectPath={projectPath}
         />
       )}
     </div>
