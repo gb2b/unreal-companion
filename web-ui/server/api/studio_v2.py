@@ -192,6 +192,30 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             except Exception as e:
                 return json.dumps({"success": False, "error": str(e)})
 
+        if name == "doc_scan":
+            from services.doc_tools import DocTools
+            dt = DocTools(request.project_path)
+            result = await dt.scan(tool_input.get("doc_id", ""))
+            return json.dumps(result, ensure_ascii=False)
+
+        if name == "doc_read_summary":
+            from services.doc_tools import DocTools
+            dt = DocTools(request.project_path)
+            result = dt.read_summary(tool_input.get("doc_id", ""))
+            return json.dumps(result, ensure_ascii=False)
+
+        if name == "doc_read_section":
+            from services.doc_tools import DocTools
+            dt = DocTools(request.project_path)
+            result = dt.read_section(tool_input.get("doc_id", ""), tool_input.get("section", ""))
+            return json.dumps(result, ensure_ascii=False)
+
+        if name == "doc_grep":
+            from services.doc_tools import DocTools
+            dt = DocTools(request.project_path)
+            result = dt.grep(tool_input.get("query", ""), tool_input.get("doc_ids"))
+            return json.dumps(result, ensure_ascii=False)
+
         # All other tools → MCP bridge
         try:
             result = await execute_tool(name, tool_input)
@@ -499,6 +523,19 @@ async def rename_document_endpoint(doc_id: str, request: Request):
     return {"success": True}
 
 
+@router.post("/documents/{doc_id:path}/scan")
+async def scan_document(doc_id: str, project_path: str = ""):
+    """Scan and index a document (text extraction + LLM analysis)."""
+    if not project_path:
+        raise HTTPException(400, "project_path required")
+    from services.doc_tools import DocTools
+    dt = DocTools(project_path)
+    result = await dt.scan(doc_id)
+    if "error" in result:
+        raise HTTPException(404, result.get("message", "Scan failed"))
+    return {"success": True, "index": result}
+
+
 # --- Custom Tags Endpoints ---
 
 def _load_custom_tags(project_path: str) -> list[str]:
@@ -637,7 +674,19 @@ async def upload_reference(
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     doc_id = f"references/{dest.stem}"
-    return {"success": True, "doc_id": doc_id, "filename": dest.name, "tags": meta["tags"]}
+    response_data = {"success": True, "doc_id": doc_id, "filename": dest.name, "tags": meta["tags"]}
+
+    # Auto-scan the uploaded document
+    try:
+        from services.doc_tools import DocTools
+        dt = DocTools(project_path)
+        scan_result = await dt.scan(doc_id)
+        if "error" not in scan_result:
+            response_data["index"] = scan_result
+    except Exception as e:
+        logger.warning(f"Auto-scan failed for {doc_id}: {e}")
+
+    return response_data
 
 
 @router.get("/references/{filename:path}")

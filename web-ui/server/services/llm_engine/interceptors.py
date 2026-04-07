@@ -151,6 +151,53 @@ INTERCEPTOR_TOOLS = [
             "required": ["new_name"],
         },
     },
+    # --- Document tools (handled by tool_executor, not handle_interceptor) ---
+    {
+        "name": "doc_scan",
+        "description": "Read and index an entire document (PDF, DOCX, MD, image). Creates a structured summary with sections and keywords. Use on first access to a document.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "doc_id": {"type": "string", "description": "Document ID (e.g., 'references/game-pitch', 'concept/game-brief')"},
+            },
+            "required": ["doc_id"],
+        },
+    },
+    {
+        "name": "doc_read_summary",
+        "description": "Read the cached summary/index of a previously scanned document. Very fast. Returns summary, sections, keywords.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "doc_id": {"type": "string", "description": "Document ID"},
+            },
+            "required": ["doc_id"],
+        },
+    },
+    {
+        "name": "doc_read_section",
+        "description": "Read the full text of a specific section within a document.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "doc_id": {"type": "string", "description": "Document ID"},
+                "section": {"type": "string", "description": "Section title to read"},
+            },
+            "required": ["doc_id", "section"],
+        },
+    },
+    {
+        "name": "doc_grep",
+        "description": "Search for a query across documents. Returns matching excerpts with context.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "doc_ids": {"type": "array", "items": {"type": "string"}, "description": "Optional: specific doc IDs to search. If omitted, searches all."},
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 
