@@ -3,19 +3,20 @@ import { FileText, Save, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { api } from '@/services/api'
+import { useI18n } from '@/i18n/useI18n'
 import { MarkdownEditor } from './MarkdownEditor'
 import { EditorBanner } from './EditorBanner'
 import type { StudioDocument } from '@/types/studio'
 
 const WORKFLOW_DESCRIPTIONS: Record<string, string> = {
-  'game-brief': 'Defines the game identity, vision, pillars, audience, and scope',
-  'gdd': 'Detailed game design document covering all mechanics and systems',
-  'brainstorming': 'Creative ideation session to explore concepts and directions',
-  'game-architecture': 'Technical architecture and system design for the game',
-  'sprint-planning': 'Sprint planning and task breakdown for production',
+  'game-brief': 'This document defines your game\'s identity, creative vision, design pillars, target audience, creative references, and project scope. It is the foundation that all other documents build upon.',
+  'gdd': 'The Game Design Document details every mechanic, system, and feature of your game. It serves as the comprehensive technical and creative reference for the entire development team.',
+  'brainstorming': 'A creative ideation space to freely explore concepts, directions, and possibilities before committing to a specific vision.',
+  'game-architecture': 'Describes the technical architecture, engine systems, data structures, and infrastructure decisions that will support your game\'s design.',
+  'sprint-planning': 'Organizes development work into sprints with prioritized tasks, milestones, and delivery targets.',
 }
 
-const PROJECT_CONTEXT_DESCRIPTION = 'Living project memory — high-level overview, key decisions, and references to documents'
+const PROJECT_CONTEXT_DESCRIPTION = 'The project context is the living memory of your project. It provides a high-level overview of the game, tracks key decisions made across all documents, and serves as a quick reference for any agent working on the project.'
 
 interface EditorViewProps {
   docId: string
@@ -156,6 +157,30 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
     ? PROJECT_CONTEXT_DESCRIPTION
     : (workflowId ? WORKFLOW_DESCRIPTIONS[workflowId] ?? '' : '')
 
+  // Translate description based on user language
+  const { language } = useI18n()
+  const [translatedDesc, setTranslatedDesc] = useState(description)
+
+  useEffect(() => {
+    if (!description || language === 'en') {
+      setTranslatedDesc(description)
+      return
+    }
+    const cacheKey = `desc-full-${docId}-${language}`
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) {
+      setTranslatedDesc(cached)
+      return
+    }
+    api.post<{ translated: string }>('/api/v2/studio/translate', {
+      text: description,
+      target_language: language,
+    }).then(res => {
+      setTranslatedDesc(res.translated)
+      localStorage.setItem(cacheKey, res.translated)
+    }).catch(() => setTranslatedDesc(description))
+  }, [description, language, docId])
+
   return (
     <div className="flex h-full flex-col">
       <EditorBanner
@@ -215,6 +240,8 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
           content={content}
           onChange={handleChange}
           placeholder="Start writing…"
+          docName={doc.name}
+          description={translatedDesc}
         />
       </div>
     </div>
