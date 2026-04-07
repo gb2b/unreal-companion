@@ -31,15 +31,13 @@ router = APIRouter(prefix="/api/v2/studio", tags=["studio-v2"])
 
 
 async def _call_llm_simple(prompt: str, max_tokens: int = 1024) -> str:
-    """Quick LLM call (haiku) for translations, summaries, etc."""
-    import anthropic
-    client = anthropic.AsyncAnthropic()
-    response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=max_tokens,
+    """Quick LLM call via the project's LLM service (uses configured provider/key)."""
+    from server.services.llm import llm_service
+    result = await llm_service.chat(
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_tokens,
     )
-    return response.content[0].text
+    return result.get("text", "")
 
 # Per-conversation context managers (in-memory for now)
 _context_managers: dict[str, ContextManager] = {}
