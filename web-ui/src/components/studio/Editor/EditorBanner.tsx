@@ -1,10 +1,7 @@
 // web-ui/src/components/studio/Editor/EditorBanner.tsx
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { api } from '@/services/api'
-import { useI18n } from '@/i18n/useI18n'
 
 interface EditorBannerProps {
   docId: string
@@ -21,32 +18,8 @@ const STATUS_STYLES: Record<string, string> = {
   empty: 'bg-muted/60 text-muted-foreground border border-border/30',
 }
 
-export function EditorBanner({ docId, docName, description, workflowId, updated, status }: EditorBannerProps) {
+export function EditorBanner({ docName, workflowId, updated, status }: EditorBannerProps) {
   const navigate = useNavigate()
-  const { language } = useI18n()
-  const [translatedDesc, setTranslatedDesc] = useState(description)
-
-  useEffect(() => {
-    if (!description || language === 'en') {
-      setTranslatedDesc(description)
-      return
-    }
-    const cacheKey = `desc-${docId}-${language}`
-    const cached = localStorage.getItem(cacheKey)
-    if (cached) {
-      setTranslatedDesc(cached)
-      return
-    }
-    api.post<{ translated: string }>('/api/v2/studio/translate', {
-      text: description,
-      target_language: language,
-    }).then(res => {
-      setTranslatedDesc(res.translated)
-      localStorage.setItem(cacheKey, res.translated)
-    }).catch(() => {
-      setTranslatedDesc(description)
-    })
-  }, [description, language, docId])
 
   const formatDate = (iso: string) => {
     if (!iso) return ''
@@ -70,12 +43,6 @@ export function EditorBanner({ docId, docName, description, workflowId, updated,
       {status && (
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status] ?? STATUS_STYLES.empty}`}>
           {status}
-        </span>
-      )}
-
-      {translatedDesc && (
-        <span className="text-xs text-muted-foreground hidden sm:inline">
-          — {translatedDesc}
         </span>
       )}
 

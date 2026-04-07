@@ -185,21 +185,21 @@ export function MarkdownEditor({ content, onChange, placeholder, docName, descri
         </Panel>
         <PanelResizeHandle className="w-1 bg-border/30 hover:bg-primary/30 transition-colors" />
         <Panel defaultSize={50} minSize={30}>
-          <div className="h-full overflow-y-auto bg-background px-8 py-8">
-            {/* Document header in preview */}
+          <div className="flex h-full flex-col">
+            {/* Document banner — outside markdown */}
             {(docName || description) && (
-              <div className="mb-8 border-b border-border/20 pb-6">
-                {docName && (
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground">{docName}</h1>
-                )}
+              <div className="shrink-0 border-b border-border/20 bg-muted/20 px-6 py-3">
+                <div className="text-xs font-medium text-foreground/70">{docName}</div>
                 {description && (
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+                  <div className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{description}</div>
                 )}
               </div>
             )}
-            <article className="md-preview">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || '*Start writing to see preview…*'}</ReactMarkdown>
-            </article>
+            <div className="flex-1 overflow-y-auto px-8 py-6">
+              <article className="md-preview">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || '*Start writing to see preview…*'}</ReactMarkdown>
+              </article>
+            </div>
           </div>
         </Panel>
       </PanelGroup>
