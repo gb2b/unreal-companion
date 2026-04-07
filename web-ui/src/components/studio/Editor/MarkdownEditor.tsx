@@ -7,6 +7,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { MermaidBlock } from './MermaidBlock'
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
 import {
   Bold, Italic, Heading1, Heading2, Heading3,
@@ -203,7 +204,20 @@ export function MarkdownEditor({ content, onChange, placeholder, docName, descri
             )}
             <div className="flex-1 overflow-y-auto px-8 py-6">
               <article className="md-preview">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || '*Start writing to see preview…*'}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '')
+                      if (match && match[1] === 'mermaid') {
+                        return <MermaidBlock code={String(children).replace(/\n$/, '')} />
+                      }
+                      return <code className={className} {...props}>{children}</code>
+                    },
+                  }}
+                >
+                  {content || '*Start writing to see preview…*'}
+                </ReactMarkdown>
               </article>
             </div>
           </div>
