@@ -201,6 +201,7 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               projectPath={projectPath}
               documentId={useBuilderStore.getState().documentId ?? ''}
               onEditRequest={requestEditFromPreview}
+              documentName={workflow.name}
             />
           </Panel>
         </Group>
