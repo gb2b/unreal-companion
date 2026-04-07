@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { DocumentPreview } from './DocumentPreview'
+import { Eye, PenLine } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { MermaidBlock } from '../Editor/MermaidBlock'
+import { MarkdownEditor } from '../Editor/MarkdownEditor'
 import { SelectionPrompt } from './SelectionPrompt'
 import { SectionDiff } from './SectionDiff'
 import { AssetsPanel } from './AssetsPanel'
@@ -27,15 +31,15 @@ export function PreviewPanel({
   sections,
   sectionStatuses,
   sectionContents,
-  documentContent,
   prototypes,
-  onSectionClick,
+  onSectionClick: _onSectionClick,
   projectPath,
   documentId,
   onEditRequest,
 }: PreviewPanelProps) {
   const { language } = useI18n()
   const [activeTab, setActiveTab] = useState<PreviewTab>('document')
+  const [docMode, setDocMode] = useState<'preview' | 'editor'>('preview')
   const [viewingPrototype, setViewingPrototype] = useState(false)
   const [selectionState, setSelectionState] = useState<{
     sectionId: string
@@ -46,7 +50,7 @@ export function PreviewPanel({
     sectionId: string
     versions: SectionVersion[]
   } | null>(null)
-  const [sectionVersionCounts, setSectionVersionCounts] = useState<Record<string, number>>({})
+  const [_sectionVersionCounts, setSectionVersionCounts] = useState<Record<string, number>>({})
   const prevCountsRef = useRef<Record<string, number>>({})
   const previewRef = useRef<HTMLDivElement>(null)
 
@@ -88,35 +92,9 @@ export function PreviewPanel({
     fetchCounts()
   }, [sectionStatuses, projectPath, documentId, activeTab])
 
-  const handleTextSelect = (sectionId: string, selectedText: string, rect: DOMRect) => {
-    if (!previewRef.current) return
-    const containerRect = previewRef.current.getBoundingClientRect()
-    setSelectionState({
-      sectionId,
-      selectedText,
-      position: {
-        top: rect.bottom - containerRect.top + 4,
-        left: Math.min(rect.left - containerRect.left, containerRect.width - 288),
-      },
-    })
-  }
-
   const handleEditSubmit = (sectionId: string, selectedText: string, prompt: string) => {
     onEditRequest?.(sectionId, selectedText, prompt)
     setSelectionState(null)
-  }
-
-  const handleShowVersions = async (sectionId: string) => {
-    if (!projectPath || !documentId) return
-    try {
-      const resp = await fetch(
-        `/api/v2/studio/documents/${encodeURIComponent(documentId)}/sections/${sectionId}/versions?project_path=${encodeURIComponent(projectPath)}`
-      )
-      if (resp.ok) {
-        const versions = await resp.json()
-        setVersionState({ sectionId, versions })
-      }
-    } catch { /* ignore */ }
   }
 
   const handleRollback = async (version: number) => {
@@ -155,14 +133,38 @@ export function PreviewPanel({
           </button>
         ))}
 
-        {/* Prototype button — only in document tab */}
-        {activeTab === 'document' && hasPrototype && (
-          <button
-            onClick={() => setViewingPrototype(!viewingPrototype)}
-            className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
-          >
-            {viewingPrototype ? '← Doc' : '🎮'}
-          </button>
+        {/* Document sub-toggle + prototype button */}
+        {activeTab === 'document' && (
+          <div className="ml-auto flex items-center gap-1">
+            <div className="flex items-center rounded-md border border-border/30 p-0.5">
+              <button
+                onClick={() => setDocMode('preview')}
+                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                  docMode === 'preview' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Eye className="h-3 w-3" />
+                Preview
+              </button>
+              <button
+                onClick={() => setDocMode('editor')}
+                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                  docMode === 'editor' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <PenLine className="h-3 w-3" />
+                Editor
+              </button>
+            </div>
+            {hasPrototype && (
+              <button
+                onClick={() => setViewingPrototype(!viewingPrototype)}
+                className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+              >
+                {viewingPrototype ? '← Doc' : '🎮'}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -177,17 +179,33 @@ export function PreviewPanel({
                 className="h-full w-full border-0"
                 sandbox="allow-scripts allow-same-origin"
               />
+            ) : docMode === 'preview' ? (
+              <div className="h-full overflow-y-auto px-6 py-6">
+                <article className="md-preview">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        if (match && match[1] === 'mermaid') {
+                          return <MermaidBlock code={String(children).replace(/\n$/, '')} />
+                        }
+                        return <code className={className} {...props}>{children}</code>
+                      },
+                    }}
+                  >
+                    {buildFullMarkdown(sections, sectionContents || {}, sectionStatuses)}
+                  </ReactMarkdown>
+                </article>
+              </div>
             ) : (
-              <div className="h-full overflow-y-auto">
-                <DocumentPreview
-                  documentContent={documentContent}
+              <div className="h-full">
+                <InlineDocEditor
                   sections={sections}
+                  sectionContents={sectionContents || {}}
                   sectionStatuses={sectionStatuses}
-                  sectionContents={sectionContents}
-                  onSectionClick={onSectionClick}
-                  onTextSelect={handleTextSelect}
-                  sectionVersionCounts={sectionVersionCounts}
-                  onShowVersions={handleShowVersions}
+                  projectPath={projectPath || ''}
+                  documentId={documentId || ''}
                 />
               </div>
             )}
@@ -226,6 +244,92 @@ export function PreviewPanel({
             <ContextPanel projectPath={projectPath} />
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+
+/** Build full markdown from section contents for the preview. */
+function buildFullMarkdown(
+  sections: WorkflowSection[],
+  sectionContents: Record<string, string>,
+  sectionStatuses: Record<string, SectionStatus>,
+): string {
+  const parts: string[] = []
+  for (const section of sections) {
+    const content = sectionContents[section.id]
+    const status = sectionStatuses[section.id] || 'empty'
+    parts.push(`## ${section.name}`)
+    if (content?.trim()) {
+      parts.push(content)
+    } else if (status === 'todo') {
+      parts.push('*[Skipped]*')
+    } else {
+      parts.push('*[To be completed]*')
+    }
+    parts.push('')
+  }
+  return parts.join('\n\n')
+}
+
+
+/** Inline markdown editor for the document within the Builder. */
+function InlineDocEditor({
+  sections,
+  sectionContents,
+  sectionStatuses,
+  projectPath,
+  documentId,
+}: {
+  sections: WorkflowSection[]
+  sectionContents: Record<string, string>
+  sectionStatuses: Record<string, SectionStatus>
+  projectPath: string
+  documentId: string
+}) {
+  const fullMd = buildFullMarkdown(sections, sectionContents, sectionStatuses)
+  const [content, setContent] = useState(fullMd)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  // Sync when sections update from the LLM
+  useEffect(() => {
+    setContent(buildFullMarkdown(sections, sectionContents, sectionStatuses))
+  }, [sections, sectionContents, sectionStatuses])
+
+  const handleSave = async () => {
+    if (!projectPath || !documentId) return
+    setSaving(true)
+    try {
+      await fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, project_path: projectPath }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      console.error('Save failed:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b border-border/30 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
+        </button>
+        <span className="text-muted-foreground/50">Edit the document markdown directly</span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <MarkdownEditor content={content} onChange={setContent} placeholder="Document content..." />
       </div>
     </div>
   )
