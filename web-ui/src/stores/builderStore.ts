@@ -387,7 +387,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
               label = `Completing ${toolInput.section_id}`
             }
             const blocks = getBlocks()
-            blocks.push({ kind: 'tool_call', name: toolName, label, status: 'pending' })
+            blocks.push({ kind: 'tool_call', name: toolName, label, status: 'pending', startTime: Date.now() } as any)
             setBlocks(blocks)
             // Don't set processingText for hidden tools — the interaction itself is the visual
             const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
@@ -446,6 +446,15 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           }
           case 'error': {
             const d = event.data as ErrorSSEEvent
+            // Mark the last pending tool_call as error
+            const blocks = getBlocks()
+            for (let i = blocks.length - 1; i >= 0; i--) {
+              if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
+                blocks[i] = { ...blocks[i], status: 'error' } as any
+                break
+              }
+            }
+            setBlocks(blocks)
             set({ error: d.message })
             break
           }
@@ -493,6 +502,18 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
+        const retryCount = (get() as any)._retryCount || 0
+        if (retryCount < 2) {
+          // Auto-retry
+          console.warn(`[builder] SSE error, retrying (${retryCount + 1}/2):`, (e as Error).message)
+          set({ error: null } as any)
+          ;(set as any)({ _retryCount: retryCount + 1 })
+          batcher.destroy()
+          // Retry after a short delay
+          await new Promise(r => setTimeout(r, 1000))
+          sendToSSE(message, options)
+          return
+        }
         set({ error: (e as Error).message })
       }
     } finally {

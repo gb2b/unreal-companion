@@ -25,30 +25,44 @@ interface AttachedDoc {
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
-function ToolCallCard({ name, label, status }: { name: string; label: string; status: 'pending' | 'done' | 'error' }) {
+function ToolCallCard({ name, label, status, startTime }: { name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number }) {
   if (HIDDEN_TOOLS.includes(name)) return null
 
   return (
     <div className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground/50">
       {status === 'pending' && <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />}
-      {status === 'done' && <span className="text-accent text-[10px]">✓</span>}
-      {status === 'error' && <span className="text-red-400 text-[10px]">✗</span>}
+      {status === 'done' && <span className="text-accent text-[10px]">&#10003;</span>}
+      {status === 'error' && <span className="text-amber-400 text-[10px]">&#8635;</span>}
       <span>{label}</span>
-      {status === 'pending' && <ToolTimer />}
+      {status === 'error' && <span className="text-[9px] text-amber-400/70 italic">retrying...</span>}
+      {status === 'pending' && <ElapsedTimer startTime={startTime} />}
+      {status === 'done' && startTime && <FinalDuration startTime={startTime} />}
     </div>
   )
 }
 
-/** Elapsed timer for tool calls */
-function ToolTimer() {
+/** Live elapsed timer */
+function ElapsedTimer({ startTime }: { startTime?: number }) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
-    const start = Date.now()
-    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    const base = startTime || Date.now()
+    const tick = () => setElapsed(Math.floor((Date.now() - base) / 1000))
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [])
-  if (elapsed < 2) return null
-  return <span className="text-[9px] text-muted-foreground/30 tabular-nums">{elapsed}s</span>
+  }, [startTime])
+  return <span className="text-[9px] text-muted-foreground/30 tabular-nums">{formatDuration(elapsed)}</span>
+}
+
+/** Static duration after completion */
+function FinalDuration({ startTime }: { startTime: number }) {
+  const duration = Math.floor((Date.now() - startTime) / 1000)
+  return <span className="text-[9px] text-muted-foreground/30 tabular-nums">{formatDuration(duration)}</span>
+}
+
+function formatDuration(secs: number): string {
+  if (secs < 60) return `${secs}s`
+  return `${Math.floor(secs / 60)}m${(secs % 60).toString().padStart(2, '0')}s`
 }
 
 interface StepSlideProps {
@@ -65,7 +79,6 @@ interface StepSlideProps {
   onSkip: () => void
   onProposeModification: (stepIndex: number) => void
   projectPath?: string
-  error?: string | null
 }
 
 export function StepSlide({
@@ -82,7 +95,6 @@ export function StepSlide({
   onSkip,
   onProposeModification,
   projectPath,
-  error,
 }: StepSlideProps) {
   const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
@@ -223,7 +235,7 @@ export function StepSlide({
           {blocks.map((block, i) => {
             switch (block.kind) {
               case 'tool_call':
-                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} />
+                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={(block as any).startTime} />
               case 'text':
                 return (
                   <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>
@@ -291,14 +303,6 @@ export function StepSlide({
             </div>
           )}
 
-          {/* Error banner */}
-          {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
-              <p className="font-medium text-destructive mb-1">{language === 'fr' ? 'Erreur' : 'Error'}</p>
-              <p className="text-xs text-destructive/80">{error}</p>
-            </div>
-          )}
-
           {/* Simple "Thinking..." — only when no VISIBLE tool_call spinner is pending and not streaming */}
           {isProcessing && !isStreaming && !blocks.some(
             b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
@@ -306,7 +310,7 @@ export function StepSlide({
             <div className="flex items-center gap-2 text-sm text-muted-foreground/50">
               <span className="animate-pulse">●</span>
               <span>Thinking...</span>
-              <ToolTimer />
+              <ElapsedTimer />
             </div>
           )}
 
