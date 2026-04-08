@@ -361,7 +361,7 @@ function InlineDocEditor({
 }
 
 
-/** Inline editor for project-context.md within the Builder. */
+/** Inline editor for project-memory.md within the Builder. */
 function InlineContextEditor({ projectPath }: { projectPath: string }) {
   const { language } = useI18n()
   const [content, setContent] = useState('')

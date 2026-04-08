@@ -4,25 +4,30 @@ import type { ChoicesData } from '@/types/interactions'
 interface ChoicesBlockProps {
   data: ChoicesData
   onSelect: (selectedIds: string[]) => void
+  onAction?: (action: string) => void
   disabled?: boolean
 }
 
-export function ChoicesBlock({ data, onSelect, disabled = false }: ChoicesBlockProps) {
+export function ChoicesBlock({ data, onSelect, onAction, disabled = false }: ChoicesBlockProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const isMulti = data.multi ?? false
 
-  const toggleChoice = (id: string) => {
+  const toggleChoice = (option: { id: string; action?: string }) => {
     if (disabled) return
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
+      if (next.has(option.id)) {
+        next.delete(option.id)
       } else {
-        if (!isMulti) next.clear() // single select: clear others
-        next.add(id)
+        if (!isMulti) next.clear()
+        next.add(option.id)
       }
       return next
     })
+    // Fire action if the option has one
+    if (option.action && onAction) {
+      onAction(option.action)
+    }
   }
 
   // Notify parent whenever selection changes
@@ -39,7 +44,7 @@ export function ChoicesBlock({ data, onSelect, disabled = false }: ChoicesBlockP
             <button
               key={option.id}
               disabled={disabled}
-              onClick={() => toggleChoice(option.id)}
+              onClick={() => toggleChoice(option)}
               className={`relative rounded-lg border px-4 py-3 text-left transition-all disabled:opacity-50 ${
                 isSelected
                   ? 'border-primary/60 bg-primary/5 shadow-sm shadow-primary/10'

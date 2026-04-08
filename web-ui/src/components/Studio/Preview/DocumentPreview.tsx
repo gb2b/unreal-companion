@@ -98,9 +98,9 @@ export function DocumentPreview({
               {sectionVersionCounts?.[section.id] && sectionVersionCounts[section.id] > 1 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onShowVersions?.(section.id) }}
-                  className="text-[10px] text-muted-foreground/50 hover:text-primary"
+                  className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-medium text-orange-400 hover:bg-orange-500/25 transition-colors"
                 >
-                  v{sectionVersionCounts[section.id]}
+                  <span>↻</span> v{sectionVersionCounts[section.id]}
                 </button>
               )}
               {status === 'todo' && (

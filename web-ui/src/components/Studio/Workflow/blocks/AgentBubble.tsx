@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { MermaidBlock } from '../../Editor/MermaidBlock'
 
 interface AgentBubbleProps {
   content: string
@@ -18,7 +19,18 @@ export function AgentBubble({ content, agentName = 'Agent', agentEmoji = '🤖' 
           {agentEmoji} {agentName}
         </div>
         <div className="prose prose-sm prose-invert max-w-none text-foreground [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_strong]:text-primary/90 [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code({ className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || '')
+                if (match && match[1] === 'mermaid') {
+                  return <MermaidBlock code={String(children).replace(/\n$/, '')} />
+                }
+                return <code className={className} {...props}>{children}</code>
+              },
+            }}
+          >
             {content}
           </ReactMarkdown>
         </div>

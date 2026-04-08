@@ -25,6 +25,7 @@ from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
 from services.conversation_history import ConversationHistory
 from services.context_brief import build_context_brief
+from services.migrate_structure import needs_migration, migrate_project
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
     Returns an SSE stream of events (text_delta, interaction_block, etc.)
     """
+    # Auto-migrate project if needed (v1 → v2 structure)
+    if request.project_path and needs_migration(request.project_path):
+        migrate_project(request.project_path)
+
     # Resolve provider from current LLM config
     config = llm_service.get_config()
     provider_name = config["provider"]
@@ -422,6 +427,9 @@ async def list_documents(project_path: str = ""):
     """List all documents with metadata."""
     if not project_path:
         return {"documents": []}
+    # Auto-migrate project if needed (v1 → v2 structure)
+    if needs_migration(project_path):
+        migrate_project(project_path)
     store = DocumentStore(project_path)
     return {"documents": store.list_documents()}
 
@@ -677,6 +685,9 @@ async def upload_reference(
     """Upload a file to references/{stem}/. Set skip_scan=true to skip auto-scanning."""
     if not project_path:
         raise HTTPException(400, "project_path required")
+    # Auto-migrate project if needed (v1 → v2 structure)
+    if needs_migration(project_path):
+        migrate_project(project_path)
 
     # Save the file, avoid overwriting existing files
     filename = file.filename or "upload"

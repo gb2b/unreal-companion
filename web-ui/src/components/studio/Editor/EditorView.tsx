@@ -16,7 +16,7 @@ const WORKFLOW_DESCRIPTIONS: Record<string, string> = {
   'sprint-planning': 'Organizes development work into sprints with prioritized tasks, milestones, and delivery targets.',
 }
 
-const PROJECT_CONTEXT_DESCRIPTION = 'The project context is the living memory of your project. It provides a high-level overview of the game, tracks key decisions made across all documents, and serves as a quick reference for any agent working on the project.'
+const PROJECT_CONTEXT_DESCRIPTION = 'The project memory is the living memory of your project. It provides a high-level overview of the game, tracks key decisions made across all documents, and serves as a quick reference for any agent working on the project.'
 
 interface EditorViewProps {
   docId: string
