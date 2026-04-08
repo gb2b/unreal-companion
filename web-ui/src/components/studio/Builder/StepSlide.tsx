@@ -1,12 +1,23 @@
 import { useState, useCallback, useRef } from 'react'
-import { Paperclip } from 'lucide-react'
+import { Paperclip, X, Loader2 } from 'lucide-react'
 import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
-import { AttachModal } from './AttachModal'
-import type { AttachResult } from './AttachModal'
+
+interface AttachedFile {
+  file: File
+  name: string
+  type: 'local'
+}
+
+interface AttachedDoc {
+  docId: string
+  name: string
+  summary?: string
+  type: 'library'
+}
 
 // Tools whose spinner/card should not be shown — the result speaks for itself
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
@@ -61,7 +72,9 @@ export function StepSlide({
   const [selectedChoices, setSelectedChoices] = useState<string[]>([])
   const [agentReaction, setAgentReaction] = useState<string | null>(null)
   const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [attachOpen, setAttachOpen] = useState(false)
+  const [attachments, setAttachments] = useState<Array<AttachedFile | AttachedDoc>>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // === Derived state from blocks ===
   const blocks = microStep?.blocks ?? []
@@ -74,7 +87,8 @@ export function StepSlide({
 
   const hasSelection = selectedChoices.length > 0
   const hasTextInput = textValue.trim().length > 0
-  const hasResponse = hasSelection || hasTextInput
+  const hasAttachments = attachments.length > 0
+  const hasResponse = hasSelection || hasTextInput || hasAttachments
   const isReadonly = microStep?.status === 'answered' && activeMicroStepIndex < totalMicroSteps - 1
 
   // Dynamic placeholder
@@ -101,41 +115,76 @@ export function StepSlide({
     [],
   )
 
-  const handleContinue = useCallback(() => {
-    if (!hasResponse) return
+  const handleContinue = useCallback(async () => {
+    if (!hasResponse || uploading) return
     const parts: string[] = []
+
+    // 1. Choices
     if (hasSelection) {
       const choicesData = microStep?.interactionData as any
       const options = choicesData?.options || []
       const labels = selectedChoices.map(id => options.find((o: any) => o.id === id)?.label || id)
-      // Clean format: strip emojis from labels for the LLM message
       const cleanLabels = labels.map((l: string) => l.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim())
       parts.push(cleanLabels.join(', '))
     }
+
+    // 2. Text
     if (hasTextInput) {
       parts.push(textValue.trim())
     }
+
+    // 3. Upload attachments and append summaries
+    if (hasAttachments) {
+      setUploading(true)
+      for (const att of attachments) {
+        if (att.type === 'local') {
+          try {
+            const formData = new FormData()
+            formData.append('file', att.file)
+            formData.append('project_path', projectPath || '')
+            const res = await fetch('/api/v2/studio/upload', { method: 'POST', body: formData })
+            if (res.ok) {
+              const data = await res.json()
+              const summary = data.index?.summary || ''
+              parts.push(`[DOCUMENT_ATTACHED] ${data.doc_id}\nFilename: ${data.filename}\nSummary: ${summary}`)
+            }
+          } catch { /* ignore failed uploads */ }
+        } else {
+          parts.push(`[DOCUMENT_LINKED] ${att.docId}\nName: ${att.name}\nSummary: ${att.summary || ''}`)
+        }
+      }
+      setUploading(false)
+    }
+
     setTextValue('')
     setSelectedChoices([])
-    onSubmitResponse(parts.join('\n'))
-  }, [hasResponse, hasSelection, hasTextInput, selectedChoices, textValue, microStep, onSubmitResponse])
+    setAttachments([])
+    onSubmitResponse(parts.join('\n\n'))
+  }, [hasResponse, uploading, hasSelection, hasTextInput, hasAttachments, selectedChoices, textValue, attachments, microStep, projectPath, onSubmitResponse])
 
   const handleSubmitKey = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        if (hasResponse && !isProcessing) handleContinue()
+        if (hasResponse && !isProcessing && !uploading) handleContinue()
       }
     },
-    [hasResponse, isProcessing, handleContinue],
+    [hasResponse, isProcessing, uploading, handleContinue],
   )
 
-  const handleAttach = (result: AttachResult) => {
-    const msg = result.type === 'upload'
-      ? `[DOCUMENT_ATTACHED] ${result.docId}\nSummary: ${result.summary || 'Scanning...'}`
-      : `[DOCUMENT_LINKED] ${result.docId}\nSummary: ${result.summary || 'No summary available'}`
-    onSubmitResponse(msg)
-  }
+  const handleFileSelect = useCallback((files: FileList | null) => {
+    if (!files) return
+    const newAttachments: AttachedFile[] = Array.from(files).map(f => ({
+      file: f,
+      name: f.name,
+      type: 'local' as const,
+    }))
+    setAttachments(prev => [...prev, ...newAttachments])
+  }, [])
+
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+  }, [])
 
   return (
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
@@ -230,24 +279,62 @@ export function StepSlide({
       {showInput && !isReadonly && (
         <div className="border-t border-border/30 px-6 py-4">
           <div className="mx-auto w-full max-w-2xl flex flex-col gap-1.5">
+            {/* Attachment pills */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {attachments.map((att, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs text-primary"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                    <span className="max-w-[150px] truncate">{att.name}</span>
+                    <button
+                      onClick={() => removeAttachment(i)}
+                      className="flex h-3.5 w-3.5 items-center justify-center rounded-full hover:bg-primary/20 transition-colors"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Uploading indicator */}
+            {uploading && (
+              <div className="flex items-center gap-2 text-xs text-primary">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>{language === 'fr' ? 'Analyse des documents...' : 'Analyzing documents...'}</span>
+              </div>
+            )}
+
             <div className="flex items-start gap-2">
+              {/* Attach button — opens file picker */}
               <button
-                onClick={() => setAttachOpen(true)}
+                onClick={() => fileInputRef.current?.click()}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Attach document"
+                title={language === 'fr' ? 'Joindre un fichier' : 'Attach file'}
               >
                 <Paperclip className="h-4 w-4" />
               </button>
-            <textarea
-              value={textValue}
-              onChange={e => setTextValue(e.target.value)}
-              onKeyDown={handleSubmitKey}
-              disabled={isProcessing}
-              placeholder={placeholder}
-              rows={2}
-              data-autofocus
-              className="w-full resize-none rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
-            />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                accept=".pdf,.docx,.doc,.md,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
+                onChange={e => { handleFileSelect(e.target.files); e.target.value = '' }}
+              />
+              <textarea
+                value={textValue}
+                onChange={e => setTextValue(e.target.value)}
+                onKeyDown={handleSubmitKey}
+                disabled={isProcessing || uploading}
+                placeholder={placeholder}
+                rows={2}
+                data-autofocus
+                className="w-full resize-none rounded-lg border border-border/50 bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
+              />
             </div>
             <p className="text-xs text-muted-foreground/50">{enterHint}</p>
           </div>
@@ -263,12 +350,7 @@ export function StepSlide({
         hasResponse={hasResponse}
       />
 
-      <AttachModal
-        isOpen={attachOpen}
-        onClose={() => setAttachOpen(false)}
-        onAttach={handleAttach}
-        projectPath={projectPath || ''}
-      />
+      {/* Drop zone overlay for drag-and-drop */}
     </div>
   )
 }
