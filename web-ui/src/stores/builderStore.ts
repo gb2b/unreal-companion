@@ -238,14 +238,20 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       }
       function setBlocks(blocks: StepBlock[]) {
         if (!steps[activeIdx]) return
-        // Derive summary from last text block
-        const lastText = [...blocks].reverse().find(b => b.kind === 'text')
-        const summary = lastText
-          ? (lastText.content.length > 80
-            ? lastText.content.replace(/[#*_`]/g, '').slice(0, 77) + '...'
-            : lastText.content.replace(/[#*_`]/g, ''))
-          : steps[activeIdx].summary
-        steps[activeIdx] = { ...steps[activeIdx], blocks, summary: summary ?? null }
+        // Keep LLM-generated step_title if set (from show_interaction), otherwise derive from text
+        const existingSummary = steps[activeIdx].summary
+        const hasLLMTitle = existingSummary && !existingSummary.includes('...') && existingSummary.length < 80
+        if (!hasLLMTitle) {
+          const lastText = [...blocks].reverse().find(b => b.kind === 'text')
+          const summary = lastText
+            ? (lastText.content.length > 80
+              ? lastText.content.replace(/[#*_`]/g, '').slice(0, 77) + '...'
+              : lastText.content.replace(/[#*_`]/g, ''))
+            : existingSummary
+          steps[activeIdx] = { ...steps[activeIdx], blocks, summary: summary ?? null }
+        } else {
+          steps[activeIdx] = { ...steps[activeIdx], blocks }
+        }
       }
 
       for (const event of batch) {
@@ -644,10 +650,13 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         ``,
         docsInfo ? `## Available Documents\n${docsInfo}` : '',
         ``,
+        `## Instructions`,
+        `IMPORTANT: ALL sections of this document are empty and need to be filled. Even if the project context has relevant info, you MUST review each section with the user before writing it.`,
         hasContext
-          ? `Adapt your approach based on the project state above. Use document tools (doc_read_summary, doc_read_section, doc_grep) to pull relevant details from available documents. Don't re-ask questions that are already answered in the project context.`
+          ? `The project context above is a REFERENCE — use it to propose content for each section, but always ask the user to validate before calling update_document. Start from the first section.`
           : `This is a new project with no existing context. Introduce yourself with your persona and start the workflow.`,
-        `Respond with exactly ONE text message. If you want to ask the user something, follow it with ONE show_interaction call.`,
+        `First, ask if the user has documents to upload. Then work through sections one by one.`,
+        `Respond with exactly ONE text message followed by ONE show_interaction call with a step_title.`,
       ].filter(Boolean).join('\n')
 
       // Detect language from i18n store
