@@ -198,6 +198,18 @@ INTERCEPTOR_TOOLS = [
             "required": ["query"],
         },
     },
+    # --- Session memory (handled by tool_executor) ---
+    {
+        "name": "update_session_memory",
+        "description": "Update the session memory for this workflow. This is your working memory — a concise summary of key facts, decisions, and user preferences gathered during this conversation. Called after learning important info. Kept under 800 words. Replaces the full content each time.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "memory": {"type": "string", "description": "Concise structured summary of key facts and decisions from this session"},
+            },
+            "required": ["memory"],
+        },
+    },
 ]
 
 

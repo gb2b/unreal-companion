@@ -192,6 +192,21 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             except Exception as e:
                 return json.dumps({"success": False, "error": str(e)})
 
+        if name == "update_session_memory":
+            memory = tool_input.get("memory", "")
+            if request.project_path and doc_id:
+                snapshot_path = Path(request.project_path) / ".unreal-companion" / "docs" / f"{doc_id}.session.json"
+                snapshot = {}
+                if snapshot_path.exists():
+                    try:
+                        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                snapshot["memory"] = memory
+                snapshot["memory_updated"] = datetime.now(timezone.utc).isoformat()
+                snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
+            return json.dumps({"success": True})
+
         if name == "doc_scan":
             from services.doc_tools import DocTools
             dt = DocTools(request.project_path)

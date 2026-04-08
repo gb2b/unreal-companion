@@ -363,6 +363,7 @@ function InlineDocEditor({
 
 /** Inline editor for project-context.md within the Builder. */
 function InlineContextEditor({ projectPath }: { projectPath: string }) {
+  const { language } = useI18n()
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -394,16 +395,19 @@ function InlineContextEditor({ projectPath }: { projectPath: string }) {
   if (loading) return <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Loading...</div>
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border/30 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
+    <div className="flex h-full flex-col bg-primary/[0.02]">
+      <div className="flex items-center gap-2 border-b border-primary/10 bg-primary/[0.03] px-3 py-1.5 text-xs">
+        <span className="h-2 w-2 rounded-full bg-primary/40" />
+        <span className="text-primary/60 font-medium flex-1">
+          {language === 'fr' ? 'Memoire projet' : 'Project Memory'}
+        </span>
         <button
           onClick={handleSave}
           disabled={saving}
           className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
         >
-          {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
+          {saving ? 'Saving...' : saved ? 'Saved' : 'Save'}
         </button>
-        <span className="text-muted-foreground/50">Edit project context</span>
       </div>
       <div className="flex-1 min-h-0">
         <MarkdownEditor content={content} onChange={setContent} placeholder="Project context..." editorOnly />
@@ -461,14 +465,19 @@ function EditableDocBanner({
           />
         </div>
       ) : (
-        <button
-          onClick={() => setEditing(true)}
-          className="text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
-          title="Click to rename"
-        >
-          {name}
-          <span className="ml-1.5 text-[9px] text-muted-foreground/40">&#9998;</span>
-        </button>
+        <div>
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
+            title="Click to rename"
+          >
+            {name}
+            <span className="ml-1.5 text-[9px] text-muted-foreground/40">&#9998;</span>
+          </button>
+          {documentId && (
+            <div className="text-[10px] text-muted-foreground/40 mt-0.5">{documentId}</div>
+          )}
+        </div>
       )}
     </div>
   )

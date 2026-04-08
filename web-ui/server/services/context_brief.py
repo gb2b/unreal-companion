@@ -33,14 +33,19 @@ def build_context_brief(
     """
     parts = ["## Current State\n"]
 
-    # --- Session snapshot (initial context, full, never truncated) ---
+    # --- Session memory (LLM-maintained working memory for this workflow) ---
     if session_snapshot:
-        snap_ctx = session_snapshot.get("project_context", "")
-        if snap_ctx:
-            parts.append(f"### Session Context (from workflow start)\n{snap_ctx}\n")
+        session_memory = session_snapshot.get("memory", "")
+        if session_memory:
+            parts.append(f"### Session Memory (your working memory for this workflow)\n{session_memory}\n")
+        else:
+            # First turn — show initial context from snapshot
+            snap_ctx = session_snapshot.get("project_context", "")
+            if snap_ctx:
+                parts.append(f"### Initial Context (from workflow start)\n{snap_ctx}\n")
         snap_docs = session_snapshot.get("documents", [])
         if snap_docs:
-            parts.append("### Available Documents (at start)")
+            parts.append("### Available Documents")
             for d in snap_docs:
                 s = d.get("summary", "")
                 parts.append(f"- {d.get('name', d.get('id', ''))} ({d.get('status', 'empty')}){' — ' + s if s else ''}")
