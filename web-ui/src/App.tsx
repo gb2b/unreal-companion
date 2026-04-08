@@ -208,7 +208,7 @@ function App() {
             <Route path="/" element={<Navigate to="/studio/today" replace />} />
             <Route path="/studio" element={<Navigate to="/studio/today" replace />} />
             <Route path="/studio/doc/:docId" element={<StudioPage />} />
-            <Route path="/studio/build/:workflowId" element={<StudioPage />} />
+            <Route path="/studio/build/:workflowId/:docId?" element={<StudioPage />} />
             <Route path="/studio/:tab" element={<StudioPage />} />
             <Route path="/editor" element={<EditorPage />} />
             <Route path="/settings" element={<SettingsPage onClose={() => navigate(-1)} />} />

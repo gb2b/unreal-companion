@@ -156,7 +156,9 @@ export function StudioPage() {
   // Key to force BuilderView remount when starting a new doc
   const [builderKey, setBuilderKey] = useState(0)
   // docId override when "New" is clicked from a resume banner
-  const [builderDocIdOverride, setBuilderDocIdOverride] = useState<string | undefined>(undefined)
+  // Use docId from URL for builder if on /studio/build/:workflowId/:docId
+  const urlDocId = workflowId && docId ? decodeURIComponent(docId) : undefined
+  const [builderDocIdOverride, setBuilderDocIdOverride] = useState<string | undefined>(urlDocId)
 
   // Fetch data on mount
   useEffect(() => {

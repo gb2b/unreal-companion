@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
@@ -54,9 +55,21 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
     prototypes,
     agent,
     dynamicSections,
+    documentId,
   } = useBuilderStore()
 
+  const builderNavigate = useNavigate()
   const allSections = [...workflow.sections, ...dynamicSections]
+
+  // Update URL with doc_id when it's set (so refresh works)
+  useEffect(() => {
+    if (documentId && workflow.id) {
+      const expectedPath = `/studio/build/${encodeURIComponent(workflow.id)}/${encodeURIComponent(documentId)}`
+      if (window.location.pathname !== expectedPath) {
+        builderNavigate(expectedPath, { replace: true })
+      }
+    }
+  }, [documentId, workflow.id, builderNavigate])
 
   useEffect(() => {
     if (hasInitialized.current) return
