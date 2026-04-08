@@ -1,10 +1,12 @@
 import { useState, useCallback, useRef } from 'react'
-import { Paperclip, X, Loader2 } from 'lucide-react'
+import { Paperclip, X } from 'lucide-react'
 import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
+import { AttachModal } from './AttachModal'
+import type { AttachResult } from './AttachModal'
 
 interface AttachedFile {
   file: File
@@ -73,8 +75,7 @@ export function StepSlide({
   const [agentReaction, setAgentReaction] = useState<string | null>(null)
   const reactionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [attachments, setAttachments] = useState<Array<AttachedFile | AttachedDoc>>([])
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [attachModalOpen, setAttachModalOpen] = useState(false)
 
   // === Derived state from blocks ===
   const blocks = microStep?.blocks ?? []
@@ -116,7 +117,7 @@ export function StepSlide({
   )
 
   const handleContinue = useCallback(async () => {
-    if (!hasResponse || uploading) return
+    if (!hasResponse) return
     const parts: string[] = []
 
     // 1. Choices
@@ -133,58 +134,68 @@ export function StepSlide({
       parts.push(textValue.trim())
     }
 
-    // 3. Upload attachments and append summaries
+    // 3. Attachments — save local files to references/ (no scan), tell LLM to scan via tools
     if (hasAttachments) {
-      setUploading(true)
       for (const att of attachments) {
         if (att.type === 'local') {
+          // Quick upload — just save to references/, no scan (LLM will scan via doc_scan tool)
           try {
             const formData = new FormData()
             formData.append('file', att.file)
             formData.append('project_path', projectPath || '')
+            formData.append('skip_scan', 'true')
             const res = await fetch('/api/v2/studio/upload', { method: 'POST', body: formData })
             if (res.ok) {
               const data = await res.json()
-              const summary = data.index?.summary || ''
-              parts.push(`[DOCUMENT_ATTACHED] ${data.doc_id}\nFilename: ${data.filename}\nSummary: ${summary}`)
+              parts.push(`[DOCUMENT_ATTACHED] ${data.doc_id}\nFilename: ${data.filename}\nUse doc_scan and doc_read_summary to analyze this document.`)
             }
-          } catch { /* ignore failed uploads */ }
-        } else {
-          parts.push(`[DOCUMENT_LINKED] ${att.docId}\nName: ${att.name}\nSummary: ${att.summary || ''}`)
+          } catch { /* ignore */ }
+        } else if (att.type === 'library') {
+          parts.push(`[DOCUMENT_LINKED] ${att.docId}\nName: ${att.name}\nUse doc_read_summary to review this document.`)
         }
       }
-      setUploading(false)
     }
 
     setTextValue('')
     setSelectedChoices([])
     setAttachments([])
     onSubmitResponse(parts.join('\n\n'))
-  }, [hasResponse, uploading, hasSelection, hasTextInput, hasAttachments, selectedChoices, textValue, attachments, microStep, projectPath, onSubmitResponse])
+  }, [hasResponse, hasSelection, hasTextInput, hasAttachments, selectedChoices, textValue, attachments, microStep, projectPath, onSubmitResponse])
 
   const handleSubmitKey = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        if (hasResponse && !isProcessing && !uploading) handleContinue()
+        if (hasResponse && !isProcessing) handleContinue()
       }
     },
-    [hasResponse, isProcessing, uploading, handleContinue],
+    [hasResponse, isProcessing, handleContinue],
   )
 
-  const handleFileSelect = useCallback((files: FileList | null) => {
-    if (!files) return
-    const newAttachments: AttachedFile[] = Array.from(files).map(f => ({
-      file: f,
-      name: f.name,
-      type: 'local' as const,
-    }))
-    setAttachments(prev => [...prev, ...newAttachments])
+  // Attach from modal (file or library doc)
+  const handleAttachFromModal = useCallback((result: AttachResult) => {
+    if (result.type === 'upload') {
+      // File was already uploaded by the modal — add as library reference
+      setAttachments(prev => [...prev, { docId: result.docId, name: result.name, summary: result.summary, type: 'library' }])
+    } else {
+      setAttachments(prev => [...prev, { docId: result.docId, name: result.name, summary: result.summary, type: 'library' }])
+    }
   }, [])
 
   const removeAttachment = useCallback((index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index))
   }, [])
+
+  // Special: when user clicks a choice that triggers file attach (e.g., "J'ai des documents")
+  const handleInteractionWithAttach = useCallback((response: string) => {
+    // Check if this choice should open the attach modal
+    const lowerResponse = response.toLowerCase()
+    if (lowerResponse.includes('document') && (lowerResponse.includes('partager') || lowerResponse.includes('upload') || lowerResponse.includes('share'))) {
+      setAttachModalOpen(true)
+      // Still select the choice
+    }
+    handleInteractionSelect(response)
+  }, [handleInteractionSelect])
 
   return (
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
@@ -233,7 +244,7 @@ export function StepSlide({
                     <InteractionRenderer
                       type={block.type}
                       data={block.data}
-                      onResponse={handleInteractionSelect}
+                      onResponse={handleInteractionWithAttach}
                       disabled={isProcessing || !!isReadonly}
                     />
                   </div>
@@ -300,36 +311,20 @@ export function StepSlide({
               </div>
             )}
 
-            {/* Uploading indicator */}
-            {uploading && (
-              <div className="flex items-center gap-2 text-xs text-primary">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>{language === 'fr' ? 'Analyse des documents...' : 'Analyzing documents...'}</span>
-              </div>
-            )}
-
             <div className="flex items-start gap-2">
-              {/* Attach button — opens file picker */}
+              {/* Attach button — opens modal */}
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setAttachModalOpen(true)}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 title={language === 'fr' ? 'Joindre un fichier' : 'Attach file'}
               >
                 <Paperclip className="h-4 w-4" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                accept=".pdf,.docx,.doc,.md,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
-                onChange={e => { handleFileSelect(e.target.files); e.target.value = '' }}
-              />
               <textarea
                 value={textValue}
                 onChange={e => setTextValue(e.target.value)}
                 onKeyDown={handleSubmitKey}
-                disabled={isProcessing || uploading}
+                disabled={isProcessing}
                 placeholder={placeholder}
                 rows={2}
                 data-autofocus
@@ -350,7 +345,13 @@ export function StepSlide({
         hasResponse={hasResponse}
       />
 
-      {/* Drop zone overlay for drag-and-drop */}
+      {/* Attach modal — pick from computer or library */}
+      <AttachModal
+        isOpen={attachModalOpen}
+        onClose={() => setAttachModalOpen(false)}
+        onAttach={(result) => { handleAttachFromModal(result); setAttachModalOpen(false) }}
+        projectPath={projectPath || ''}
+      />
     </div>
   )
 }

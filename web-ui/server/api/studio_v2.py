@@ -649,8 +649,9 @@ async def upload_reference(
     file: UploadFile = File(...),
     project_path: str = Form(""),
     source_document: str = Form(""),
+    skip_scan: str = Form(""),
 ):
-    """Upload a file to docs/references/."""
+    """Upload a file to docs/references/. Set skip_scan=true to skip auto-scanning."""
     if not project_path:
         raise HTTPException(400, "project_path required")
 
@@ -696,15 +697,16 @@ async def upload_reference(
     doc_id = f"references/{dest.stem}"
     response_data = {"success": True, "doc_id": doc_id, "filename": dest.name, "tags": meta["tags"]}
 
-    # Auto-scan the uploaded document
-    try:
-        from services.doc_tools import DocTools
-        dt = DocTools(project_path)
-        scan_result = await dt.scan(doc_id)
-        if "error" not in scan_result:
-            response_data["index"] = scan_result
-    except Exception as e:
-        logger.warning(f"Auto-scan failed for {doc_id}: {e}")
+    # Auto-scan the uploaded document (unless skip_scan is set — LLM will scan via tools)
+    if skip_scan.lower() != 'true':
+        try:
+            from services.doc_tools import DocTools
+            dt = DocTools(project_path)
+            scan_result = await dt.scan(doc_id)
+            if "error" not in scan_result:
+                response_data["index"] = scan_result
+        except Exception as e:
+            logger.warning(f"Auto-scan failed for {doc_id}: {e}")
 
     return response_data
 
