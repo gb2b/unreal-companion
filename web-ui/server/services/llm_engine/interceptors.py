@@ -38,7 +38,7 @@ INTERCEPTOR_TOOLS = [
                 },
                 "data": {
                     "type": "object",
-                    "description": "Block-specific data. choices: {options: [{id, label, description?}], multi?: bool}. slider: {min, max, step, label, default?}. rating: {max, label}. upload: {accept?, label}. confirm: {message}."
+                    "description": "Block-specific data. choices: {options: [{id, label, description?, action?}], multi?: bool}. Actions: 'attach_documents', 'open_editor', 'open_preview'. slider: {min, max, step, label, default?}. rating: {max, label}. upload: {accept?, label}. confirm: {message}."
                 },
                 "step_title": {
                     "type": "string",

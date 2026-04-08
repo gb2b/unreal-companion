@@ -186,16 +186,17 @@ export function StepSlide({
     setAttachments(prev => prev.filter((_, i) => i !== index))
   }, [])
 
-  // Special: when user clicks a choice that triggers file attach (e.g., "J'ai des documents")
-  const handleInteractionWithAttach = useCallback((response: string) => {
-    // Check if this choice should open the attach modal
-    const lowerResponse = response.toLowerCase()
-    if (lowerResponse.includes('document') && (lowerResponse.includes('partager') || lowerResponse.includes('upload') || lowerResponse.includes('share'))) {
-      setAttachModalOpen(true)
-      // Still select the choice
+  // Handle actions from interaction choices (e.g., attach_documents, open_editor)
+  const handleAction = useCallback((action: string) => {
+    switch (action) {
+      case 'attach_documents':
+        setAttachModalOpen(true)
+        break
+      // Future actions can be added here
+      default:
+        console.log('[builder] Unknown action:', action)
     }
-    handleInteractionSelect(response)
-  }, [handleInteractionSelect])
+  }, [])
 
   return (
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
@@ -244,7 +245,8 @@ export function StepSlide({
                     <InteractionRenderer
                       type={block.type}
                       data={block.data}
-                      onResponse={handleInteractionWithAttach}
+                      onResponse={handleInteractionSelect}
+                      onAction={handleAction}
                       disabled={isProcessing || !!isReadonly}
                     />
                   </div>

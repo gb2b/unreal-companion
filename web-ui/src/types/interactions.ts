@@ -4,6 +4,8 @@ export interface ChoiceOption {
   id: string
   label: string
   description?: string
+  /** Frontend action to trigger when this choice is selected. */
+  action?: 'attach_documents' | 'open_editor' | 'open_preview' | 'open_reference' | 'open_prototype' | 'start_workflow'
 }
 
 export interface ChoicesData {

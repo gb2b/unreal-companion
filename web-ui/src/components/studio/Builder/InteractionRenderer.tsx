@@ -9,16 +9,18 @@ interface InteractionRendererProps {
   type: InteractionBlockType
   data: InteractionData
   onResponse: (response: string) => void
+  onAction?: (action: string) => void
   disabled: boolean
 }
 
-export function InteractionRenderer({ type, data, onResponse, disabled }: InteractionRendererProps) {
+export function InteractionRenderer({ type, data, onResponse, onAction, disabled }: InteractionRendererProps) {
   switch (type) {
     case 'choices':
       return (
         <ChoicesBlock
           data={data as ChoicesData}
           onSelect={ids => onResponse(ids.join(', '))}
+          onAction={onAction}
           disabled={disabled}
         />
       )
