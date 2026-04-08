@@ -364,7 +364,7 @@ export function StudioPage() {
             onNewDocument={() => {
               // Force remount BuilderView with a new key + unique doc ID (fresh start)
               const ts = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 15)
-              setBuilderDocIdOverride(`concept/${displayedV2Workflow.id}-${ts}`)
+              setBuilderDocIdOverride(`${displayedV2Workflow.id}-${ts}`)
               setBuilderBanner(null)
               setBuilderKey(k => k + 1)
             }}

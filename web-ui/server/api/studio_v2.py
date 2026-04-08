@@ -274,9 +274,8 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     logger.info(f"[chat] message_len={len(request.message)}, workflow_start={is_workflow_start}, doc_id='{doc_id}', workflow_id='{request.workflow_id}', agent='{request.agent}'")
 
     if is_workflow_start and request.project_path and request.workflow_id and not doc_id:
-        # Infer document_id from workflow_id: "game-brief" -> "concept/game-brief"
-        # We default to "concept/<workflow_id>" if no explicit doc_id provided
-        doc_id = f"concept/{request.workflow_id}"
+        # Fallback: generate doc_id from workflow_id if not provided by frontend
+        doc_id = request.workflow_id
 
     if is_workflow_start and request.project_path and doc_id:
         try:
