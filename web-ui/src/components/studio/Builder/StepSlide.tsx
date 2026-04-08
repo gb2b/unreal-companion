@@ -25,18 +25,35 @@ interface AttachedDoc {
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
-function ToolCallCard({ name, label, status, startTime }: { name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number }) {
+function ToolCallCard({ name, label, status, startTime, result }: {
+  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; result?: string
+}) {
   if (HIDDEN_TOOLS.includes(name)) return null
+  const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className={`flex items-center gap-2 py-0.5 text-xs ${status === 'error' ? 'text-red-400/70' : 'text-muted-foreground/50'}`}>
-      {status === 'pending' && <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />}
-      {status === 'done' && <span className="text-accent text-[10px]">&#10003;</span>}
-      {status === 'error' && <span className="text-red-400 text-[10px]">&#10007;</span>}
-      <span className={status === 'error' ? 'line-through' : ''}>{label}</span>
-      {status === 'pending' && <ElapsedTimer startTime={startTime} />}
-      {status === 'done' && startTime && <FinalDuration startTime={startTime} />}
-      {status === 'error' && startTime && <FinalDuration startTime={startTime} />}
+    <div className="py-0.5">
+      <div className={`flex items-center gap-2 text-xs ${status === 'error' ? 'text-red-400/70' : 'text-muted-foreground/50'}`}>
+        {status === 'pending' && <span className="h-3 w-3 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />}
+        {status === 'done' && <span className="text-accent text-[10px] shrink-0">&#10003;</span>}
+        {status === 'error' && <span className="text-red-400 text-[10px] shrink-0">&#10007;</span>}
+        <span className={`flex-1 ${status === 'error' ? 'line-through' : ''}`}>{label}</span>
+        {status === 'pending' && <ElapsedTimer startTime={startTime} />}
+        {(status === 'done' || status === 'error') && startTime && <FinalDuration startTime={startTime} />}
+        {result && (status === 'done' || status === 'error') && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+          >
+            {expanded ? '▾' : '▸'}
+          </button>
+        )}
+      </div>
+      {expanded && result && (
+        <p className={`ml-5 mt-0.5 text-[10px] leading-relaxed ${status === 'error' ? 'text-red-400/60' : 'text-muted-foreground/40'}`}>
+          {result}
+        </p>
+      )}
     </div>
   )
 }
@@ -235,7 +252,7 @@ export function StepSlide({
           {blocks.map((block, i) => {
             switch (block.kind) {
               case 'tool_call':
-                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={(block as any).startTime} />
+                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={(block as any).startTime} result={(block as any).result} />
               case 'text':
                 return (
                   <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>

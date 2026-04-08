@@ -208,14 +208,24 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
     }))
 
     // Tool name → user-friendly label map
-    const TOOL_LABELS: Record<string, string> = {
-      'show_interaction': 'Preparing options',
-      'update_document': 'Updating document',
-      'mark_section_complete': 'Completing section',
-      'show_prototype': 'Building prototype',
-      'read_project_document': 'Reading project documents',
-      'update_project_context': 'Updating project context',
-      'report_progress': 'Reporting progress',
+    function buildToolLabel(name: string, input: Record<string, any>): string {
+      const shortId = (id: string) => id.split('/').pop() || id
+      switch (name) {
+        case 'doc_scan': return `Scan — ${shortId(input.doc_id || '')}`
+        case 'doc_read_summary': return `Read summary — ${shortId(input.doc_id || '')}`
+        case 'doc_read_section': return `Read section — ${shortId(input.doc_id || '')} → ${input.section || ''}`
+        case 'doc_grep': return `Search — "${input.query || ''}"${input.doc_ids?.length ? ` in ${input.doc_ids.map(shortId).join(', ')}` : ''}`
+        case 'update_document': return `Write — ${input.section_id || 'document'}`
+        case 'mark_section_complete': return `Complete — ${input.section_id || 'section'}`
+        case 'update_project_context': return 'Update project context'
+        case 'update_session_memory': return 'Save session memory'
+        case 'read_project_document': return `Read — ${shortId(input.doc_id || 'document')}`
+        case 'rename_document': return `Rename — ${input.name || ''}`
+        case 'show_interaction': return 'Preparing question'
+        case 'show_prototype': return 'Building prototype'
+        case 'report_progress': return 'Progress update'
+        default: return name.replace(/_/g, ' ')
+      }
     }
 
     const batcher = new StreamBatcher<SSEEvent>((batch) => {
@@ -379,13 +389,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             const d = event.data as any
             const toolName = d?.name || ''
             const toolInput = d?.input || {}
-            let label = TOOL_LABELS[toolName] || 'Processing'
-            // Enrich label with context from tool input
-            if (toolName === 'update_document' && toolInput.section_id) {
-              label = `Updating ${toolInput.section_id}`
-            } else if (toolName === 'mark_section_complete' && toolInput.section_id) {
-              label = `Completing ${toolInput.section_id}`
-            }
+            const label = buildToolLabel(toolName, toolInput)
             const blocks = getBlocks()
             blocks.push({ kind: 'tool_call', name: toolName, label, status: 'pending', startTime: Date.now() } as any)
             setBlocks(blocks)
@@ -397,19 +401,30 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             break
           }
           case 'tool_result': {
-            // Mark the last pending tool_call as done or error
             const d_tr = event.data as any
             const resultStr = d_tr?.result || ''
             let isError = false
+            let resultPreview = ''
             try {
               const parsed = JSON.parse(resultStr)
               isError = !!parsed.error
-            } catch { /* not JSON, that's fine */ }
+              if (isError) {
+                resultPreview = parsed.message || parsed.error || ''
+              } else if (parsed.summary) {
+                resultPreview = parsed.summary
+              } else if (parsed.success !== undefined) {
+                resultPreview = parsed.success ? 'Done' : 'Failed'
+              } else if (Array.isArray(parsed)) {
+                resultPreview = `${parsed.length} result${parsed.length !== 1 ? 's' : ''}`
+              }
+            } catch {
+              resultPreview = resultStr.length > 100 ? resultStr.slice(0, 97) + '...' : resultStr
+            }
 
             const blocks = getBlocks()
             for (let i = blocks.length - 1; i >= 0; i--) {
               if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
-                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done' } as any
+                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done', result: resultPreview } as any
                 break
               }
             }
