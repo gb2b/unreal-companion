@@ -259,8 +259,25 @@ export function StudioPage() {
           setCachedV2Workflow(workflow)
         }
       }).catch(console.error)
+
+      // Find existing in-progress document for this workflow (to resume after refresh)
+      if (!builderDocIdOverride) {
+        api.get<{ documents: any[] }>(
+          `/api/v2/studio/documents?project_path=${encodeURIComponent(projectPath)}`
+        ).then(data => {
+          const docs = data.documents || []
+          // Find the most recent in_progress doc for this workflow
+          const match = docs
+            .filter((d: any) => d.meta?.workflow_id === workflowId && d.meta?.status !== 'complete')
+            .sort((a: any, b: any) => (b.meta?.updated || '').localeCompare(a.meta?.updated || ''))
+            [0]
+          if (match) {
+            setBuilderDocIdOverride(match.id)
+          }
+        }).catch(() => {})
+      }
     }
-  }, [workflowId, activeV2Workflow, cachedV2Workflow, projectPath])
+  }, [workflowId, activeV2Workflow, cachedV2Workflow, projectPath, builderDocIdOverride])
 
   const handleOpenDocument = (docId: string) => {
     navigate(`/studio/doc/${encodeURIComponent(docId)}`)
