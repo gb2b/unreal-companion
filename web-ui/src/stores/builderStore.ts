@@ -507,7 +507,18 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       // Set initial active section to the first section
       const firstSectionId = workflow.sections[0]?.id || null
 
-      const docId = docIdOverride ?? `concept/${workflow.id}`
+      // Generate unique doc_id with timestamp if not provided
+      const docId = docIdOverride ?? (() => {
+        const CATEGORIES: Record<string, string> = {
+          'game-brief': 'concept', 'brainstorming': 'concept', 'mood-board': 'concept', 'mind-map': 'concept',
+          'gdd': 'design', 'level-design': 'design', 'art-direction': 'design', 'narrative': 'design',
+          'game-architecture': 'technical', 'diagram': 'technical',
+          'sprint-planning': 'production', 'dev-story': 'production',
+        }
+        const category = CATEGORIES[workflow.id] || 'concept'
+        const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
+        return `${category}/${workflow.id}-${ts}`
+      })()
 
       set({
         ...INITIAL_STATE,
