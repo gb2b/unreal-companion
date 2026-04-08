@@ -120,6 +120,7 @@ class AgenticLoop:
 
             # Emit text_done if we collected any text
             full_text = "".join(text_parts)
+            logger.info(f"  stop_reason={stop_reason}, text_len={len(full_text)}, tool_calls={[tc['name'] for tc in tool_calls]}, tokens_in={total_input}, tokens_out={total_output}")
             if full_text:
                 yield TextDone(content=full_text)
 

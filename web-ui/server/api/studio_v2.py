@@ -145,12 +145,15 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
     # Tool executor: handles local tools, then forwards to MCP bridge
     async def tool_executor(name: str, tool_input: dict) -> str:
+        # Strip _description from input (UI-only field)
+        tool_input.pop("_description", None)
+        logger.info(f"[tool_executor] {name} | doc_id={doc_id} | input_keys={list(tool_input.keys())}")
         # Handle read_project_document locally (not via MCP)
         if name == "read_project_document":
-            doc_id = tool_input.get("document_id", "")
+            read_doc_id = tool_input.get("document_id", "")
             try:
                 store = DocumentStore(request.project_path)
-                doc = store.get_document(doc_id)
+                doc = store.get_document(read_doc_id)
                 if doc:
                     return json.dumps({"success": True, "content": doc["content"][:4000]})
                 return json.dumps({"success": False, "error": f"Document '{doc_id}' not found"})
@@ -268,6 +271,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     # If [WORKFLOW_START] is in the message, create the document record now
     is_workflow_start = "[WORKFLOW_START]" in request.message
     doc_id = request.document_id  # May be empty for non-workflow chats
+    logger.info(f"[chat] message_len={len(request.message)}, workflow_start={is_workflow_start}, doc_id='{doc_id}', workflow_id='{request.workflow_id}', agent='{request.agent}'")
 
     if is_workflow_start and request.project_path and request.workflow_id and not doc_id:
         # Infer document_id from workflow_id: "game-brief" -> "concept/game-brief"
