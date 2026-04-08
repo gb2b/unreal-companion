@@ -87,6 +87,9 @@ export function TimelineSommaire({
         const sectionSteps = stepsBySection[section.id] || []
         const isExpanded = expandedSections.has(section.id)
 
+        // Only show sections that have steps or are active — don't pre-fill the timeline
+        if (sectionSteps.length === 0 && !isActive && status === 'empty') return null
+
         return (
           <div key={section.id}>
             <SectionHeader
