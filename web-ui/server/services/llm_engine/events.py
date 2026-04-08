@@ -41,6 +41,7 @@ class InteractionBlock(SSEEvent):
     event: EventType = field(default="interaction_block", init=False)
     block_type: str = ""  # choices, slider, rating, upload, confirm
     data: dict = field(default_factory=dict)
+    step_title: str = ""  # LLM-generated title for this step in the session history
 
 
 @dataclass

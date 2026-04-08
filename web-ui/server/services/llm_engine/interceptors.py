@@ -40,8 +40,12 @@ INTERCEPTOR_TOOLS = [
                     "type": "object",
                     "description": "Block-specific data. choices: {options: [{id, label, description?}], multi?: bool}. slider: {min, max, step, label, default?}. rating: {max, label}. upload: {accept?, label}. confirm: {message}."
                 },
+                "step_title": {
+                    "type": "string",
+                    "description": "Short title (5-10 words) summarizing what this step is about. Shown in the session history sidebar. E.g., 'Define game genre and setting', 'Choose design pillars'."
+                },
             },
-            "required": ["block_type", "data"],
+            "required": ["block_type", "data", "step_title"],
         },
     },
     {
@@ -231,6 +235,7 @@ def handle_interceptor(tool_name: str, tool_input: dict) -> list:
         events.append(InteractionBlock(
             block_type=tool_input.get("block_type", ""),
             data=tool_input.get("data", {}),
+            step_title=tool_input.get("step_title", ""),
         ))
 
     elif tool_name == "show_prototype":

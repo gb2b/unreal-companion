@@ -299,10 +299,12 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
               })
               setBlocks(blocks)
               // Don't re-assign blocks — setBlocks already updated steps[activeIdx].blocks
+              const stepTitle = (d as any).step_title || ''
               steps[activeIdx] = {
                 ...steps[activeIdx],
                 interactionType: d.block_type as InteractionBlockType,
                 interactionData: d.data as unknown as InteractionData,
+                ...(stepTitle ? { summary: stepTitle } : {}),
               }
             }
             break
