@@ -29,14 +29,14 @@ function ToolCallCard({ name, label, status, startTime }: { name: string; label:
   if (HIDDEN_TOOLS.includes(name)) return null
 
   return (
-    <div className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground/50">
+    <div className={`flex items-center gap-2 py-0.5 text-xs ${status === 'error' ? 'text-red-400/70' : 'text-muted-foreground/50'}`}>
       {status === 'pending' && <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />}
       {status === 'done' && <span className="text-accent text-[10px]">&#10003;</span>}
-      {status === 'error' && <span className="text-amber-400 text-[10px]">&#8635;</span>}
-      <span>{label}</span>
-      {status === 'error' && <span className="text-[9px] text-amber-400/70 italic">retrying...</span>}
+      {status === 'error' && <span className="text-red-400 text-[10px]">&#10007;</span>}
+      <span className={status === 'error' ? 'line-through' : ''}>{label}</span>
       {status === 'pending' && <ElapsedTimer startTime={startTime} />}
       {status === 'done' && startTime && <FinalDuration startTime={startTime} />}
+      {status === 'error' && startTime && <FinalDuration startTime={startTime} />}
     </div>
   )
 }

@@ -156,7 +156,11 @@ class AgenticLoop:
                             break  # Stop processing remaining tools
                     else:
                         # Execute real tool via executor (read_project_document, update_project_context, MCP tools)
-                        result_str = await self.tool_executor(tc["name"], tc["input"])
+                        try:
+                            result_str = await self.tool_executor(tc["name"], tc["input"])
+                        except Exception as e:
+                            logger.error(f"Tool {tc['name']} failed: {e}")
+                            result_str = json.dumps({"error": str(e), "tool": tc["name"], "message": f"Tool '{tc['name']}' failed: {e}. You can retry with different parameters or try an alternative approach."})
                         yield ToolResult(id=tc["id"], result=result_str)
                         tool_results_content.append({
                             "type": "tool_result",

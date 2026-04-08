@@ -397,11 +397,19 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             break
           }
           case 'tool_result': {
-            // Mark the last pending tool_call as done
+            // Mark the last pending tool_call as done or error
+            const d_tr = event.data as any
+            const resultStr = d_tr?.result || ''
+            let isError = false
+            try {
+              const parsed = JSON.parse(resultStr)
+              isError = !!parsed.error
+            } catch { /* not JSON, that's fine */ }
+
             const blocks = getBlocks()
             for (let i = blocks.length - 1; i >= 0; i--) {
               if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
-                blocks[i] = { ...blocks[i], status: 'done' } as any
+                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done' } as any
                 break
               }
             }
@@ -502,18 +510,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        const retryCount = (get() as any)._retryCount || 0
-        if (retryCount < 2) {
-          // Auto-retry
-          console.warn(`[builder] SSE error, retrying (${retryCount + 1}/2):`, (e as Error).message)
-          set({ error: null } as any)
-          ;(set as any)({ _retryCount: retryCount + 1 })
-          batcher.destroy()
-          // Retry after a short delay
-          await new Promise(r => setTimeout(r, 1000))
-          sendToSSE(message, options)
-          return
-        }
+        console.error('[builder] SSE stream error:', (e as Error).message)
         set({ error: (e as Error).message })
       }
     } finally {
