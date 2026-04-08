@@ -132,19 +132,21 @@ class DocTools:
     # ------------------------------------------------------------------ #
 
     def _resolve_file(self, doc_id: str) -> Path | None:
-        """Map doc_id to actual file path."""
-        # Direct .md
-        md_path = self.docs_root / f"{doc_id}.md"
-        if md_path.exists():
-            return md_path
+        """Map doc_id to actual file path. Handles case/space variations from LLM."""
+        # Normalize: "First Brief" → "first-brief", "First_Brief" → "first-brief"
+        normalized = doc_id.lower().replace(" ", "-").replace("_", "-")
 
-        # Try exact path (already has extension)
-        direct = self.docs_root / doc_id
-        if direct.exists() and direct.is_file():
-            return direct
+        # Try direct paths (exact and normalized)
+        for did in [doc_id, normalized]:
+            md_path = self.docs_root / f"{did}.md"
+            if md_path.exists():
+                return md_path
+            direct = self.docs_root / did
+            if direct.exists() and direct.is_file():
+                return direct
 
-        # Scan by stem in references/ and subdirs
-        stem = Path(doc_id).stem
+        # Scan by stem in references/ and subdirs (case-insensitive)
+        stem = Path(normalized).stem
         SKIP_SUFFIXES = (".meta.json", ".content.txt", ".session.json", ".steps.json", ".history.json", ".DS_Store")
         for candidate in self.docs_root.rglob("*"):
             if not candidate.is_file():
@@ -152,8 +154,8 @@ class DocTools:
             if any(candidate.name.endswith(s) for s in SKIP_SUFFIXES):
                 continue
             if ".content.txt" in candidate.name:
-                continue  # Skip cache files and their derivatives
-            if candidate.stem == stem:
+                continue
+            if candidate.stem.lower().replace(" ", "-").replace("_", "-") == stem:
                 return candidate
 
         logger.warning(f"_resolve_file: could not find '{doc_id}' in {self.docs_root}")
