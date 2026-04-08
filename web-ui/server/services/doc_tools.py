@@ -145,10 +145,18 @@ class DocTools:
 
         # Scan by stem in references/ and subdirs
         stem = Path(doc_id).stem
+        SKIP_SUFFIXES = (".meta.json", ".content.txt", ".session.json", ".steps.json", ".history.json", ".DS_Store")
         for candidate in self.docs_root.rglob("*"):
-            if candidate.is_file() and candidate.stem == stem and not candidate.name.endswith(".meta.json") and not candidate.name.endswith(".content.txt"):
+            if not candidate.is_file():
+                continue
+            if any(candidate.name.endswith(s) for s in SKIP_SUFFIXES):
+                continue
+            if ".content.txt" in candidate.name:
+                continue  # Skip cache files and their derivatives
+            if candidate.stem == stem:
                 return candidate
 
+        logger.warning(f"_resolve_file: could not find '{doc_id}' in {self.docs_root}")
         return None
 
     def _meta_path(self, doc_id: str) -> Path:

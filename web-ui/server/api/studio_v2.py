@@ -210,26 +210,43 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
         if name == "doc_scan":
             from services.doc_tools import DocTools
+            did = tool_input.get("doc_id", "")
+            logger.info(f"[tool] doc_scan: doc_id={did}")
             dt = DocTools(request.project_path)
-            result = await dt.scan(tool_input.get("doc_id", ""))
+            result = await dt.scan(did)
+            if "error" in result:
+                logger.warning(f"[tool] doc_scan error: {result}")
             return json.dumps(result, ensure_ascii=False)
 
         if name == "doc_read_summary":
             from services.doc_tools import DocTools
+            did = tool_input.get("doc_id", "")
+            logger.info(f"[tool] doc_read_summary: doc_id={did}")
             dt = DocTools(request.project_path)
-            result = dt.read_summary(tool_input.get("doc_id", ""))
+            result = dt.read_summary(did)
+            if "error" in result:
+                logger.warning(f"[tool] doc_read_summary error: {result}")
             return json.dumps(result, ensure_ascii=False)
 
         if name == "doc_read_section":
             from services.doc_tools import DocTools
+            did = tool_input.get("doc_id", "")
+            sec = tool_input.get("section", "")
+            logger.info(f"[tool] doc_read_section: doc_id={did}, section={sec}")
             dt = DocTools(request.project_path)
-            result = dt.read_section(tool_input.get("doc_id", ""), tool_input.get("section", ""))
+            result = dt.read_section(did, sec)
+            if "error" in result:
+                logger.warning(f"[tool] doc_read_section error: {result}")
             return json.dumps(result, ensure_ascii=False)
 
         if name == "doc_grep":
             from services.doc_tools import DocTools
+            query = tool_input.get("query", "")
+            doc_ids = tool_input.get("doc_ids")
+            logger.info(f"[tool] doc_grep: query={query}, doc_ids={doc_ids}")
             dt = DocTools(request.project_path)
-            result = dt.grep(tool_input.get("query", ""), tool_input.get("doc_ids"))
+            result = dt.grep(query, doc_ids)
+            logger.info(f"[tool] doc_grep: {len(result)} results")
             return json.dumps(result, ensure_ascii=False)
 
         # All other tools → MCP bridge

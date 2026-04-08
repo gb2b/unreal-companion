@@ -100,10 +100,13 @@ class DocumentStore:
             })
 
         # Reference files (non-markdown uploads in references/)
+        SKIP_PATTERNS = (".meta.json", ".content.txt", ".session.json", ".steps.json", ".history.json", ".DS_Store")
         refs_dir = self.root / "references"
         if refs_dir.exists():
             for ref_file in sorted(refs_dir.iterdir()):
-                if ref_file.suffix == ".md" or ref_file.name.endswith(".meta.json"):
+                if ref_file.suffix == ".md" or any(ref_file.name.endswith(s) for s in SKIP_PATTERNS):
+                    continue
+                if not ref_file.is_file():
                     continue
                 meta_path = Path(str(ref_file) + ".meta.json")
                 meta_dict: dict = {}

@@ -30,6 +30,9 @@ def extract_base64_image(file_path: Path) -> str:
 
 
 def get_cached_text(file_path: Path) -> str:
+    # Don't create cache for files that are already caches or metadata
+    if ".content.txt" in file_path.name or file_path.name.endswith(".meta.json"):
+        return ""
     cache_path = file_path.parent / f"{file_path.name}.content.txt"
     if cache_path.exists() and cache_path.stat().st_mtime >= file_path.stat().st_mtime:
         return cache_path.read_text(encoding="utf-8")
