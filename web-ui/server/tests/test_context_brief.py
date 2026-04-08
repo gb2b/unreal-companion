@@ -41,7 +41,7 @@ class TestContextBrief:
     def test_includes_project_context_md(self, tmp_path):
         ctx_dir = tmp_path / ".unreal-companion"
         ctx_dir.mkdir(parents=True)
-        (ctx_dir / "project-context.md").write_text(
+        (ctx_dir / "project-memory.md").write_text(
             "Game: The Last Shard | Genre: Puzzle | Peaceful exploration, no combat.",
             encoding="utf-8",
         )

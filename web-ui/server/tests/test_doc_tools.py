@@ -8,18 +8,19 @@ from services.doc_tools import DocTools
 
 @pytest.fixture
 def project_dir(tmp_path):
-    docs = tmp_path / ".unreal-companion" / "docs"
-    refs = docs / "references"
-    refs.mkdir(parents=True)
-    md = refs / "pitch.md"
+    # Reference file: references/{stem}/{filename}
+    ref_dir = tmp_path / ".unreal-companion" / "references" / "pitch"
+    ref_dir.mkdir(parents=True)
+    md = ref_dir / "pitch.md"
     md.write_text("# Game Pitch\n\n## Overview\n\nA puzzle game about crystals.\n\n## Mechanics\n\nMatch-3 with exploration.\n")
-    meta = refs / "pitch.md.meta.json"
+    meta = ref_dir / "meta.json"
     meta.write_text(json.dumps({"name": "pitch.md", "tags": ["reference", "document"]}))
-    concept = docs / "concept"
-    concept.mkdir()
-    brief = concept / "game-brief.md"
+    # Workflow document: documents/{doc_id}/document.md
+    brief_dir = tmp_path / ".unreal-companion" / "documents" / "concept" / "game-brief"
+    brief_dir.mkdir(parents=True)
+    brief = brief_dir / "document.md"
     brief.write_text("# Game Brief\n\n## identity\n\nName: Crystal Quest\nGenre: Puzzle\n\n## vision\n\nA contemplative puzzle experience.\n")
-    brief_meta = concept / "game-brief.meta.json"
+    brief_meta = brief_dir / "meta.json"
     brief_meta.write_text(json.dumps({"name": "Game Brief", "tags": ["document"]}))
     return tmp_path
 
@@ -45,7 +46,7 @@ async def test_scan_markdown(tools):
 
 @pytest.mark.asyncio
 async def test_read_summary_returns_cached_index(tools):
-    meta_path = tools.docs_root / "references" / "pitch.md.meta.json"
+    meta_path = tools.refs_root / "pitch" / "meta.json"
     meta = json.loads(meta_path.read_text())
     meta["indexed"] = True
     meta["index"] = {"summary": "Cached summary", "sections": [], "keywords": []}

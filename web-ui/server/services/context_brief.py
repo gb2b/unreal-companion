@@ -107,10 +107,10 @@ def build_context_brief(
 
 
 def _read_project_context(project_path: str) -> str:
-    """Read project-context.md (LLM-maintained living memory)."""
+    """Read project-memory.md (LLM-maintained living memory)."""
     if not project_path:
         return ""
-    ctx_file = Path(project_path) / ".unreal-companion" / "project-context.md"
+    ctx_file = Path(project_path) / ".unreal-companion" / "project-memory.md"
     if not ctx_file.exists():
         return ""
     try:

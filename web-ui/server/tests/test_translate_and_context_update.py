@@ -10,9 +10,9 @@ client = TestClient(app)
 
 @pytest.fixture
 def project_with_context(tmp_path):
-    docs = tmp_path / ".unreal-companion" / "docs"
-    docs.mkdir(parents=True)
-    ctx = tmp_path / ".unreal-companion" / "project-context.md"
+    uc = tmp_path / ".unreal-companion"
+    uc.mkdir(parents=True)
+    ctx = uc / "project-memory.md"
     ctx.write_text(
         "# Project\n\nGame: The Last Shard\nGenre: Puzzle\n\n## Documents\n- Game Brief (complete)\n- GDD (in progress)\n",
         encoding="utf-8",
@@ -54,5 +54,5 @@ def test_put_project_context(project_with_context):
         json={"project_path": str(project_with_context), "content": new_content},
     )
     assert res.status_code == 200
-    ctx = project_with_context / ".unreal-companion" / "project-context.md"
+    ctx = project_with_context / ".unreal-companion" / "project-memory.md"
     assert ctx.read_text(encoding="utf-8") == new_content

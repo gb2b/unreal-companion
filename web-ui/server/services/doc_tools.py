@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 class DocTools:
     def __init__(self, project_path: str):
-        self.docs_root = Path(project_path) / ".unreal-companion" / "docs"
+        self.docs_root = Path(project_path) / ".unreal-companion" / "documents"
+        self.refs_root = Path(project_path) / ".unreal-companion" / "references"
 
     # ------------------------------------------------------------------ #
     # Public API                                                           #
@@ -136,39 +137,68 @@ class DocTools:
         # Normalize: "First Brief" → "first-brief", "First_Brief" → "first-brief"
         normalized = doc_id.lower().replace(" ", "-").replace("_", "-")
 
-        # Try direct paths (exact and normalized)
+        # Try documents/{doc_id}/document.md (new structure)
         for did in [doc_id, normalized]:
-            md_path = self.docs_root / f"{did}.md"
-            if md_path.exists():
-                return md_path
-            direct = self.docs_root / did
-            if direct.exists() and direct.is_file():
-                return direct
+            doc_md = self.docs_root / did / "document.md"
+            if doc_md.exists():
+                return doc_md
 
-        # Scan by stem in references/ and subdirs (case-insensitive)
+        # Try references/{stem}/ — find the original file inside
+        for did in [doc_id, normalized]:
+            # Strip "references/" prefix if present
+            ref_stem = did
+            if ref_stem.startswith("references/"):
+                ref_stem = ref_stem[len("references/"):]
+            ref_dir = self.refs_root / ref_stem
+            if ref_dir.exists() and ref_dir.is_dir():
+                for f in ref_dir.iterdir():
+                    if f.is_file() and f.name != "meta.json" and not f.name.endswith(".content.txt"):
+                        return f
+
+        # Scan by stem in documents/ and references/ (case-insensitive)
         stem = Path(normalized).stem
-        SKIP_SUFFIXES = (".meta.json", ".content.txt", ".session.json", ".steps.json", ".history.json", ".DS_Store")
-        for candidate in self.docs_root.rglob("*"):
-            if not candidate.is_file():
-                continue
-            if any(candidate.name.endswith(s) for s in SKIP_SUFFIXES):
-                continue
-            if ".content.txt" in candidate.name:
-                continue
-            if candidate.stem.lower().replace(" ", "-").replace("_", "-") == stem:
-                return candidate
+        if normalized.startswith("references/"):
+            stem = normalized[len("references/"):]
 
-        logger.warning(f"_resolve_file: could not find '{doc_id}' in {self.docs_root}")
+        SKIP_NAMES = {"meta.json", "document.md"}
+        SKIP_SUFFIXES = (".content.txt",)
+
+        # Scan documents/*/document.md
+        if self.docs_root.exists():
+            for candidate in self.docs_root.glob("*/document.md"):
+                dir_stem = candidate.parent.name.lower().replace(" ", "-").replace("_", "-")
+                if dir_stem == stem:
+                    return candidate
+
+        # Scan references/*/
+        if self.refs_root.exists():
+            for ref_dir in self.refs_root.iterdir():
+                if not ref_dir.is_dir():
+                    continue
+                dir_stem = ref_dir.name.lower().replace(" ", "-").replace("_", "-")
+                if dir_stem == stem:
+                    for f in ref_dir.iterdir():
+                        if f.is_file() and f.name not in SKIP_NAMES and not any(f.name.endswith(s) for s in SKIP_SUFFIXES):
+                            return f
+
+        logger.warning(f"_resolve_file: could not find '{doc_id}' in {self.docs_root} or {self.refs_root}")
         return None
 
     def _meta_path(self, doc_id: str) -> Path:
-        """Return .meta.json path for a doc_id."""
-        file_path = self._resolve_file(doc_id)
-        if file_path is not None:
-            return file_path.parent / f"{file_path.name}.meta.json"
-        # Fallback: use doc_id as-is
-        base = self.docs_root / doc_id
-        return base.parent / f"{base.name}.meta.json"
+        """Return meta.json path for a doc_id.
+
+        - documents/{doc_id}/meta.json  for workflow docs
+        - references/{stem}/meta.json   for reference files
+        """
+        normalized = doc_id.lower().replace(" ", "-").replace("_", "-")
+        is_ref = normalized.startswith("references/")
+
+        if is_ref:
+            stem = normalized[len("references/"):]
+            return self.refs_root / stem / "meta.json"
+
+        # Workflow doc
+        return self.docs_root / doc_id / "meta.json"
 
     def _load_meta(self, path: Path) -> dict:
         """Load JSON from meta file, or return empty dict."""
@@ -203,15 +233,14 @@ class DocTools:
 
     def _list_doc_files(self, doc_ids: list[str] | None) -> list[tuple[Path, str]]:
         """List searchable files. Returns list of (path, doc_id) tuples."""
-        skip_suffixes = {".json", ".txt"}
-        skip_names = {".meta.json", ".content.txt"}
+        skip_names = {"meta.json", "document.md"}
 
         def should_skip(p: Path) -> bool:
             if p.suffix.lower() in IMAGE_EXTENSIONS:
                 return True
-            if p.name.endswith(".meta.json") or p.name.endswith(".content.txt"):
+            if p.name.endswith(".content.txt"):
                 return True
-            if p.suffix.lower() in skip_suffixes:
+            if p.suffix.lower() == ".json":
                 return True
             return False
 
@@ -224,12 +253,24 @@ class DocTools:
             return result
 
         result = []
-        for fp in self.docs_root.rglob("*"):
-            if fp.is_file() and not should_skip(fp):
-                # Compute doc_id as relative path without extension
-                rel = fp.relative_to(self.docs_root)
-                did = str(rel.with_suffix(""))
-                result.append((fp, did))
+
+        # Scan documents/*/document.md
+        if self.docs_root.exists():
+            for fp in self.docs_root.glob("*/document.md"):
+                if not should_skip(fp):
+                    doc_id = fp.parent.name
+                    result.append((fp, doc_id))
+
+        # Scan references/*/  (original files, not meta.json or content.txt)
+        if self.refs_root.exists():
+            for ref_dir in self.refs_root.iterdir():
+                if not ref_dir.is_dir():
+                    continue
+                for fp in ref_dir.iterdir():
+                    if fp.is_file() and fp.name not in skip_names and not should_skip(fp):
+                        doc_id = f"references/{ref_dir.name}"
+                        result.append((fp, doc_id))
+
         return result
 
     async def _llm_call(self, prompt: str, image_b64: str = "", media_type: str = "") -> dict:

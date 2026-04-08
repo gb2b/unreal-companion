@@ -164,7 +164,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         if name == "update_project_context":
             summary = tool_input.get("summary", "")
             try:
-                context_path = Path(request.project_path) / ".unreal-companion" / "project-context.md"
+                context_path = Path(request.project_path) / ".unreal-companion" / "project-memory.md"
                 context_path.parent.mkdir(parents=True, exist_ok=True)
                 context_path.write_text(summary, encoding="utf-8")
                 return json.dumps({"success": True})
@@ -176,7 +176,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             new_name = tool_input.get("new_name", "")
             try:
                 store = DocumentStore(request.project_path)
-                meta_path = store.root / f"{doc_id}.meta.json"
+                meta_path = store.root / doc_id / "meta.json"
                 if not meta_path.exists():
                     return json.dumps({"success": False, "error": "Document not found"})
                 raw = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -184,8 +184,8 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                     return json.dumps({"success": False, "error": "User has renamed this document. Do not rename."})
                 raw["name"] = new_name
                 meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-                # Also update the # Title in the .md file
-                md_path = store.root / f"{doc_id}.md"
+                # Also update the # Title in the document.md file
+                md_path = store.root / doc_id / "document.md"
                 if md_path.exists():
                     content = md_path.read_text(encoding="utf-8")
                     lines = content.split("\n")
@@ -199,7 +199,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         if name == "update_session_memory":
             memory = tool_input.get("memory", "")
             if request.project_path and doc_id:
-                snapshot_path = Path(request.project_path) / ".unreal-companion" / "docs" / f"{doc_id}.session.json"
+                snapshot_path = Path(request.project_path) / ".unreal-companion" / "documents" / doc_id / "session.json"
                 snapshot = {}
                 if snapshot_path.exists():
                     try:
@@ -208,6 +208,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                         pass
                 snapshot["memory"] = memory
                 snapshot["memory_updated"] = datetime.now(timezone.utc).isoformat()
+                snapshot_path.parent.mkdir(parents=True, exist_ok=True)
                 snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
             return json.dumps({"success": True})
 
@@ -301,7 +302,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 logger.info(f"Created document stub: {doc_id}")
             else:
                 # Update conversation_id on existing document
-                meta_path = doc_store.root / f"{doc_id}.meta.json"
+                meta_path = doc_store.root / doc_id / "meta.json"
                 if meta_path.exists():
                     import json as _json
                     raw = _json.loads(meta_path.read_text(encoding="utf-8"))
@@ -448,9 +449,9 @@ async def update_document_content(doc_id: str, body: DocumentContentUpdate):
     if not doc:
         raise HTTPException(404, f"Document not found: {doc_id}")
     store.save_document(doc_id, body.content)
-    meta = store._load_meta(store.root / f"{doc_id}.md")
+    meta = store._load_meta(doc_id)
     meta.updated = datetime.now(timezone.utc).isoformat()
-    store._save_meta(store.root / f"{doc_id}.md", meta)
+    store._save_meta(doc_id, meta)
     return {"success": True}
 
 
@@ -541,9 +542,10 @@ async def rename_document_endpoint(doc_id: str, request: Request):
     if not project_path or not new_name:
         raise HTTPException(400, "project_path and name required")
 
-    base = Path(project_path) / ".unreal-companion" / "docs"
-    md_path = base / f"{doc_id}.md"
-    meta_path = base / f"{doc_id}.meta.json"
+    store = DocumentStore(project_path)
+    doc_dir = store.root / doc_id
+    md_path = doc_dir / "document.md"
+    meta_path = doc_dir / "meta.json"
 
     # Update .md title line
     if md_path.exists():
@@ -579,7 +581,7 @@ async def scan_document(doc_id: str, project_path: str = ""):
 # --- Custom Tags Endpoints ---
 
 def _load_custom_tags(project_path: str) -> list[str]:
-    tags_path = Path(project_path) / ".unreal-companion" / "tags.json"
+    tags_path = Path(project_path) / ".unreal-companion" / "documents" / "tags.json"
     if not tags_path.exists():
         return []
     try:
@@ -589,7 +591,7 @@ def _load_custom_tags(project_path: str) -> list[str]:
 
 
 def _save_custom_tags(project_path: str, tags: list[str]) -> None:
-    tags_path = Path(project_path) / ".unreal-companion" / "tags.json"
+    tags_path = Path(project_path) / ".unreal-companion" / "documents" / "tags.json"
     tags_path.parent.mkdir(parents=True, exist_ok=True)
     tags_path.write_text(json.dumps(sorted(tags), indent=2), encoding="utf-8")
 
@@ -655,7 +657,8 @@ async def update_document_tags(doc_id: str, request: Request):
     tags = body.get("tags", [])
     if not project_path:
         raise HTTPException(400, "project_path required")
-    meta_path = Path(project_path) / ".unreal-companion" / "docs" / f"{doc_id}.meta.json"
+    store = DocumentStore(project_path)
+    meta_path = store.root / doc_id / "meta.json"
     if not meta_path.exists():
         raise HTTPException(404, "Document not found")
     raw = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -671,22 +674,27 @@ async def upload_reference(
     source_document: str = Form(""),
     skip_scan: str = Form(""),
 ):
-    """Upload a file to docs/references/. Set skip_scan=true to skip auto-scanning."""
+    """Upload a file to references/{stem}/. Set skip_scan=true to skip auto-scanning."""
     if not project_path:
         raise HTTPException(400, "project_path required")
 
-    refs_dir = Path(project_path) / ".unreal-companion" / "docs" / "references"
-    refs_dir.mkdir(parents=True, exist_ok=True)
-
     # Save the file, avoid overwriting existing files
     filename = file.filename or "upload"
-    dest = refs_dir / filename
+    file_stem = Path(filename).stem
+    file_suffix = Path(filename).suffix
+
+    # Each reference gets its own subfolder: references/{stem}/
+    refs_base = Path(project_path) / ".unreal-companion" / "references"
+    ref_dir = refs_base / file_stem
     counter = 1
-    while dest.exists():
-        stem = Path(filename).stem
-        suffix = Path(filename).suffix
-        dest = refs_dir / f"{stem}-{counter}{suffix}"
+    while ref_dir.exists() and any(
+        f for f in ref_dir.iterdir() if f.is_file() and f.name != "meta.json"
+    ):
+        ref_dir = refs_base / f"{file_stem}-{counter}"
         counter += 1
+
+    ref_dir.mkdir(parents=True, exist_ok=True)
+    dest = ref_dir / filename
 
     content = await file.read()
     dest.write_bytes(content)
@@ -700,7 +708,7 @@ async def upload_reference(
     else:
         file_type_tag = "document"
 
-    # Create meta.json alongside the file
+    # Create meta.json in the reference subfolder
     from datetime import datetime, timezone
     meta = {
         "name": dest.name,
@@ -711,10 +719,10 @@ async def upload_reference(
         "size_bytes": len(content),
         "user_renamed": False,
     }
-    meta_path = Path(str(dest) + ".meta.json")
+    meta_path = ref_dir / "meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-    doc_id = f"references/{dest.stem}"
+    doc_id = f"references/{ref_dir.name}"
     response_data = {"success": True, "doc_id": doc_id, "filename": dest.name, "tags": meta["tags"]}
 
     # Auto-scan the uploaded document (unless skip_scan is set — LLM will scan via tools)
@@ -733,13 +741,30 @@ async def upload_reference(
 
 @router.get("/references/{filename:path}")
 async def serve_reference(filename: str, project_path: str = ""):
-    """Serve a reference file (image, PDF, etc.) for frontend preview."""
+    """Serve a reference file (image, PDF, etc.) for frontend preview.
+
+    filename can be either:
+    - "stem/original.ext"  (new structure)
+    - "original.ext"       (legacy — search by name inside references/)
+    """
     if not project_path:
         raise HTTPException(400, "project_path required")
-    file_path = Path(project_path) / ".unreal-companion" / "docs" / "references" / filename
-    if not file_path.exists():
-        raise HTTPException(404, "File not found")
-    return FileResponse(file_path)
+    refs_base = Path(project_path) / ".unreal-companion" / "references"
+
+    # Try new structure first: references/{stem}/{filename}
+    file_path = refs_base / filename
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(file_path)
+
+    # Try treating filename as a stem and searching inside that subfolder
+    stem = Path(filename).stem
+    ref_dir = refs_base / stem
+    if ref_dir.exists() and ref_dir.is_dir():
+        for f in ref_dir.iterdir():
+            if f.is_file() and f.name != "meta.json" and not f.name.endswith(".content.txt"):
+                return FileResponse(f)
+
+    raise HTTPException(404, "File not found")
 
 
 @router.put("/steps/{doc_id:path}")
@@ -797,10 +822,10 @@ async def rollback_section(doc_id: str, section_id: str, version: int, project_p
 
 @router.get("/project-context")
 async def get_project_context(project_path: str = ""):
-    """Get the project-context.md content (LLM living memory)."""
+    """Get the project-memory.md content (LLM living memory)."""
     if not project_path:
         raise HTTPException(400, "project_path required")
-    ctx_file = Path(project_path) / ".unreal-companion" / "project-context.md"
+    ctx_file = Path(project_path) / ".unreal-companion" / "project-memory.md"
     if not ctx_file.exists():
         return {"content": "", "updated": None}
     content = ctx_file.read_text(encoding="utf-8")
@@ -832,7 +857,7 @@ class ProposeContextUpdateRequest(BaseModel):
 @router.post("/project-context/propose-update")
 async def propose_context_update(body: ProposeContextUpdateRequest):
     """Ask LLM to propose updated project-context after document deletion."""
-    ctx_file = Path(body.project_path) / ".unreal-companion" / "project-context.md"
+    ctx_file = Path(body.project_path) / ".unreal-companion" / "project-memory.md"
     if not ctx_file.exists():
         return {"current_content": "", "proposed_content": ""}
     current = ctx_file.read_text(encoding="utf-8")
@@ -853,10 +878,10 @@ class ProjectContextUpdate(BaseModel):
 
 @router.put("/project-context")
 async def update_project_context_content(body: ProjectContextUpdate):
-    """Save project-context.md content directly."""
+    """Save project-memory.md content directly."""
     if not body.project_path:
         raise HTTPException(400, "project_path required")
-    ctx_file = Path(body.project_path) / ".unreal-companion" / "project-context.md"
+    ctx_file = Path(body.project_path) / ".unreal-companion" / "project-memory.md"
     ctx_file.parent.mkdir(parents=True, exist_ok=True)
     ctx_file.write_text(body.content, encoding="utf-8")
     return {"success": True}
@@ -888,13 +913,11 @@ def _save_session_snapshot(project_path: str, doc_id: str) -> None:
     """Save a session snapshot at workflow start — captures full project context and doc summaries.
 
     This snapshot persists for the entire flow so the LLM never loses initial context,
-    even if project-context.md gets rewritten or simplified during the flow.
+    even if project-memory.md gets rewritten or simplified during the flow.
     """
-    base = Path(project_path) / ".unreal-companion" / "docs"
-
-    # Read full project-context (no truncation)
+    # Read full project-memory (no truncation)
     project_context = ""
-    ctx_file = Path(project_path) / ".unreal-companion" / "project-context.md"
+    ctx_file = Path(project_path) / ".unreal-companion" / "project-memory.md"
     if ctx_file.exists():
         try:
             project_context = ctx_file.read_text(encoding="utf-8").strip()
@@ -919,7 +942,7 @@ def _save_session_snapshot(project_path: str, doc_id: str) -> None:
         "documents": doc_summaries,
     }
 
-    snapshot_path = base / f"{doc_id}.session.json"
+    snapshot_path = Path(project_path) / ".unreal-companion" / "documents" / doc_id / "session.json"
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
     snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info(f"Session snapshot saved for {doc_id}")
@@ -927,7 +950,7 @@ def _save_session_snapshot(project_path: str, doc_id: str) -> None:
 
 def _load_session_snapshot(project_path: str, doc_id: str) -> dict | None:
     """Load persisted session snapshot."""
-    snapshot_path = Path(project_path) / ".unreal-companion" / "docs" / f"{doc_id}.session.json"
+    snapshot_path = Path(project_path) / ".unreal-companion" / "documents" / doc_id / "session.json"
     if not snapshot_path.exists():
         return None
     try:
