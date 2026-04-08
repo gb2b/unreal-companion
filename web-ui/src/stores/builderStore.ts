@@ -389,8 +389,28 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             const d = event.data as any
             const toolName = d?.name || ''
             const toolInput = d?.input || {}
-            const label = buildToolLabel(toolName, toolInput)
+            const toolDesc = d?.description || ''
+            const hasInput = Object.keys(toolInput).length > 0
             const blocks = getBlocks()
+
+            // If this is an update (has input/description) to an existing pending tool, update it
+            if (hasInput || toolDesc) {
+              let existingIdx = -1
+              for (let i = blocks.length - 1; i >= 0; i--) {
+                if ((blocks[i] as any).kind === 'tool_call' && (blocks[i] as any).name === toolName && (blocks[i] as any).status === 'pending') {
+                  existingIdx = i; break
+                }
+              }
+              if (existingIdx >= 0) {
+                const label = toolDesc || buildToolLabel(toolName, toolInput)
+                blocks[existingIdx] = { ...blocks[existingIdx], label } as any
+                setBlocks(blocks)
+                break
+              }
+            }
+
+            // New tool call
+            const label = toolDesc || buildToolLabel(toolName, toolInput)
             blocks.push({ kind: 'tool_call', name: toolName, label, status: 'pending', startTime: Date.now() } as any)
             setBlocks(blocks)
             // Don't set processingText for hidden tools — the interaction itself is the visual

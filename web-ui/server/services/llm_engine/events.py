@@ -58,6 +58,7 @@ class ToolCall(SSEEvent):
     id: str = ""
     name: str = ""
     input: dict = field(default_factory=dict)
+    description: str = ""  # LLM-provided description of what this tool call does
 
 
 @dataclass

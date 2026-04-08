@@ -49,8 +49,15 @@ class AgenticLoop:
         max_tokens: int = 4096,
     ) -> AsyncIterator[SSEEvent]:
         """Run the agentic loop, yielding SSE events."""
-        # Inject interceptor tools into the tool list
+        # Inject interceptor tools + add _description param to all tools
         all_tools = list(tools or []) + INTERCEPTOR_TOOLS
+        for tool in all_tools:
+            props = tool.get("input_schema", {}).get("properties", {})
+            if "_description" not in props:
+                props["_description"] = {
+                    "type": "string",
+                    "description": "Short description of what this tool call does, in the user's language. Shown in the UI. E.g., 'Lecture du document game-pitch', 'Mise à jour de la section Vision'."
+                }
 
         working_messages = list(messages)
         total_input = 0
@@ -94,11 +101,15 @@ class AgenticLoop:
                         parsed_input = json.loads(raw_json) if raw_json else {}
                     except json.JSONDecodeError:
                         parsed_input = {"_raw": raw_json}
+                    # Extract LLM-provided description (optional field)
+                    description = parsed_input.pop("_description", "")
                     tool_calls.append({
                         "id": event.tool_id,
                         "name": event.tool_name,
                         "input": parsed_input,
                     })
+                    # Re-emit ToolCall with full input + description
+                    yield ToolCall(id=event.tool_id, name=event.tool_name, input=parsed_input, description=description)
 
                 elif event.type == "usage":
                     total_input = max(total_input, event.input_tokens)
