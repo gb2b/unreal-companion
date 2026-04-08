@@ -1,10 +1,15 @@
 """
-Document Store -- manages documents in {project}/.unreal-companion/docs/
+Document Store -- manages documents in {project}/.unreal-companion/documents/
 
-Each document has:
-- A markdown file (the actual content)
-- A .meta.json file (metadata: sections status, agent, dates)
-- Optional .prototypes/ directory
+Each document has its own subfolder:
+- documents/{doc_id}/document.md  (actual content)
+- documents/{doc_id}/meta.json    (metadata: sections status, agent, dates)
+- documents/{doc_id}/prototypes/  (optional prototypes)
+- documents/{doc_id}/versions/    (section version history)
+
+References are stored in:
+- references/{stem}/{filename}    (original file)
+- references/{stem}/meta.json     (reference metadata)
 """
 from __future__ import annotations
 import json
@@ -71,54 +76,66 @@ def default_tags_for_workflow(workflow_id: str) -> list[str]:
 
 
 class DocumentStore:
-    """Read/write documents in a project's .unreal-companion/docs/ directory."""
+    """Read/write documents in a project's .unreal-companion/documents/ directory."""
 
     def __init__(self, project_path: str):
-        self.root = Path(project_path) / ".unreal-companion" / "docs"
+        self.root = Path(project_path) / ".unreal-companion" / "documents"
+        self.refs_root = Path(project_path) / ".unreal-companion" / "references"
 
     def _ensure_dir(self, path: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
-    def _meta_path(self, doc_path: Path) -> Path:
-        return doc_path.with_suffix(".meta.json")
+    def _doc_dir(self, doc_id: str) -> Path:
+        """Return the folder for a given doc_id: documents/{doc_id}/"""
+        return self.root / doc_id
+
+    def _doc_path(self, doc_id: str) -> Path:
+        """Return the markdown file path: documents/{doc_id}/document.md"""
+        return self._doc_dir(doc_id) / "document.md"
+
+    def _meta_path(self, doc_id: str) -> Path:
+        """Return the meta file path: documents/{doc_id}/meta.json"""
+        return self._doc_dir(doc_id) / "meta.json"
 
     def list_documents(self) -> list[dict]:
         """List all documents with their metadata."""
         docs = []
-        if not self.root.exists():
-            return docs
 
-        # Markdown documents
-        for md_file in sorted(self.root.rglob("*.md")):
-            meta = self._load_meta(md_file)
-            rel_path = md_file.relative_to(self.root)
-            docs.append({
-                "id": str(rel_path.with_suffix("")),
-                "path": str(rel_path),
-                "name": meta.name or md_file.stem.replace("-", " ").title(),
-                "meta": asdict(meta),
-            })
+        # Workflow documents: documents/*/document.md
+        if self.root.exists():
+            for md_file in sorted(self.root.glob("*/document.md")):
+                doc_id = md_file.parent.name
+                meta = self._load_meta(doc_id)
+                docs.append({
+                    "id": doc_id,
+                    "path": f"{doc_id}/document.md",
+                    "name": meta.name or doc_id.replace("-", " ").title(),
+                    "meta": asdict(meta),
+                })
 
-        # Reference files (non-markdown uploads in references/)
-        SKIP_PATTERNS = (".meta.json", ".content.txt", ".session.json", ".steps.json", ".history.json", ".DS_Store")
-        refs_dir = self.root / "references"
-        if refs_dir.exists():
-            for ref_file in sorted(refs_dir.iterdir()):
-                if ref_file.suffix == ".md" or any(ref_file.name.endswith(s) for s in SKIP_PATTERNS):
+        # Reference files: references/{stem}/
+        if self.refs_root.exists():
+            for ref_dir in sorted(self.refs_root.iterdir()):
+                if not ref_dir.is_dir():
                     continue
-                if not ref_file.is_file():
-                    continue
-                meta_path = Path(str(ref_file) + ".meta.json")
+                meta_path = ref_dir / "meta.json"
                 meta_dict: dict = {}
                 if meta_path.exists():
                     try:
                         meta_dict = json.loads(meta_path.read_text(encoding="utf-8"))
                     except Exception:
                         pass
-                rel_path = ref_file.relative_to(self.root)
+                # Find the actual file (not meta.json)
+                ref_file = None
+                for f in ref_dir.iterdir():
+                    if f.name != "meta.json" and f.is_file():
+                        ref_file = f
+                        break
+                if ref_file is None:
+                    continue
                 docs.append({
-                    "id": f"references/{ref_file.stem}",
-                    "path": str(rel_path),
+                    "id": f"references/{ref_dir.name}",
+                    "path": str(ref_file.relative_to(self.refs_root.parent)),
                     "name": meta_dict.get("name", ref_file.name),
                     "meta": {
                         "workflow_id": "",
@@ -142,13 +159,13 @@ class DocumentStore:
         return docs
 
     def get_document(self, doc_id: str) -> dict | None:
-        """Get document content + metadata by ID (e.g. 'design/gdd')."""
-        md_path = self.root / f"{doc_id}.md"
+        """Get document content + metadata by ID (e.g. 'game-brief-2026-04-08')."""
+        md_path = self._doc_path(doc_id)
         if not md_path.exists():
             return None
 
         content = md_path.read_text(encoding="utf-8")
-        meta = self._load_meta(md_path)
+        meta = self._load_meta(doc_id)
         return {
             "id": doc_id,
             "content": content,
@@ -157,15 +174,16 @@ class DocumentStore:
 
     def save_document(self, doc_id: str, content: str, meta: DocumentMeta | None = None) -> None:
         """Save or update a document."""
-        md_path = self.root / f"{doc_id}.md"
-        self._ensure_dir(md_path.parent)
+        doc_dir = self._doc_dir(doc_id)
+        self._ensure_dir(doc_dir)
+        md_path = self._doc_path(doc_id)
         md_path.write_text(content, encoding="utf-8")
 
         if meta:
             meta.updated = datetime.now(timezone.utc).isoformat()
             if not meta.created:
                 meta.created = meta.updated
-            self._save_meta(md_path, meta)
+            self._save_meta(doc_id, meta)
 
     def update_section(self, doc_id: str, section_id: str, content: str, status: str = "in_progress") -> None:
         """Update a specific section within a document."""
@@ -177,7 +195,7 @@ class DocumentStore:
             ))
             return
 
-        md_path = self.root / f"{doc_id}.md"
+        md_path = self._doc_path(doc_id)
 
         # Update the .md file content — insert/replace the section
         if content:
@@ -200,7 +218,7 @@ class DocumentStore:
             version_store.save_version(doc_id, section_id, content)
 
         # Update metadata
-        meta = self._load_meta(md_path)
+        meta = self._load_meta(doc_id)
         if section_id not in meta.sections:
             meta.sections[section_id] = SectionMeta()
         meta.sections[section_id].status = status
@@ -213,46 +231,36 @@ class DocumentStore:
                 if stripped and len(stripped) > 10:
                     meta.summary = stripped[:120]
                     break
-        self._save_meta(md_path, meta)
+        self._save_meta(doc_id, meta)
 
     def delete_document(self, doc_id: str) -> bool:
-        """Delete a document and all associated files (.md, .meta.json, .steps.json, .history.json, .versions/, .prototypes/)."""
+        """Delete a document and all associated files by removing its folder."""
         import shutil
 
-        md_path = self.root / f"{doc_id}.md"
-        if not md_path.exists():
+        doc_dir = self._doc_dir(doc_id)
+        if not doc_dir.exists():
             return False
 
-        for ext in [".md", ".meta.json", ".steps.json", ".history.json", ".session.json"]:
-            f = self.root / f"{doc_id}{ext}"
-            if f.exists():
-                f.unlink()
-
-        for dirname in [".versions", ".prototypes"]:
-            d = self.root / f"{doc_id}{dirname}"
-            if d.exists():
-                shutil.rmtree(d)
-
+        shutil.rmtree(doc_dir)
         return True
 
     def save_prototype(self, doc_id: str, name: str, html: str) -> str:
         """Save a prototype HTML file. Returns the relative path."""
-        proto_dir = self.root / f"{doc_id}.prototypes"
+        proto_dir = self._doc_dir(doc_id) / "prototypes"
         self._ensure_dir(proto_dir)
         filename = f"{name}.html"
         (proto_dir / filename).write_text(html, encoding="utf-8")
 
         # Update meta
-        md_path = self.root / f"{doc_id}.md"
-        meta = self._load_meta(md_path)
-        rel_path = f"{doc_id}.prototypes/{filename}"
+        meta = self._load_meta(doc_id)
+        rel_path = f"{doc_id}/prototypes/{filename}"
         if rel_path not in meta.prototypes:
             meta.prototypes.append(rel_path)
-        self._save_meta(md_path, meta)
+        self._save_meta(doc_id, meta)
         return rel_path
 
-    def _load_meta(self, md_path: Path) -> DocumentMeta:
-        meta_path = self._meta_path(md_path)
+    def _load_meta(self, doc_id: str) -> DocumentMeta:
+        meta_path = self._meta_path(doc_id)
         if not meta_path.exists():
             return DocumentMeta()
         try:
@@ -279,8 +287,8 @@ class DocumentStore:
             logger.error(f"Failed to load meta {meta_path}: {e}")
             return DocumentMeta()
 
-    def _save_meta(self, md_path: Path, meta: DocumentMeta) -> None:
-        meta_path = self._meta_path(md_path)
+    def _save_meta(self, doc_id: str, meta: DocumentMeta) -> None:
+        meta_path = self._meta_path(doc_id)
         self._ensure_dir(meta_path.parent)
         data = asdict(meta)
         meta_path.write_text(json.dumps(data, indent=2), encoding="utf-8")

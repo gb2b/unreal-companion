@@ -1,8 +1,8 @@
 """
 Conversation history storage — persists LLM message history for multi-turn conversations.
 
-Each conversation is stored as a JSON file alongside the document:
-  .unreal-companion/docs/{doc_id}.history.json
+Each conversation is stored in the document's subfolder:
+  .unreal-companion/documents/{doc_id}/history.json
 
 Format: list of Anthropic-format messages [{role, content}, ...]
 """
@@ -19,10 +19,10 @@ class ConversationHistory:
     """Read/write conversation message history for a document."""
 
     def __init__(self, project_path: str):
-        self.base = Path(project_path) / ".unreal-companion" / "docs"
+        self.base = Path(project_path) / ".unreal-companion" / "documents"
 
     def _history_path(self, doc_id: str) -> Path:
-        return self.base / f"{doc_id}.history.json"
+        return self.base / doc_id / "history.json"
 
     def load(self, doc_id: str) -> list[dict]:
         """Load conversation history for a document."""

@@ -1,6 +1,6 @@
 """
 MicroStep persistence — stores builder micro-steps as JSON files.
-Each document gets a micro-steps file alongside its .md and .meta.json.
+Each document gets a micro-steps file in its subfolder: documents/{doc_id}/steps.json
 """
 import json
 import logging
@@ -13,10 +13,10 @@ class MicroStepStore:
     """Reads/writes micro-steps for a document."""
 
     def __init__(self, project_path: str):
-        self.base = Path(project_path) / ".unreal-companion" / "docs"
+        self.base = Path(project_path) / ".unreal-companion" / "documents"
 
     def _steps_path(self, doc_id: str) -> Path:
-        return self.base / f"{doc_id}.steps.json"
+        return self.base / doc_id / "steps.json"
 
     def load_steps(self, doc_id: str) -> list[dict]:
         """Load all micro-steps for a document."""
