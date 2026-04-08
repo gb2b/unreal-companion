@@ -220,7 +220,7 @@ class DocumentStore:
         if not md_path.exists():
             return False
 
-        for ext in [".md", ".meta.json", ".steps.json", ".history.json"]:
+        for ext in [".md", ".meta.json", ".steps.json", ".history.json", ".session.json"]:
             f = self.root / f"{doc_id}{ext}"
             if f.exists():
                 f.unlink()

@@ -22,6 +22,7 @@ def build_context_brief(
     section_statuses: dict[str, str],
     section_contents: dict[str, str],
     workflow_sections: list[dict],
+    session_snapshot: dict | None = None,
 ) -> str:
     """
     Build a structured context brief for the system prompt.
@@ -32,10 +33,23 @@ def build_context_brief(
     """
     parts = ["## Current State\n"]
 
-    # --- Project context (LLM-maintained living memory) ---
+    # --- Session snapshot (initial context, full, never truncated) ---
+    if session_snapshot:
+        snap_ctx = session_snapshot.get("project_context", "")
+        if snap_ctx:
+            parts.append(f"### Session Context (from workflow start)\n{snap_ctx}\n")
+        snap_docs = session_snapshot.get("documents", [])
+        if snap_docs:
+            parts.append("### Available Documents (at start)")
+            for d in snap_docs:
+                s = d.get("summary", "")
+                parts.append(f"- {d.get('name', d.get('id', ''))} ({d.get('status', 'empty')}){' — ' + s if s else ''}")
+            parts.append("")
+
+    # --- Project context (LLM-maintained living memory — may have changed since start) ---
     project_context = _read_project_context(project_path)
     if project_context:
-        parts.append(f"### Conversation Summary\n{project_context}\n")
+        parts.append(f"### Current Project Context\n{project_context}\n")
 
     # --- Current document section map ---
     parts.append(f"### Current Document: {doc_id}\n")
@@ -95,9 +109,6 @@ def _read_project_context(project_path: str) -> str:
     if not ctx_file.exists():
         return ""
     try:
-        content = ctx_file.read_text(encoding="utf-8").strip()
-        if len(content) > 500:
-            content = content[:500] + "..."
-        return content
+        return ctx_file.read_text(encoding="utf-8").strip()
     except Exception:
         return ""

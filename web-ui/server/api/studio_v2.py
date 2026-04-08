@@ -279,6 +279,8 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         conv_history = ConversationHistory(request.project_path)
         if is_workflow_start:
             conv_history.save_full(doc_id, [])
+            # Create session snapshot — persist initial context for the entire flow
+            _save_session_snapshot(request.project_path, doc_id)
         else:
             # Build context brief from document state
             doc_store_ctx = DocumentStore(request.project_path)
@@ -291,12 +293,14 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                     ctx_section_statuses[sid] = smeta.get("status", "empty") if isinstance(smeta, dict) else "empty"
                 ctx_section_contents = _parse_section_contents(doc_data.get("content", ""))
 
+            session_snap = _load_session_snapshot(request.project_path, doc_id)
             context_brief = build_context_brief(
                 project_path=request.project_path,
                 doc_id=doc_id,
                 section_statuses=ctx_section_statuses,
                 section_contents=ctx_section_contents,
                 workflow_sections=workflow_sections_dicts,
+                session_snapshot=session_snap,
             )
             builder.add_context_brief(context_brief)
             system = builder.build()  # Rebuild with context brief
@@ -840,3 +844,55 @@ def _parse_section_contents(content: str) -> dict[str, str]:
         sections[current_id] = "\n".join(current_lines).strip()
 
     return sections
+
+
+def _save_session_snapshot(project_path: str, doc_id: str) -> None:
+    """Save a session snapshot at workflow start — captures full project context and doc summaries.
+
+    This snapshot persists for the entire flow so the LLM never loses initial context,
+    even if project-context.md gets rewritten or simplified during the flow.
+    """
+    base = Path(project_path) / ".unreal-companion" / "docs"
+
+    # Read full project-context (no truncation)
+    project_context = ""
+    ctx_file = Path(project_path) / ".unreal-companion" / "project-context.md"
+    if ctx_file.exists():
+        try:
+            project_context = ctx_file.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+
+    # Read summaries of all documents
+    doc_summaries: list[dict] = []
+    store = DocumentStore(project_path)
+    for doc in store.list_documents():
+        meta = doc.get("meta", {})
+        doc_summaries.append({
+            "id": doc.get("id", ""),
+            "name": doc.get("name", ""),
+            "status": meta.get("status", "empty"),
+            "summary": meta.get("index", {}).get("summary", "") or meta.get("summary", ""),
+        })
+
+    snapshot = {
+        "created": datetime.now(timezone.utc).isoformat(),
+        "project_context": project_context,
+        "documents": doc_summaries,
+    }
+
+    snapshot_path = base / f"{doc_id}.session.json"
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info(f"Session snapshot saved for {doc_id}")
+
+
+def _load_session_snapshot(project_path: str, doc_id: str) -> dict | None:
+    """Load persisted session snapshot."""
+    snapshot_path = Path(project_path) / ".unreal-companion" / "docs" / f"{doc_id}.session.json"
+    if not snapshot_path.exists():
+        return None
+    try:
+        return json.loads(snapshot_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
