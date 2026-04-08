@@ -174,10 +174,11 @@ export function StepSlide({
 
   // Attach from modal (file or library doc)
   const handleAttachFromModal = useCallback((result: AttachResult) => {
-    if (result.type === 'upload') {
-      // File was already uploaded by the modal — add as library reference
-      setAttachments(prev => [...prev, { docId: result.docId, name: result.name, summary: result.summary, type: 'library' }])
+    if (result.type === 'upload' && result.file) {
+      // Local file — will be uploaded on Continue
+      setAttachments(prev => [...prev, { file: result.file!, name: result.name, type: 'local' }])
     } else {
+      // Library doc — already on disk
       setAttachments(prev => [...prev, { docId: result.docId, name: result.name, summary: result.summary, type: 'library' }])
     }
   }, [])

@@ -11,6 +11,7 @@ export interface AttachResult {
   docId: string
   name: string
   summary?: string
+  file?: File  // For local uploads — the actual file, uploaded on Continue
 }
 
 interface AttachModalProps {
@@ -22,7 +23,7 @@ interface AttachModalProps {
 }
 
 type Tab = 'upload' | 'library'
-type UploadPhase = 'idle' | 'uploading' | 'analyzing'
+// No upload phase needed — files are just attached, uploaded on Continue
 
 const ACCEPTED = '.pdf,.docx,.doc,.md,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg'
 
@@ -37,8 +38,6 @@ function docEmoji(tags: string[]): string {
 export function AttachModal({ isOpen, onClose, onAttach, projectPath, sourceDocument }: AttachModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('upload')
   const [isDragging, setIsDragging] = useState(false)
-  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle')
-  const [uploadError, setUploadError] = useState<string | null>(null)
   const [documents, setDocuments] = useState<StudioDocument[]>([])
   const [libSearch, setLibSearch] = useState('')
   const [libLoading, setLibLoading] = useState(false)
@@ -61,59 +60,21 @@ export function AttachModal({ isOpen, onClose, onAttach, projectPath, sourceDocu
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setUploadPhase('idle')
-      setUploadError(null)
       setLibSearch('')
       setActiveTab('upload')
     }
   }, [isOpen])
 
   const handleUploadFile = useCallback(
-    async (file: File) => {
-      if (!projectPath) return
-      setUploadPhase('uploading')
-      setUploadError(null)
-      try {
-        const form = new FormData()
-        form.append('file', file)
-        form.append('project_path', projectPath)
-        if (sourceDocument) {
-          form.append('source_document', sourceDocument)
-        }
-
-        const res = await fetch('/api/v2/studio/upload', {
-          method: 'POST',
-          body: form,
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: 'Upload failed' }))
-          throw new Error(err.detail || 'Upload failed')
-        }
-        const data = await res.json()
-
-        // Show "Analyzing document..." while we wait for index/scan
-        setUploadPhase('analyzing')
-
-        // Extract summary from index if available
-        let summary: string | undefined
-        if (data.index) {
-          summary = data.index.summary ?? data.index.description ?? undefined
-        }
-        if (!summary && data.summary) {
-          summary = data.summary
-        }
-
-        onAttach({
-          type: 'upload',
-          docId: data.doc_id,
-          name: data.filename || file.name,
-          summary,
-        })
-        onClose()
-      } catch (e) {
-        setUploadError(e instanceof Error ? e.message : 'Upload failed')
-        setUploadPhase('idle')
-      }
+    (file: File) => {
+      // Just attach the file — no upload yet. Upload happens on Continue.
+      onAttach({
+        type: 'upload',
+        docId: '',
+        name: file.name,
+        file,
+      })
+      onClose()
     },
     [projectPath, sourceDocument, onAttach, onClose]
   )
@@ -157,8 +118,6 @@ export function AttachModal({ isOpen, onClose, onAttach, projectPath, sourceDocu
       (doc.meta?.tags || []).some(t => t.toLowerCase().includes(q))
     )
   })
-
-  const isUploading = uploadPhase === 'uploading' || uploadPhase === 'analyzing'
 
   if (!isOpen) return null
 
@@ -214,37 +173,24 @@ export function AttachModal({ isOpen, onClose, onAttach, projectPath, sourceDocu
                 onDrop={handleDrop}
                 onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
                 onDragLeave={() => setIsDragging(false)}
-                onClick={() => !isUploading && fileInputRef.current?.click()}
+                onClick={() => fileInputRef.current?.click()}
                 className={`flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed p-10 text-center transition-colors ${
                   isDragging
                     ? 'border-primary bg-primary/5'
                     : 'border-border/50 bg-muted/20 hover:border-primary/50 hover:bg-muted/40'
-                } ${isUploading ? 'pointer-events-none opacity-60' : ''}`}
+                }`}
               >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">
-                      {uploadPhase === 'uploading' ? 'Uploading…' : 'Analyzing document…'}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-10 w-10 text-muted-foreground/40" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Drop a file here</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        or{' '}
-                        <span className="text-primary underline underline-offset-2">
-                          browse files
-                        </span>
-                      </p>
-                      <p className="mt-1 text-[10px] text-muted-foreground/60">
-                        PDF, DOCX, MD, TXT, PNG, JPG, GIF, WEBP, SVG
-                      </p>
-                    </div>
-                  </>
-                )}
+                <Upload className="h-10 w-10 text-muted-foreground/40" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Drop a file here</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    or{' '}
+                    <span className="text-primary underline underline-offset-2">browse files</span>
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground/60">
+                    PDF, DOCX, MD, TXT, PNG, JPG, GIF, WEBP, SVG
+                  </p>
+                </div>
               </div>
 
               <input
@@ -255,11 +201,6 @@ export function AttachModal({ isOpen, onClose, onAttach, projectPath, sourceDocu
                 className="hidden"
               />
 
-              {uploadError && (
-                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                  {uploadError}
-                </p>
-              )}
             </div>
           )}
 
