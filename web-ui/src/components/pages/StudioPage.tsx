@@ -157,8 +157,11 @@ export function StudioPage() {
   const [builderKey, setBuilderKey] = useState(0)
   // docId override when "New" is clicked from a resume banner
   // Use docId from URL for builder if on /studio/build/:workflowId/:docId
+  // Derive from URL each render — don't cache in state (URL is the source of truth)
   const urlDocId = workflowId && docId ? decodeURIComponent(docId) : undefined
-  const [builderDocIdOverride, setBuilderDocIdOverride] = useState<string | undefined>(urlDocId)
+  const [builderDocIdOverride, setBuilderDocIdOverride] = useState<string | undefined>(undefined)
+  // Sync from URL when it has a docId (e.g., after refresh)
+  const effectiveDocIdOverride = urlDocId || builderDocIdOverride
 
   // Fetch data on mount
   useEffect(() => {
@@ -263,7 +266,7 @@ export function StudioPage() {
       }).catch(console.error)
 
       // Find existing in-progress document for this workflow (to resume after refresh)
-      if (!builderDocIdOverride) {
+      if (!effectiveDocIdOverride) {
         api.get<{ documents: any[] }>(
           `/api/v2/studio/documents?project_path=${encodeURIComponent(projectPath)}`
         ).then(data => {
@@ -279,7 +282,7 @@ export function StudioPage() {
         }).catch(() => {})
       }
     }
-  }, [workflowId, activeV2Workflow, cachedV2Workflow, projectPath, builderDocIdOverride])
+  }, [workflowId, activeV2Workflow, cachedV2Workflow, projectPath, effectiveDocIdOverride])
 
   const handleOpenDocument = (docId: string) => {
     navigate(`/studio/doc/${encodeURIComponent(docId)}`)
@@ -360,7 +363,7 @@ export function StudioPage() {
             workflow={displayedV2Workflow}
             projectPath={projectPath}
             bannerConfig={builderBanner}
-            docIdOverride={builderDocIdOverride}
+            docIdOverride={effectiveDocIdOverride}
             onNewDocument={() => {
               // Force remount BuilderView with a new key + unique doc ID (fresh start)
               const ts = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 15)
