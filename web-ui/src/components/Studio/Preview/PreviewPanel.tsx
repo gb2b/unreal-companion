@@ -26,6 +26,7 @@ interface PreviewPanelProps {
   documentId?: string
   onEditRequest?: (sectionId: string, selectedText: string, prompt: string) => void
   documentName?: string
+  onDocumentRenamed?: (newName: string) => void
 }
 
 export function PreviewPanel({
@@ -38,6 +39,7 @@ export function PreviewPanel({
   documentId,
   onEditRequest,
   documentName,
+  onDocumentRenamed,
 }: PreviewPanelProps) {
   const { language } = useI18n()
   const [activeTab, setActiveTab] = useState<PreviewTab>('document')
@@ -189,9 +191,12 @@ export function PreviewPanel({
             ) : docMode === 'preview' ? (
               <div className="h-full flex flex-col">
                 {documentName && (
-                  <div className="shrink-0 border-b border-border/20 bg-muted/20 px-4 py-2">
-                    <span className="text-xs font-medium text-foreground/70">{documentName}</span>
-                  </div>
+                  <EditableDocBanner
+                    name={documentName}
+                    documentId={documentId || ''}
+                    projectPath={projectPath || ''}
+                    onRenamed={onDocumentRenamed}
+                  />
                 )}
                 <div className="flex-1 overflow-y-auto px-4 py-4">
                 <article className="md-preview md-preview-compact">
@@ -403,6 +408,68 @@ function InlineContextEditor({ projectPath }: { projectPath: string }) {
       <div className="flex-1 min-h-0">
         <MarkdownEditor content={content} onChange={setContent} placeholder="Project context..." editorOnly />
       </div>
+    </div>
+  )
+}
+
+
+/** Editable document name banner — click to rename inline. */
+function EditableDocBanner({
+  name,
+  documentId,
+  projectPath,
+  onRenamed,
+}: {
+  name: string
+  documentId: string
+  projectPath: string
+  onRenamed?: (newName: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(name)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { setValue(name) }, [name])
+
+  const handleSave = async () => {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === name) { setEditing(false); return }
+    setSaving(true)
+    try {
+      await fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed, project_path: projectPath }),
+      })
+      onRenamed?.(trimmed)
+    } catch { /* ignore */ }
+    finally { setSaving(false); setEditing(false) }
+  }
+
+  return (
+    <div className="shrink-0 border-b border-border/20 bg-muted/20 px-4 py-2">
+      {editing ? (
+        <div className="flex items-center gap-2">
+          <input
+            autoFocus
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
+            onBlur={handleSave}
+            disabled={saving}
+            className="flex-1 rounded border border-primary/30 bg-background px-2 py-0.5 text-xs text-foreground outline-none focus:border-primary/60"
+          />
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
+          title="Click to rename"
+        >
+          {name}
+          <span className="ml-1.5 text-[9px] text-muted-foreground/40">&#9998;</span>
+        </button>
+      )}
     </div>
   )
 }

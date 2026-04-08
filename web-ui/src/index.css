@@ -914,3 +914,18 @@
 }
 .md-preview-compact hr { margin: 1.5rem 0; }
 .md-preview-compact pre { margin: 0.75rem 0; padding: 0.75rem 1rem; }
+
+/* ─── Context Memory variant — subtle visual difference ─── */
+.md-preview-context {
+  color: hsl(var(--foreground) / 0.7);
+}
+.md-preview-context h1,
+.md-preview-context h2 {
+  color: hsl(var(--primary) / 0.6);
+}
+.md-preview-context h3 {
+  color: hsl(var(--foreground) / 0.7);
+}
+.md-preview-context strong {
+  color: hsl(var(--foreground) / 0.85);
+}
