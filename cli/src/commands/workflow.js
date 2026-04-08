@@ -1,11 +1,10 @@
 /**
  * Workflow CLI Commands
- * 
+ *
  * Allows running workflows directly from CLI without Web UI.
- * Uses workflow-status.yaml for state management.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -21,12 +20,11 @@ class WorkflowStatusManager {
   constructor(projectPath) {
     this.projectPath = projectPath;
     this.companionPath = join(projectPath, '.unreal-companion');
-    this.statusPath = join(this.companionPath, 'workflow-status.yaml');
   }
 
   load() {
-    if (!existsSync(this.statusPath)) {
-      return {
+    if (!this._data) {
+      this._data = {
         version: '1.0',
         last_updated: null,
         active_sessions: [],
@@ -34,24 +32,12 @@ class WorkflowStatusManager {
         recent_documents: [],
       };
     }
-
-    try {
-      const content = readFileSync(this.statusPath, 'utf-8');
-      return yaml.parse(content) || {};
-    } catch {
-      return {};
-    }
+    return this._data;
   }
 
   save(data) {
     data.last_updated = new Date().toISOString();
-    
-    mkdirSync(this.companionPath, { recursive: true });
-    
-    const header = '# Workflow Status - Auto-generated, do not edit manually\n';
-    const yamlContent = yaml.stringify(data);
-    
-    writeFileSync(this.statusPath, header + yamlContent);
+    this._data = data;
   }
 
   startSession(sessionId, workflowId, workflowName, totalSteps) {
@@ -231,67 +217,8 @@ export async function workflowCommand(action, options) {
     case 'next':
       await continueWorkflow(manager, projectPath, options);
       break;
-    case 'sync':
-      await syncFromSqlite(manager, projectPath);
-      break;
     default:
       await showWorkflowMenu(manager, projectPath);
-  }
-}
-
-async function syncFromSqlite(manager, projectPath) {
-  const { execSync } = await import('child_process');
-  const dbPath = join(projectPath, '.unreal-companion', 'sessions', 'workflows.db');
-  
-  if (!existsSync(dbPath)) {
-    console.log(chalk.yellow('\n  No SQLite database found. Nothing to sync.\n'));
-    return;
-  }
-  
-  const spinner = ora('Syncing sessions from SQLite...').start();
-  
-  try {
-    const result = execSync(
-      `sqlite3 "${dbPath}" "SELECT id, workflow_id, status, current_step, total_steps FROM workflow_sessions WHERE status = 'active' OR status = 'in_progress';"`,
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
-    );
-    
-    const lines = result.trim().split('\n').filter(l => l);
-    const data = manager.load();
-    
-    if (!data.active_sessions) data.active_sessions = [];
-    
-    let synced = 0;
-    
-    for (const line of lines) {
-      const [id, workflow_id, status, current_step, total_steps] = line.split('|');
-      
-      // Check if already exists
-      const existing = data.active_sessions.find(s => s.id === id);
-      if (!existing) {
-        data.active_sessions.push({
-          id,
-          workflow: workflow_id,
-          name: workflow_id,
-          step: parseInt(current_step) || 0,
-          total_steps: parseInt(total_steps) || 0,
-          status: status || 'active',
-          started: new Date().toISOString(),
-          last_activity: new Date().toISOString(),
-          synced_from: 'sqlite',
-        });
-        synced++;
-      }
-    }
-    
-    manager.save(data);
-    
-    spinner.succeed(`Synced ${synced} sessions from SQLite`);
-    console.log(chalk.dim(`  Total active sessions: ${data.active_sessions.length}\n`));
-    
-  } catch (error) {
-    spinner.fail('Failed to sync from SQLite');
-    console.log(chalk.dim(`  ${error.message}\n`));
   }
 }
 

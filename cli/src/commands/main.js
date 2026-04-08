@@ -435,8 +435,7 @@ async function initProject(projectPath, options) {
   console.log(chalk.dim(`  📁 Config: ${result.config}`));
   console.log(chalk.dim(`  📄 Files created:`));
   console.log(chalk.dim(`     - config.yaml (project settings)`));
-  console.log(chalk.dim(`     - workflow-status.yaml (workflow state)`));
-  console.log(chalk.dim(`     - project-context.md (project memory)`));
+  console.log(chalk.dim(`     - project-memory.md (project memory)`));
   console.log('');
   
   return true;
@@ -609,7 +608,7 @@ function showStatus() {
         const displayedWorkflows = new Set();
         const allSessions = [];
         
-        // From workflow-status.yaml (file-first architecture)
+        // Active workflow sessions
         if (projectPath) {
           const workflowStatus = loadWorkflowStatus(projectPath);
           if (workflowStatus.active_sessions && workflowStatus.active_sessions.length > 0) {

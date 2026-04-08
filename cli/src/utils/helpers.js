@@ -401,93 +401,20 @@ export function getProjectInfo(projectPath) {
 
 /**
  * Get project status (documents, workflows, etc.)
- * Reads from workflow-status.yaml (preferred) or SQLite (fallback)
  */
 export function getProjectStatus(projectPath) {
   const companionDir = join(projectPath, '.unreal-companion');
-  
+
   if (!existsSync(companionDir)) {
     return { initialized: false, documents: 0, workflows: 0, sessions: [], recentCompleted: [] };
   }
 
-  // Count documents
-  const docsDir = join(companionDir, 'docs');
+  // Count documents (new structure: each doc is a subdirectory in documents/)
+  const documentsDir = join(companionDir, 'documents');
   let documents = 0;
-  if (existsSync(docsDir)) {
+  if (existsSync(documentsDir)) {
     try {
-      documents = readdirSync(docsDir).filter(f => f.endsWith('.md')).length;
-    } catch {}
-  }
-
-  let sessions = [];
-  let recentCompleted = [];
-  
-  // === Priority 1: Read from workflow-status.yaml (no server needed) ===
-  const statusYamlPath = join(companionDir, 'workflow-status.yaml');
-  if (existsSync(statusYamlPath)) {
-    try {
-      const content = readFileSync(statusYamlPath, 'utf-8');
-      const data = yaml.parse(content);
-      
-      if (data && data.active_sessions) {
-        sessions = data.active_sessions.map(s => ({
-          id: s.id,
-          workflow: s.workflow,
-          step: s.step || 0,
-          total_steps: s.total_steps || 0,
-          name: s.name || s.workflow,
-          status: s.status || 'active',
-          lastActivity: s.last_activity,
-        }));
-      }
-      
-      if (data && data.recent_completed) {
-        recentCompleted = data.recent_completed;
-      }
-      
-      return {
-        initialized: true,
-        documents,
-        workflows: sessions.length,
-        sessions,
-        recentCompleted,
-        source: 'yaml',
-      };
-    } catch {}
-  }
-  
-  // === Priority 2: Fallback to SQLite database ===
-  const dbPath = join(companionDir, 'sessions', 'workflows.db');
-  
-  if (existsSync(dbPath)) {
-    try {
-      // Use sqlite3 CLI to read sessions (cross-platform)
-      const result = execSync(
-        `sqlite3 "${dbPath}" "SELECT id, workflow_id, status, current_step, total_steps FROM workflow_sessions WHERE status = 'active' OR status = 'in_progress';"`,
-        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
-      );
-      
-      const lines = result.trim().split('\n').filter(l => l);
-      for (const line of lines) {
-        const [id, workflow_id, status, current_step, total_steps] = line.split('|');
-        sessions.push({
-          id,
-          workflow: workflow_id,
-          step: parseInt(current_step) || 0,
-          total_steps: parseInt(total_steps) || 0,
-          name: workflow_id,
-          status,
-        });
-      }
-      
-      return {
-        initialized: true,
-        documents,
-        workflows: sessions.length,
-        sessions,
-        recentCompleted: [],
-        source: 'sqlite',
-      };
+      documents = readdirSync(documentsDir, { withFileTypes: true }).filter(e => e.isDirectory()).length;
     } catch {}
   }
 

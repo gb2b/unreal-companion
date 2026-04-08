@@ -480,10 +480,16 @@ ${coreInstructions}
 \`\`\`
 .unreal-companion/
 ├── config.yaml          # Project configuration
-├── project-context.md   # Project context
-├── memories.yaml        # Persistent memories
-├── workflow-status.yaml # Workflow status
-└── docs/                # Generated documents
+├── project-memory.md    # Project memory
+├── documents/           # Generated documents (1 folder per doc)
+│   └── {doc-id}/
+│       ├── document.md
+│       └── meta.json
+├── references/          # Uploaded reference files
+│   └── {name}/
+│       └── meta.json
+├── agents/
+└── workflows/
 \`\`\`
 `;
         writeFileSync(join(projectPath, 'AGENTS.md'), content);
@@ -586,7 +592,7 @@ ${behaviorNote}
 3. RESOLVE all variables from config files
 4. FOLLOW workflow-engine.md instructions EXACTLY to execute the workflow
 5. SAVE outputs after EACH section when generating content
-6. UPDATE workflow-status.yaml after completion
+6. UPDATE project-memory.md after completion
 </steps>
 
 ## Quick Summary
@@ -787,23 +793,8 @@ export async function setupProject(projectPath, options = {}) {
     // Create directory structure
     mkdirSync(projectPaths.root, { recursive: true });
     mkdirSync(projectPaths.workflows, { recursive: true });
-    mkdirSync(projectPaths.docs, { recursive: true });
-    // Create subdirectories for docs (unified output folder)
-    // These match the output paths defined in workflow.yaml files
-    const docSubdirs = [
-      'concept',     // game-brief
-      'design',      // gdd, level-design
-      'technical',   // architecture
-      'analysis',    // brainstorms
-      'narrative',   // narrative, characters, quests, lore, dialogues
-      'boards',      // mindmaps, moodboards, diagrams
-      'production',  // sprints, stories
-      'art',         // art-direction
-      'audio',       // audio-direction
-    ];
-    for (const subdir of docSubdirs) {
-      mkdirSync(join(projectPaths.docs, subdir), { recursive: true });
-    }
+    mkdirSync(projectPaths.documents, { recursive: true });
+    mkdirSync(projectPaths.references, { recursive: true });
     
     // Create project config (minimal - inherits from global)
     if (!existsSync(projectPaths.config) || force) {
@@ -815,7 +806,7 @@ export async function setupProject(projectPath, options = {}) {
         },
         
         output: {
-          folder: 'docs',  // Unified with web-ui
+          folder: 'documents',
         },
         
         ide_rules: ides,
@@ -825,40 +816,17 @@ export async function setupProject(projectPath, options = {}) {
       writeFileSync(projectPaths.config, header + yaml.stringify(projectConfig));
     }
     
-    // Create workflow-status.yaml
-    if (!existsSync(projectPaths.workflowStatus) || force) {
-      const initialStatus = {
-        version: '1.0',
-        last_updated: new Date().toISOString(),
-        
-        // Currently active workflow sessions
-        active_sessions: [],
-        
-        // Document status tracking
-        documents: {
-          'game-brief': { status: 'not_started' },
-          'gdd': { status: 'not_started' },
-          'game-architecture': { status: 'not_started' },
-          'narrative': { status: 'not_started' },
-          'art-direction': { status: 'not_started' },
-        },
-      };
-      
-      const header = '# Workflow Status - Tracks document progress and active sessions\n# Updated by agents during workflow execution\n\n';
-      writeFileSync(projectPaths.workflowStatus, header + yaml.stringify(initialStatus));
-    }
-    
-    // Create project-context.md
-    if (!existsSync(projectPaths.projectContext) || force) {
-      const contextContent = `---
-title: Project Context
+    // Create project-memory.md
+    if (!existsSync(projectPaths.projectMemory) || force) {
+      const memoryContent = `---
+title: Project Memory
 project: ${basename(resolvedPath)}
 created: ${new Date().toISOString()}
 last_updated: ${new Date().toISOString()}
 status: initial
 ---
 
-# Project Context - ${basename(resolvedPath)}
+# Project Memory - ${basename(resolvedPath)}
 
 ## Overview
 
@@ -867,7 +835,6 @@ status: initial
 **Created**: ${new Date().toISOString().split('T')[0]}
 
 _This document is automatically updated as you progress through workflows._
-_See \`workflow-status.yaml\` for detailed progress tracking._
 
 ## Vision
 
@@ -883,8 +850,6 @@ _Complete the **get-started** or **game-brief** workflow to define your game's v
 | Narrative | ❌ Not Started | - | - |
 | Art Direction | ❌ Not Started | - | - |
 
-_Updated from \`workflow-status.yaml\` - agents update this table after completing documents._
-
 ## Key Decisions
 
 _Important design and technical decisions are recorded here._
@@ -898,7 +863,7 @@ _Important design and technical decisions are recorded here._
 ---
 _Auto-maintained by Unreal Companion_
 `;
-      writeFileSync(projectPaths.projectContext, contextContent);
+      writeFileSync(projectPaths.projectMemory, memoryContent);
     }
     
     // Create memories.yaml

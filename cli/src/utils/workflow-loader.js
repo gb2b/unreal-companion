@@ -53,10 +53,9 @@ export function getProjectPaths(projectPath) {
     root: companionRoot,
     workflows: join(companionRoot, 'workflows'),
     config: join(companionRoot, 'config.yaml'),
-    workflowStatus: join(companionRoot, 'workflow-status.yaml'),
-    projectContext: join(companionRoot, 'project-context.md'),
-    docs: join(companionRoot, 'docs'),
-    output: join(companionRoot, 'docs'),  // Unified: output = docs
+    projectMemory: join(companionRoot, 'project-memory.md'),
+    documents: join(companionRoot, 'documents'),
+    references: join(companionRoot, 'references'),
   };
 }
 
@@ -362,7 +361,7 @@ export function listAllAgents(projectPath = null) {
 export function loadProjectConfig(projectPath) {
   const projectPaths = getProjectPaths(projectPath);
   const defaults = {
-    output_folder: 'docs',  // Unified with web-ui
+    output_folder: 'documents',
     user_name: 'Developer',
     communication_language: 'en',
     document_output_language: 'en',
@@ -401,8 +400,8 @@ export function resolveWorkflowVariables(workflow, projectPath, runtimeVars = {}
   // System variables (resolved automatically)
   const variables = {
     'project-root': projectPath,
-    'output_folder': projectPaths.docs,  // Use .unreal-companion/docs/
-    'docs_folder': projectPaths.docs,    // Alias
+    'output_folder': projectPaths.documents,
+    'documents_folder': projectPaths.documents,
     'user_name': config.user_name,
     'communication_language': config.communication_language,
     'document_output_language': config.document_output_language,
@@ -454,26 +453,13 @@ export function resolveWorkflowVariables(workflow, projectPath, runtimeVars = {}
  * @returns {Object} Workflow status data
  */
 export function loadWorkflowStatus(projectPath) {
-  const projectPaths = getProjectPaths(projectPath);
-  
-  const defaults = {
+  return {
     version: '1.0',
     last_updated: null,
     active_sessions: [],
     recent_completed: [],
     recent_documents: [],
   };
-  
-  if (existsSync(projectPaths.workflowStatus)) {
-    try {
-      const content = readFileSync(projectPaths.workflowStatus, 'utf-8');
-      return { ...defaults, ...yaml.parse(content) };
-    } catch (e) {
-      console.error('Error loading workflow status:', e.message);
-    }
-  }
-  
-  return defaults;
 }
 
 // =============================================================================

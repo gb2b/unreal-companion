@@ -55,14 +55,16 @@ frameworks/                          # Source in the package
     ↓ setupProject()
 {project}/.unreal-companion/         # Project initialization
     ├── config.yaml                  # Project config
-    ├── workflow-status.yaml         # Workflow progress
-    ├── project-context.md           # Auto-updated context
-    ├── memories.yaml                # Persistent memories
-    └── output/                      # Generated documents
-        ├── concept/
-        ├── design/
-        ├── technical/
-        └── ...
+    ├── project-memory.md            # Auto-updated project memory
+    ├── documents/                   # Generated documents (1 folder per doc)
+    │   └── {doc-id}/
+    │       ├── document.md
+    │       └── meta.json
+    ├── references/                  # Uploaded reference files
+    │   └── {name}/
+    │       └── meta.json
+    ├── agents/
+    └── workflows/
 ```
 
 ### Runtime Resolution
