@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Paperclip, X } from 'lucide-react'
 import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
@@ -34,8 +34,21 @@ function ToolCallCard({ name, label, status }: { name: string; label: string; st
       {status === 'done' && <span className="text-accent text-[10px]">✓</span>}
       {status === 'error' && <span className="text-red-400 text-[10px]">✗</span>}
       <span>{label}</span>
+      {status === 'pending' && <ToolTimer />}
     </div>
   )
+}
+
+/** Elapsed timer for tool calls */
+function ToolTimer() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const start = Date.now()
+    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(interval)
+  }, [])
+  if (elapsed < 2) return null
+  return <span className="text-[9px] text-muted-foreground/30 tabular-nums">{elapsed}s</span>
 }
 
 interface StepSlideProps {
@@ -52,6 +65,7 @@ interface StepSlideProps {
   onSkip: () => void
   onProposeModification: (stepIndex: number) => void
   projectPath?: string
+  error?: string | null
 }
 
 export function StepSlide({
@@ -68,6 +82,7 @@ export function StepSlide({
   onSkip,
   onProposeModification,
   projectPath,
+  error,
 }: StepSlideProps) {
   const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
@@ -276,13 +291,22 @@ export function StepSlide({
             </div>
           )}
 
+          {/* Error banner */}
+          {error && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
+              <p className="font-medium text-destructive mb-1">{language === 'fr' ? 'Erreur' : 'Error'}</p>
+              <p className="text-xs text-destructive/80">{error}</p>
+            </div>
+          )}
+
           {/* Simple "Thinking..." — only when no VISIBLE tool_call spinner is pending and not streaming */}
           {isProcessing && !isStreaming && !blocks.some(
             b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
           ) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground/50">
               <span className="animate-pulse">●</span>
-              Thinking...
+              <span>Thinking...</span>
+              <ToolTimer />
             </div>
           )}
 

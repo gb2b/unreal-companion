@@ -8,58 +8,58 @@ interface SessionHistoryProps {
   onStepClick: (index: number) => void
 }
 
-/** Extract timestamp from step id format: step-{n}-{Date.now()} */
+/** Extract timestamp from step id: step-{n}-{Date.now()} */
 function getStepTime(step: MicroStep): number {
   const parts = step.id.split('-')
   const ts = parseInt(parts[parts.length - 1], 10)
   return isNaN(ts) ? 0 : ts
 }
 
-/** Get step label — prefer LLM-generated summary, fallback to extraction. */
-function getStepLabel(step: MicroStep): string {
-  // 1. LLM-generated step_title (stored in summary via show_interaction)
-  if (step.summary && step.summary !== 'Step') return step.summary
-
-  // 2. Extract from interaction prompt
-  if (step.interactionData) {
-    const data = step.interactionData as any
-    const prompt = data.prompt || data.question || ''
-    if (prompt) {
-      const clean = prompt.replace(/^[#*>\-\s]+/, '').trim()
-      return clean.length <= 55 ? clean : clean.slice(0, 54) + '...'
-    }
+/** Get the label for a step. Priority: LLM step_title > question > fallback */
+function getStepLabel(step: MicroStep): string | null {
+  // 1. LLM-generated step_title (in summary)
+  if (step.summary && step.summary.length < 80 && step.summary !== 'Step') {
+    return step.summary
   }
-
-  // 3. Extract question from text blocks
+  // 2. Extract question from text blocks
   const textBlocks = step.blocks.filter(b => b.kind === 'text') as Array<{ kind: 'text'; content: string }>
   for (const block of textBlocks) {
     const lines = block.content.split('\n').filter(l => l.trim())
     const question = lines.find(l => l.includes('?'))
     if (question) {
       const clean = question.replace(/^[#*>\-\s]+/, '').trim()
-      return clean.length <= 55 ? clean : clean.slice(0, 54) + '...'
+      return clean.length <= 50 ? clean : clean.slice(0, 49) + '...'
     }
   }
-
-  // 4. Last meaningful line
+  // 3. First meaningful line (short)
   if (textBlocks.length > 0) {
-    const lastBlock = textBlocks[textBlocks.length - 1]
-    const lines = lastBlock.content.split('\n').filter(l => l.trim())
-    const last = lines[lines.length - 1] || ''
-    const clean = last.replace(/^[#*>\-\s]+/, '').trim()
-    if (clean) return clean.length <= 55 ? clean : clean.slice(0, 54) + '...'
+    const first = textBlocks[0].content.split('\n').find(l => l.trim())
+    if (first) {
+      const clean = first.replace(/^[#*>\-\s]+/, '').trim()
+      return clean.length <= 50 ? clean : clean.slice(0, 49) + '...'
+    }
   }
-
-  return 'Step'
+  return null
 }
 
-/** Get a preview of the step content for the expanded view. */
-function getStepPreview(step: MicroStep): string {
-  const textBlocks = step.blocks.filter(b => b.kind === 'text') as Array<{ kind: 'text'; content: string }>
-  if (textBlocks.length === 0) return ''
-  const full = textBlocks.map(b => b.content).join('\n')
-  const lines = full.split('\n').filter(l => l.trim()).slice(0, 3)
-  return lines.map(l => l.replace(/^[#*>\-\s]+/, '').trim()).join(' ').slice(0, 120)
+/** Get the current tool name being processed */
+function getActiveToolName(step: MicroStep): string | null {
+  const pending = step.blocks.find(b => b.kind === 'tool_call' && (b as any).status === 'pending')
+  if (pending) return (pending as any).name || null
+  return null
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  doc_scan: 'Reading document...',
+  doc_read_summary: 'Reading summary...',
+  doc_read_section: 'Reading section...',
+  doc_grep: 'Searching...',
+  update_document: 'Updating document...',
+  mark_section_complete: 'Completing section...',
+  update_project_context: 'Updating context...',
+  update_session_memory: 'Saving memory...',
+  show_interaction: 'Preparing question...',
+  rename_document: 'Renaming...',
 }
 
 function formatTime(ts: number): string {
@@ -72,27 +72,30 @@ function formatDayHeader(ts: number, language: string): string {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
-
-  if (d.toDateString() === today.toDateString()) {
-    return language === 'fr' ? "Aujourd'hui" : 'Today'
-  }
-  if (d.toDateString() === yesterday.toDateString()) {
-    return language === 'fr' ? 'Hier' : 'Yesterday'
-  }
+  if (d.toDateString() === today.toDateString()) return language === 'fr' ? "Aujourd'hui" : 'Today'
+  if (d.toDateString() === yesterday.toDateString()) return language === 'fr' ? 'Hier' : 'Yesterday'
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
-interface VisibleStep {
-  step: MicroStep
-  index: number
-  timestamp: number
+/** Elapsed timer for active steps */
+function ElapsedTimer() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const start = Date.now()
+    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(interval)
+  }, [])
+  if (elapsed < 2) return null
+  const mins = Math.floor(elapsed / 60)
+  const secs = elapsed % 60
+  return (
+    <span className="text-[9px] text-muted-foreground/40 tabular-nums">
+      {mins > 0 ? `${mins}m${secs.toString().padStart(2, '0')}s` : `${secs}s`}
+    </span>
+  )
 }
 
-export function SessionHistory({
-  microSteps,
-  activeMicroStepIndex,
-  onStepClick,
-}: SessionHistoryProps) {
+export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }: SessionHistoryProps) {
   const activeRef = useRef<HTMLDivElement>(null)
   const { language } = useI18n()
 
@@ -101,7 +104,7 @@ export function SessionHistory({
   }, [activeMicroStepIndex])
 
   // Filter ghost steps
-  const visibleSteps: VisibleStep[] = microSteps
+  const visibleSteps = microSteps
     .map((step, i) => ({ step, index: i, timestamp: getStepTime(step) }))
     .filter(({ step }) => {
       const hasText = step.blocks.some(b => b.kind === 'text' || b.kind === 'streaming')
@@ -110,7 +113,7 @@ export function SessionHistory({
     })
 
   // Group by day
-  const groups: Array<{ dayLabel: string; steps: VisibleStep[] }> = []
+  const groups: Array<{ dayLabel: string; steps: typeof visibleSteps }> = []
   let currentDay = ''
   for (const vs of visibleSteps) {
     const day = vs.timestamp ? new Date(vs.timestamp).toDateString() : ''
@@ -124,25 +127,14 @@ export function SessionHistory({
     groups.push({ dayLabel: '', steps: visibleSteps })
   }
 
-  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
-  const toggleExpand = (id: string) => {
-    setExpandedSteps(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-
   return (
-    <div data-tour="session-history" className="flex w-64 shrink-0 flex-col border-r border-border/30 bg-card/30 overflow-y-auto">
-      {/* Header */}
+    <div data-tour="session-history" className="flex w-56 shrink-0 flex-col border-r border-border/30 bg-card/30 overflow-y-auto">
       <div className="shrink-0 border-b border-border/20 px-3 py-2">
         <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
           {language === 'fr' ? 'Historique' : 'History'}
         </span>
       </div>
 
-      {/* Steps grouped by day */}
       <div className="flex-1 overflow-y-auto">
         {visibleSteps.length === 0 ? (
           <p className="px-3 py-4 text-[10px] text-muted-foreground/40 text-center">
@@ -151,7 +143,6 @@ export function SessionHistory({
         ) : (
           groups.map((group, gi) => (
             <div key={gi}>
-              {/* Day separator */}
               {group.dayLabel && (
                 <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm border-b border-border/10 px-3 py-1">
                   <span className="text-[9px] font-medium text-muted-foreground/50 uppercase tracking-wider">
@@ -162,71 +153,52 @@ export function SessionHistory({
 
               {group.steps.map(({ step, index, timestamp }) => {
                 const isActive = index === activeMicroStepIndex
-                const isExpanded = expandedSteps.has(step.id)
-                const preview = getStepPreview(step)
+                const isProcessing = step.status === 'active'
+                const label = getStepLabel(step)
+                const activeTool = isProcessing ? getActiveToolName(step) : null
+                const toolLabel = activeTool ? TOOL_LABELS[activeTool] || activeTool : null
 
                 return (
                   <div key={step.id} ref={isActive ? activeRef : undefined}>
-                    <div
-                      className={`border-l-2 transition-all ${
+                    <button
+                      onClick={() => onStepClick(index)}
+                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left transition-all border-l-2 ${
                         isActive
                           ? 'bg-primary/10 border-primary'
                           : 'border-transparent hover:bg-muted/30'
                       }`}
                     >
-                      {/* Clickable header — navigate to step */}
-                      <button
-                        onClick={() => onStepClick(index)}
-                        className="flex w-full items-start gap-2 px-3 py-2 text-left"
-                      >
-                        <span className="text-[10px] leading-none shrink-0 mt-0.5">
-                          {step.status === 'active'
-                            ? <span className="animate-pulse text-primary">&#9679;</span>
-                            : step.status === 'answered'
-                              ? <span className="text-accent">&#10003;</span>
-                              : <span className="text-muted-foreground/40">&#9675;</span>}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="flex-1 text-[11px] text-foreground/80 leading-snug line-clamp-2">
-                              {getStepLabel(step)}
-                            </span>
-                            {timestamp > 0 && (
-                              <span className="shrink-0 text-[9px] text-muted-foreground/30">
-                                {formatTime(timestamp)}
-                              </span>
-                            )}
-                          </div>
+                      {/* Status icon */}
+                      <span className="text-[10px] leading-none shrink-0">
+                        {isProcessing
+                          ? <span className="animate-pulse text-primary">&#9679;</span>
+                          : step.status === 'answered'
+                            ? <span className="text-accent">&#10003;</span>
+                            : <span className="text-muted-foreground/40">&#9675;</span>}
+                      </span>
 
-                          {step.status === 'answered' && step.userResponse && (
-                            <p className="text-[10px] text-muted-foreground/50 mt-0.5 line-clamp-1">
-                              {step.userResponse}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Expand toggle — show preview */}
-                      {preview && (
-                        <button
-                          onClick={() => toggleExpand(step.id)}
-                          className="w-full px-3 pb-1.5 text-left"
-                        >
-                          <span className="text-[9px] text-primary/50 hover:text-primary/80 transition-colors">
-                            {isExpanded ? '▾ less' : '▸ more'}
+                      {/* Label */}
+                      <span className="flex-1 min-w-0">
+                        {isProcessing && !label ? (
+                          <span className="text-[11px] text-primary/70 italic">
+                            {toolLabel || (language === 'fr' ? 'En cours...' : 'Processing...')}
                           </span>
-                        </button>
-                      )}
+                        ) : (
+                          <span className="text-[11px] text-foreground/80 truncate block">
+                            {label || 'Step'}
+                          </span>
+                        )}
+                      </span>
 
-                      {/* Expanded preview */}
-                      {isExpanded && preview && (
-                        <div className="px-3 pb-2 ml-5">
-                          <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
-                            {preview}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                      {/* Time or elapsed timer */}
+                      {isProcessing ? (
+                        <ElapsedTimer />
+                      ) : timestamp > 0 ? (
+                        <span className="shrink-0 text-[9px] text-muted-foreground/30">
+                          {formatTime(timestamp)}
+                        </span>
+                      ) : null}
+                    </button>
                   </div>
                 )
               })}
