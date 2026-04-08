@@ -25,34 +25,78 @@ interface AttachedDoc {
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
+/** Pretty tool name for display */
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  doc_scan: 'Scan',
+  doc_read_summary: 'Read',
+  doc_read_section: 'Read',
+  doc_grep: 'Search',
+  update_document: 'Write',
+  mark_section_complete: 'Complete',
+  update_project_context: 'Context',
+  update_session_memory: 'Memory',
+  read_project_document: 'Read',
+  rename_document: 'Rename',
+  show_interaction: 'Question',
+  show_prototype: 'Prototype',
+  report_progress: 'Progress',
+}
+
 function ToolCallCard({ name, label, status, startTime, result }: {
   name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; result?: string
 }) {
   if (HIDDEN_TOOLS.includes(name)) return null
   const [expanded, setExpanded] = useState(false)
+  const displayName = TOOL_DISPLAY_NAMES[name] || name
+  const hasResult = result && (status === 'done' || status === 'error')
 
   return (
     <div className="py-0.5">
-      <div className={`flex items-center gap-2 text-xs ${status === 'error' ? 'text-red-400/70' : 'text-muted-foreground/50'}`}>
+      {/* Line 1: Icon — Tool Name — Description — Timer */}
+      <button
+        onClick={() => hasResult && setExpanded(v => !v)}
+        className={`flex w-full items-center gap-1.5 text-left text-[11px] ${hasResult ? 'cursor-pointer' : 'cursor-default'}`}
+      >
+        {/* Status icon */}
         {status === 'pending' && <span className="h-3 w-3 shrink-0 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />}
         {status === 'done' && <span className="text-accent text-[10px] shrink-0">&#10003;</span>}
         {status === 'error' && <span className="text-red-400 text-[10px] shrink-0">&#10007;</span>}
-        <span className={`flex-1 ${status === 'error' ? 'line-through' : ''}`}>{label}</span>
+
+        {/* Tool name badge */}
+        <span className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium ${
+          status === 'error' ? 'bg-red-500/10 text-red-400/70' : 'bg-muted/50 text-muted-foreground/60'
+        }`}>
+          {displayName}
+        </span>
+
+        {/* LLM description */}
+        <span className={`flex-1 truncate ${
+          status === 'error' ? 'text-red-400/60 line-through' : 'text-muted-foreground/50'
+        }`}>
+          {label}
+        </span>
+
+        {/* Timer */}
         {status === 'pending' && <ElapsedTimer startTime={startTime} />}
         {(status === 'done' || status === 'error') && startTime && <FinalDuration startTime={startTime} />}
-        {result && (status === 'done' || status === 'error') && (
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="text-[9px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
-          >
+
+        {/* Expand indicator */}
+        {hasResult && (
+          <span className="text-[9px] text-muted-foreground/30 shrink-0">
             {expanded ? '▾' : '▸'}
-          </button>
+          </span>
         )}
-      </div>
+      </button>
+
+      {/* Line 2: Expanded result */}
       {expanded && result && (
-        <p className={`ml-5 mt-0.5 text-[10px] leading-relaxed ${status === 'error' ? 'text-red-400/60' : 'text-muted-foreground/40'}`}>
+        <div className={`ml-5 mt-1 mb-1 rounded-md px-2.5 py-1.5 text-[10px] leading-relaxed ${
+          status === 'error'
+            ? 'bg-red-500/5 border border-red-500/10 text-red-400/70'
+            : 'bg-muted/30 border border-border/20 text-muted-foreground/50'
+        }`}>
           {result}
-        </p>
+        </div>
       )}
     </div>
   )
