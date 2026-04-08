@@ -3,7 +3,7 @@ import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
 import { PreviewPanel } from '@/components/studio/Preview/PreviewPanel'
-import { TimelineSommaire } from './TimelineSommaire'
+import { SessionHistory } from './SessionHistory'
 import { StepSlide } from './StepSlide'
 // Confetti removed — too random, replaced with subtler section flash animation
 import { OnboardingTour } from './OnboardingTour'
@@ -153,10 +153,10 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
         />
       )}
 
-      {/* Main area: TimelineSommaire (fixed) + resizable center/right */}
+      {/* Main area: SessionHistory (fixed) + resizable center/right */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: TimelineSommaire (fixed width, stays outside Group) */}
-        <TimelineSommaire
+        {/* Left: Session History */}
+        <SessionHistory
           microSteps={microSteps}
           activeMicroStepIndex={activeMicroStepIndex}
           onStepClick={jumpToMicroStep}
