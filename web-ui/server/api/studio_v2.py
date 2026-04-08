@@ -3,6 +3,7 @@ Studio V2 API -- SSE streaming chat + document management.
 """
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import FileResponse
