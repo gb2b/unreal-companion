@@ -128,7 +128,7 @@ export function DocumentCard({
       tabIndex={0}
       onClick={() => onClick(doc.id)}
       onKeyDown={e => e.key === 'Enter' && onClick(doc.id)}
-      className={`relative rounded-[10px] border border-border bg-card overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:bg-card/90 ${borderAccent}`}
+      className={`relative rounded-[10px] border border-border bg-card cursor-pointer transition-all duration-200 hover:-translate-y-px hover:shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:bg-card/90 ${borderAccent}`}
     >
       {/* "Last worked on" badge */}
       {isLastWorked && (
@@ -139,7 +139,7 @@ export function DocumentCard({
 
       {/* Preview zone */}
       <div
-        className="relative h-[100px] px-3.5 py-2.5 overflow-hidden border-b border-border"
+        className="relative h-[100px] px-3.5 py-2.5 overflow-hidden border-b border-border rounded-t-[10px]"
         style={{ background: 'hsl(220 20% 5%)' }}
       >
         {hasContent ? (
