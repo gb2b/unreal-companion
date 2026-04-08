@@ -38,7 +38,6 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
   const {
     initWorkflow,
     submitResponse,
-    jumpToSection,
     scrollToSection,
     jumpToMicroStep,
     goBack,
@@ -47,7 +46,6 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
     requestEditFromPreview,
     sectionStatuses,
     sectionContents,
-    activeSection,
     microSteps,
     activeMicroStepIndex,
     isProcessing,
@@ -159,13 +157,9 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
       <div className="flex flex-1 overflow-hidden">
         {/* Left: TimelineSommaire (fixed width, stays outside Group) */}
         <TimelineSommaire
-          sections={allSections}
-          sectionStatuses={sectionStatuses}
           microSteps={microSteps}
           activeMicroStepIndex={activeMicroStepIndex}
-          activeSection={activeSection}
           onStepClick={jumpToMicroStep}
-          onSectionClick={jumpToSection}
         />
 
         {/* Center + Right: resizable via react-resizable-panels */}
