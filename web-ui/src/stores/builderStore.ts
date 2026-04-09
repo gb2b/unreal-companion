@@ -172,13 +172,15 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           }
         }
 
+        // Keep LLM step_title if it was set (short, not a text excerpt)
+        const hasLLMTitle = activeStep.summary && activeStep.summary.length < 60 && !activeStep.summary.includes('...')
         steps[state.activeMicroStepIndex] = {
           ...activeStep,
           userResponse: message,
           selectedChoiceIds: choiceIds,
           selectedChoiceLabels: choiceLabels,
           status: 'answered',
-          summary: message.length > 60 ? message.slice(0, 57) + '...' : message,
+          ...(hasLLMTitle ? {} : { summary: message.length > 60 ? message.slice(0, 57) + '...' : message }),
         }
       }
       set({ microSteps: steps })

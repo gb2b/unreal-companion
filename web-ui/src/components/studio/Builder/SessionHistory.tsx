@@ -177,17 +177,21 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                             : <span className="text-muted-foreground/40">&#9675;</span>}
                       </span>
 
-                      {/* Label: step title + user response */}
+                      {/* Label: step title (question topic) + user response below */}
                       <span className="flex-1 min-w-0">
                         {isProcessing && !label ? (
                           <span className="text-[11px] text-primary/70 italic">
                             {toolLabel || (language === 'fr' ? 'En cours...' : 'Processing...')}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-foreground/80 truncate block">
-                            {label || 'Step'}
+                          <span className="flex flex-col">
+                            <span className="text-[11px] text-foreground/80 truncate">
+                              {label || 'Step'}
+                            </span>
                             {step.status === 'answered' && step.userResponse && (
-                              <span className="text-muted-foreground/50"> — {step.userResponse.split('\n')[0].slice(0, 30)}</span>
+                              <span className="text-[10px] text-muted-foreground/40 truncate">
+                                → {step.userResponse.split('\n')[0].replace(/\[DOCUMENT_ATTACHED\].*/, '📎').replace(/\[DOCUMENT_LINKED\].*/, '🔗').slice(0, 35)}
+                              </span>
                             )}
                           </span>
                         )}

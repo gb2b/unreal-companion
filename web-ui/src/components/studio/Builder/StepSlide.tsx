@@ -345,14 +345,37 @@ export function StepSlide({
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
 
-          {/* User's previous response — shown as a right-aligned bubble */}
-          {previousUserResponse && (
-            <div className="flex justify-end mb-2">
-              <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-primary/10 border border-primary/20 px-4 py-2">
-                <p className="text-sm text-foreground/80">{previousUserResponse.split('\n')[0]}</p>
+          {/* User's previous response — shown as a right-aligned bubble with context tags */}
+          {previousUserResponse && (() => {
+            const lines = previousUserResponse.split('\n').filter(l => l.trim())
+            const attachments = lines.filter(l => l.startsWith('[DOCUMENT_ATTACHED]') || l.startsWith('[DOCUMENT_LINKED]'))
+            const textLines = lines.filter(l => !l.startsWith('[DOCUMENT_') && !l.startsWith('Filename:') && !l.startsWith('Summary:') && !l.startsWith('Use doc_'))
+            const mainText = textLines.join(', ').slice(0, 120)
+
+            return (
+              <div className="flex flex-col items-end gap-1 mb-3">
+                {/* Context tags: attached files */}
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {attachments.map((a, i) => {
+                      const name = a.replace(/\[DOCUMENT_\w+\]\s*/, '').replace(/references\//, '').split('\n')[0]
+                      return (
+                        <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted/50 border border-border/30 px-2 py-0.5 text-[10px] text-muted-foreground">
+                          📎 {name}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+                {/* Main response bubble */}
+                {mainText && (
+                  <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-primary/10 border border-primary/20 px-4 py-2">
+                    <p className="text-sm text-foreground/80">{mainText}</p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Render all blocks in order — additive, nothing disappears */}
           {blocks.map((block, i) => {
