@@ -21,6 +21,7 @@ INTERCEPTOR_NAMES = frozenset({
     "ask_user",
     "report_progress",
     "add_section",
+    "step_done",
 })
 
 # Tool definitions to inject into the LLM's tool list
@@ -204,6 +205,17 @@ INTERCEPTOR_TOOLS = [
     },
     # --- Session memory (handled by tool_executor) ---
     {
+        "name": "step_done",
+        "description": "Mark the current step as complete with a summary title. Call this at the END of every response, after all text, tool calls, and interactions. The title appears in the session history sidebar.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Short title summarizing this step's topic (3-8 words, in user's language). Describes the QUESTION asked, not the answer. E.g., 'Choix du genre', 'Tagline du jeu', 'Partage de documents'."},
+            },
+            "required": ["title"],
+        },
+    },
+    {
         "name": "update_session_memory",
         "description": "Update the session memory for this workflow. This is your working memory — a concise summary of key facts, decisions, and user preferences gathered during this conversation. Called after learning important info. Kept under 800 words. Replaces the full content each time.",
         "input_schema": {
@@ -231,7 +243,10 @@ def handle_interceptor(tool_name: str, tool_input: dict) -> list:
     """
     events = []
 
-    if tool_name == "show_interaction":
+    if tool_name == "step_done":
+        events.append(ProcessingStatus(status=f"step_done:{tool_input.get('title', '')}"))
+
+    elif tool_name == "show_interaction":
         events.append(InteractionBlock(
             block_type=tool_input.get("block_type", ""),
             data=tool_input.get("data", {}),

@@ -250,20 +250,28 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       }
       function setBlocks(blocks: StepBlock[]) {
         if (!steps[activeIdx]) return
-        // Keep LLM-generated step_title if set (from show_interaction), otherwise derive from text
+        // Keep LLM step_title if already set (from show_interaction or previous setBlocks)
         const existingSummary = steps[activeIdx].summary
-        const hasLLMTitle = existingSummary && !existingSummary.includes('...') && existingSummary.length < 80
-        if (!hasLLMTitle) {
-          const lastText = [...blocks].reverse().find(b => b.kind === 'text')
-          const summary = lastText
-            ? (lastText.content.length > 80
-              ? lastText.content.replace(/[#*_`]/g, '').slice(0, 77) + '...'
-              : lastText.content.replace(/[#*_`]/g, ''))
-            : existingSummary
-          steps[activeIdx] = { ...steps[activeIdx], blocks, summary: summary ?? null }
-        } else {
-          steps[activeIdx] = { ...steps[activeIdx], blocks }
+        const hasGoodTitle = existingSummary && existingSummary.length < 60 && existingSummary.length > 3 && !existingSummary.includes('...')
+        if (!hasGoodTitle) {
+          // Extract a short title from the LLM's text: first question or first sentence
+          const firstText = blocks.find(b => b.kind === 'text') as { kind: 'text'; content: string } | undefined
+          if (firstText) {
+            const lines = firstText.content.split('\n').filter(l => l.trim())
+            // Try to find a question
+            const question = lines.find(l => l.includes('?'))
+            // Or use the last meaningful short line (often the key question)
+            const lastShort = [...lines].reverse().find(l => l.trim().length > 5 && l.trim().length < 80)
+            const target = question || lastShort || lines[0] || ''
+            const clean = target.replace(/^[#*>\-\s]+/, '').replace(/[*_`]/g, '').trim()
+            if (clean.length > 3) {
+              const summary = clean.length > 55 ? clean.slice(0, 52) + '...' : clean
+              steps[activeIdx] = { ...steps[activeIdx], blocks, summary }
+              return
+            }
+          }
         }
+        steps[activeIdx] = { ...steps[activeIdx], blocks }
       }
 
       for (const event of batch) {
@@ -486,6 +494,18 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
                 hints: '',
                 interaction_types: [],
               })
+            }
+            break
+          }
+          case 'processing_status': {
+            const d = event.data as any
+            const statusStr = d?.status || ''
+            // Handle step_done:{title} — set the step title
+            if (statusStr.startsWith('step_done:')) {
+              const title = statusStr.slice('step_done:'.length).trim()
+              if (title && steps[activeIdx]) {
+                steps[activeIdx] = { ...steps[activeIdx], summary: title }
+              }
             }
             break
           }
