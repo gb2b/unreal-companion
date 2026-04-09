@@ -336,8 +336,8 @@ export function StudioPage() {
 
   // === Render ===
 
-  // Document editor — shown at /studio/doc/:docId
-  if (docId) {
+  // Document editor — shown at /studio/doc/:docId (NOT when workflowId is present)
+  if (docId && !workflowId) {
     return (
       <div className="h-full">
         <DocumentEditorView docId={docId} projectPath={projectPath} />
