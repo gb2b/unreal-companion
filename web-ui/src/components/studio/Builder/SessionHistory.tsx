@@ -93,10 +93,18 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
       return hasText || hasInteraction || step.status === 'active'
     })
 
+  // Collapse old steps — show last 4 by default
+  const VISIBLE_RECENT = 4
+  const [showAll, setShowAll] = useState(false)
+  const hiddenCount = Math.max(0, visibleSteps.length - VISIBLE_RECENT)
+  const displayedSteps = showAll || hiddenCount === 0
+    ? visibleSteps
+    : visibleSteps.slice(-VISIBLE_RECENT)
+
   // Group by day
   const groups: Array<{ dayLabel: string; steps: typeof visibleSteps }> = []
   let currentDay = ''
-  for (const vs of visibleSteps) {
+  for (const vs of displayedSteps) {
     const day = vs.timestamp ? new Date(vs.timestamp).toDateString() : ''
     if (day !== currentDay) {
       currentDay = day
@@ -122,7 +130,22 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
             {language === 'fr' ? 'La conversation apparaitra ici.' : 'Conversation will appear here.'}
           </p>
         ) : (
-          groups.map((group, gi) => (
+          <>
+          {/* "Show more" button when steps are collapsed */}
+          {!showAll && hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="flex w-full items-center justify-center gap-1.5 py-2 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors border-b border-border/10"
+            >
+              <span className="flex flex-col gap-[2px]">
+                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
+                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
+                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
+              </span>
+              <span>{hiddenCount} {language === 'fr' ? 'précédentes' : 'earlier'}</span>
+            </button>
+          )}
+          {groups.map((group, gi) => (
             <div key={gi}>
               {group.dayLabel && (
                 <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-sm border-b border-border/10 px-3 py-1">
@@ -191,7 +214,8 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                 )
               })}
             </div>
-          ))
+          ))}
+          </>
         )}
       </div>
     </div>
