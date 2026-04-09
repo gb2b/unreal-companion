@@ -22,7 +22,7 @@ interface AttachedDoc {
 }
 
 // Tools whose spinner/card should not be shown — the result speaks for itself
-const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
+const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user', 'step_done']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
 /** Extract timestamp from step id: step-{n}-{Date.now()} */
@@ -100,8 +100,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   report_progress: 'Progress',
 }
 
-function ToolCallCard({ name, label, status, startTime, result }: {
-  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; result?: string
+function ToolCallCard({ name, label, status, startTime, endTime, result }: {
+  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string
 }) {
   if (HIDDEN_TOOLS.includes(name)) return null
   const [expanded, setExpanded] = useState(false)
@@ -136,7 +136,7 @@ function ToolCallCard({ name, label, status, startTime, result }: {
 
         {/* Timer */}
         {status === 'pending' && <ElapsedTimer startTime={startTime} />}
-        {(status === 'done' || status === 'error') && startTime && <FinalDuration startTime={startTime} />}
+        {(status === 'done' || status === 'error') && startTime && <FinalDuration startTime={startTime} endTime={endTime} />}
 
         {/* Expand indicator */}
         {hasResult && (
@@ -174,8 +174,8 @@ function ElapsedTimer({ startTime }: { startTime?: number }) {
 }
 
 /** Static duration after completion */
-function FinalDuration({ startTime }: { startTime: number }) {
-  const duration = Math.floor((Date.now() - startTime) / 1000)
+function FinalDuration({ startTime, endTime }: { startTime: number; endTime?: number }) {
+  const duration = Math.floor(((endTime || Date.now()) - startTime) / 1000)
   return <span className="text-[9px] text-muted-foreground/30 tabular-nums">{formatDuration(duration)}</span>
 }
 
@@ -388,7 +388,7 @@ export function StepSlide({
           {blocks.map((block, i) => {
             switch (block.kind) {
               case 'tool_call':
-                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={(block as any).startTime} result={(block as any).result} />
+                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={(block as any).startTime} endTime={(block as any).endTime} result={(block as any).result} />
               case 'text':
                 return (
                   <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>

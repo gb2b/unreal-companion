@@ -432,7 +432,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             const blocks = getBlocks()
             for (let i = blocks.length - 1; i >= 0; i--) {
               if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
-                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done', result: resultPreview } as any
+                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done', result: resultPreview, endTime: Date.now() } as any
                 break
               }
             }
