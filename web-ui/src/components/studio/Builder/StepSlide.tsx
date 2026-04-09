@@ -191,6 +191,7 @@ interface StepSlideProps {
   onSkip: () => void
   onProposeModification: (stepIndex: number) => void
   projectPath?: string
+  previousUserResponse?: string | null
 }
 
 export function StepSlide({
@@ -207,6 +208,7 @@ export function StepSlide({
   onSkip,
   onProposeModification,
   projectPath,
+  previousUserResponse,
 }: StepSlideProps) {
   const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
@@ -342,6 +344,15 @@ export function StepSlide({
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
+
+          {/* User's previous response — shown as a right-aligned bubble */}
+          {previousUserResponse && (
+            <div className="flex justify-end mb-2">
+              <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-primary/10 border border-primary/20 px-4 py-2">
+                <p className="text-sm text-foreground/80">{previousUserResponse.split('\n')[0]}</p>
+              </div>
+            </div>
+          )}
 
           {/* Render all blocks in order — additive, nothing disappears */}
           {blocks.map((block, i) => {

@@ -177,7 +177,7 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                             : <span className="text-muted-foreground/40">&#9675;</span>}
                       </span>
 
-                      {/* Label */}
+                      {/* Label: step title + user response */}
                       <span className="flex-1 min-w-0">
                         {isProcessing && !label ? (
                           <span className="text-[11px] text-primary/70 italic">
@@ -186,6 +186,9 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                         ) : (
                           <span className="text-[11px] text-foreground/80 truncate block">
                             {label || 'Step'}
+                            {step.status === 'answered' && step.userResponse && (
+                              <span className="text-muted-foreground/50"> — {step.userResponse.split('\n')[0].slice(0, 30)}</span>
+                            )}
                           </span>
                         )}
                       </span>
