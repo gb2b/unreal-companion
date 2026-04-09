@@ -25,6 +25,57 @@ interface AttachedDoc {
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
+const THINKING_MESSAGES = [
+  'Gathering mana...',
+  'Rolling for initiative...',
+  'Consulting the design doc...',
+  'Spawning ideas...',
+  'Loading next level...',
+  'Crafting response...',
+  'Parsing the lore...',
+  'Buffing creativity...',
+  'Compiling shaders...',
+  'Optimizing fun...',
+  'Balancing the meta...',
+  'Checking the wiki...',
+  'Casting inspiration...',
+  'Mining for gems...',
+  'Rendering thoughts...',
+  'Unlocking achievement...',
+  'Searching the backlog...',
+  'Polishing pixels...',
+  'Tuning the loop...',
+  'Respawning ideas...',
+  'Equipping knowledge...',
+  'Exploring the design space...',
+  'Debugging creativity...',
+  'Playtesting concepts...',
+  'Iterating...',
+]
+
+function ThinkingIndicator() {
+  const [msgIndex, setMsgIndex] = useState(() => Math.floor(Math.random() * THINKING_MESSAGES.length))
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMsgIndex(prev => {
+        let next = Math.floor(Math.random() * THINKING_MESSAGES.length)
+        while (next === prev) next = Math.floor(Math.random() * THINKING_MESSAGES.length)
+        return next
+      })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground/50 mt-2">
+      <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />
+      <span className="transition-opacity duration-300">{THINKING_MESSAGES[msgIndex]}</span>
+      <ElapsedTimer />
+    </div>
+  )
+}
+
 /** Pretty tool name for display */
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
   doc_scan: 'Scan',
@@ -364,15 +415,11 @@ export function StepSlide({
             </div>
           )}
 
-          {/* "Thinking..." / "Preparing..." — shown when processing but nothing visible is happening */}
+          {/* Thinking indicator — fun game-dev themed messages */}
           {isProcessing && !isStreaming && !blocks.some(
             b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
           ) && !blocks.some(b => b.kind === 'interaction') && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground/50 mt-2">
-              <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />
-              <span>{blocks.some(b => b.kind === 'text') ? 'Preparing...' : 'Thinking...'}</span>
-              <ElapsedTimer />
-            </div>
+            <ThinkingIndicator />
           )}
 
         </div>
