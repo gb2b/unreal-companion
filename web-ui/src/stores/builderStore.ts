@@ -533,6 +533,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           message,
           agent: state.workflow.agents.primary,
           workflow_id: state.workflow.id,
+          document_id: state.documentId || '',
           section_focus: options.sectionFocus || state.activeSection || '',
           language: options.language || 'en',
           project_path: state.projectPath,
