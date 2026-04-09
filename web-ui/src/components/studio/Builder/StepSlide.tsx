@@ -364,13 +364,13 @@ export function StepSlide({
             </div>
           )}
 
-          {/* Simple "Thinking..." — only when no VISIBLE tool_call spinner is pending and not streaming */}
+          {/* "Thinking..." / "Preparing..." — shown when processing but nothing visible is happening */}
           {isProcessing && !isStreaming && !blocks.some(
             b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
-          ) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground/50">
-              <span className="animate-pulse">●</span>
-              <span>Thinking...</span>
+          ) && !blocks.some(b => b.kind === 'interaction') && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground/50 mt-2">
+              <span className="h-3 w-3 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />
+              <span>{blocks.some(b => b.kind === 'text') ? 'Preparing...' : 'Thinking...'}</span>
               <ElapsedTimer />
             </div>
           )}
