@@ -172,15 +172,13 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           }
         }
 
-        // Keep LLM step_title if it was set (short, not a text excerpt)
-        const hasLLMTitle = activeStep.summary && activeStep.summary.length < 60 && !activeStep.summary.includes('...')
+        // Never overwrite summary — it's set by step_done only
         steps[state.activeMicroStepIndex] = {
           ...activeStep,
           userResponse: message,
           selectedChoiceIds: choiceIds,
           selectedChoiceLabels: choiceLabels,
           status: 'answered',
-          ...(hasLLMTitle ? {} : { summary: message.length > 60 ? message.slice(0, 57) + '...' : message }),
         }
       }
       set({ microSteps: steps })
@@ -250,27 +248,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       }
       function setBlocks(blocks: StepBlock[]) {
         if (!steps[activeIdx]) return
-        // Keep LLM step_title if already set (from show_interaction or previous setBlocks)
-        const existingSummary = steps[activeIdx].summary
-        const hasGoodTitle = existingSummary && existingSummary.length < 60 && existingSummary.length > 3 && !existingSummary.includes('...')
-        if (!hasGoodTitle) {
-          // Extract a short title from the LLM's text: first question or first sentence
-          const firstText = blocks.find(b => b.kind === 'text') as { kind: 'text'; content: string } | undefined
-          if (firstText) {
-            const lines = firstText.content.split('\n').filter(l => l.trim())
-            // Try to find a question
-            const question = lines.find(l => l.includes('?'))
-            // Or use the last meaningful short line (often the key question)
-            const lastShort = [...lines].reverse().find(l => l.trim().length > 5 && l.trim().length < 80)
-            const target = question || lastShort || lines[0] || ''
-            const clean = target.replace(/^[#*>\-\s]+/, '').replace(/[*_`]/g, '').trim()
-            if (clean.length > 3) {
-              const summary = clean.length > 55 ? clean.slice(0, 52) + '...' : clean
-              steps[activeIdx] = { ...steps[activeIdx], blocks, summary }
-              return
-            }
-          }
-        }
+        // Summary is only set by step_done — no auto-extraction
         steps[activeIdx] = { ...steps[activeIdx], blocks }
       }
 
@@ -500,12 +478,16 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           case 'processing_status': {
             const d = event.data as any
             const statusStr = d?.status || ''
-            // Handle step_done:{title} — set the step title
-            if (statusStr.startsWith('step_done:')) {
+            if (statusStr.startsWith('step_done:') && steps[activeIdx]) {
               const title = statusStr.slice('step_done:'.length).trim()
-              if (title && steps[activeIdx]) {
-                steps[activeIdx] = { ...steps[activeIdx], summary: title }
-              }
+              steps[activeIdx] = {
+                ...steps[activeIdx],
+                summary: title || null,
+                // Store step stats for the footer
+                stepDoneAt: Date.now(),
+                stepTokensIn: inTkn,
+                stepTokensOut: outTkn,
+              } as any
             }
             break
           }

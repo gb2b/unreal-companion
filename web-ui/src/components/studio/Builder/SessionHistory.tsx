@@ -15,29 +15,10 @@ function getStepTime(step: MicroStep): number {
   return isNaN(ts) ? 0 : ts
 }
 
-/** Get the label for a step. Priority: LLM step_title > question > fallback */
+/** Get the label for a step — only from step_done summary */
 function getStepLabel(step: MicroStep): string | null {
-  // 1. LLM-generated step_title (in summary)
-  if (step.summary && step.summary.length < 80 && step.summary !== 'Step') {
+  if (step.summary && step.summary !== 'Step') {
     return step.summary
-  }
-  // 2. Extract question from text blocks
-  const textBlocks = step.blocks.filter(b => b.kind === 'text') as Array<{ kind: 'text'; content: string }>
-  for (const block of textBlocks) {
-    const lines = block.content.split('\n').filter(l => l.trim())
-    const question = lines.find(l => l.includes('?'))
-    if (question) {
-      const clean = question.replace(/^[#*>\-\s]+/, '').trim()
-      return clean.length <= 50 ? clean : clean.slice(0, 49) + '...'
-    }
-  }
-  // 3. First meaningful line (short)
-  if (textBlocks.length > 0) {
-    const first = textBlocks[0].content.split('\n').find(l => l.trim())
-    if (first) {
-      const clean = first.replace(/^[#*>\-\s]+/, '').trim()
-      return clean.length <= 50 ? clean : clean.slice(0, 49) + '...'
-    }
   }
   return null
 }
@@ -177,16 +158,16 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                             : <span className="text-muted-foreground/40">&#9675;</span>}
                       </span>
 
-                      {/* Label: step title (question topic) + user response below */}
+                      {/* Label */}
                       <span className="flex-1 min-w-0">
-                        {isProcessing && !label ? (
-                          <span className="text-[11px] text-primary/70 italic">
+                        {!label ? (
+                          <span className="text-[11px] text-primary/70 italic truncate block">
                             {toolLabel || (language === 'fr' ? 'En cours...' : 'Processing...')}
                           </span>
                         ) : (
                           <span className="flex flex-col">
                             <span className="text-[11px] text-foreground/80 truncate">
-                              {label || 'Step'}
+                              {label}
                             </span>
                             {step.status === 'answered' && step.userResponse && (
                               <span className="text-[10px] text-muted-foreground/40 truncate">

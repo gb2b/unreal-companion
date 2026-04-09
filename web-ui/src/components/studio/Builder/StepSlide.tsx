@@ -25,6 +25,13 @@ interface AttachedDoc {
 const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
+/** Extract timestamp from step id: step-{n}-{Date.now()} */
+function getStepTime(step: MicroStep): number {
+  const parts = step.id.split('-')
+  const ts = parseInt(parts[parts.length - 1], 10)
+  return isNaN(ts) ? 0 : ts
+}
+
 const THINKING_MESSAGES = [
   'Gathering mana...',
   'Rolling for initiative...',
@@ -455,6 +462,27 @@ export function StepSlide({
           ) && !blocks.some(b => b.kind === 'interaction') && (
             <ThinkingIndicator />
           )}
+
+          {/* Step footer — shows after step_done with title + stats */}
+          {(() => {
+            const step = microStep as any
+            if (!step?.stepDoneAt) return null
+            const startTime = getStepTime(microStep!)
+            const duration = startTime ? Math.floor((step.stepDoneAt - startTime) / 1000) : 0
+            const tokensIn = step.stepTokensIn || 0
+            const tokensOut = step.stepTokensOut || 0
+            return (
+              <div className="mt-4 pt-3 border-t border-border/20">
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/40">
+                  {duration > 0 && <span>{formatDuration(duration)}</span>}
+                  {duration > 0 && (tokensIn > 0 || tokensOut > 0) && <span>·</span>}
+                  {(tokensIn > 0 || tokensOut > 0) && (
+                    <span>{tokensIn > 0 ? `${Math.round(tokensIn / 1000)}k` : '0'} in / {tokensOut > 0 ? `${Math.round(tokensOut / 1000)}k` : '0'} out</span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
         </div>
       </div>
