@@ -93,13 +93,15 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
       return hasText || hasInteraction || step.status === 'active'
     })
 
-  // Collapse old steps — show last 4 by default
-  const VISIBLE_RECENT = 4
+  // Reverse order: active step on top, older steps below
+  // Show last 10, collapse the rest behind "show more" at the bottom
+  const VISIBLE_RECENT = 10
   const [showAll, setShowAll] = useState(false)
-  const hiddenCount = Math.max(0, visibleSteps.length - VISIBLE_RECENT)
+  const reversedSteps = [...visibleSteps].reverse()
+  const hiddenCount = Math.max(0, reversedSteps.length - VISIBLE_RECENT)
   const displayedSteps = showAll || hiddenCount === 0
-    ? visibleSteps
-    : visibleSteps.slice(-VISIBLE_RECENT)
+    ? reversedSteps
+    : reversedSteps.slice(0, VISIBLE_RECENT)
 
   // Group by day
   const groups: Array<{ dayLabel: string; steps: typeof visibleSteps }> = []
@@ -131,20 +133,6 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
           </p>
         ) : (
           <>
-          {/* "Show more" button when steps are collapsed */}
-          {!showAll && hiddenCount > 0 && (
-            <button
-              onClick={() => setShowAll(true)}
-              className="flex w-full items-center justify-center gap-1.5 py-2 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors border-b border-border/10"
-            >
-              <span className="flex flex-col gap-[2px]">
-                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
-                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
-                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
-              </span>
-              <span>{hiddenCount} {language === 'fr' ? 'précédentes' : 'earlier'}</span>
-            </button>
-          )}
           {groups.map((group, gi) => (
             <div key={gi}>
               {group.dayLabel && (
@@ -215,6 +203,20 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
               })}
             </div>
           ))}
+          {/* "Show more" at the bottom */}
+          {!showAll && hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="flex w-full items-center justify-center gap-1.5 py-2.5 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors border-t border-border/10"
+            >
+              <span className="flex flex-col gap-[2px]">
+                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
+                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
+                <span className="block h-[2px] w-[2px] rounded-full bg-current" />
+              </span>
+              <span>{hiddenCount} {language === 'fr' ? 'précédentes' : 'earlier'}</span>
+            </button>
+          )}
           </>
         )}
       </div>
