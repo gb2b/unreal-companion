@@ -25,6 +25,7 @@ from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
 from services.conversation_history import ConversationHistory
 from services.context_brief import build_context_brief
+from services.llm_engine.prompt_modules import PromptContext, assemble_dynamic_guide
 from services.migrate_structure import needs_migration, migrate_project
 
 logger = logging.getLogger(__name__)
@@ -119,7 +120,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         .add_language(request.language)
         .add_user_identity(user_name)
         .add_agent_persona(agent_prompt)
-        .add_interaction_guide()
+        .add_interaction_guide()  # Fallback — replaced by add_dynamic_guide once full context is available
         .add_security_rules()
     )
 
@@ -130,9 +131,10 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
     # Add workflow briefing and document template if workflow specified
     workflow_sections_dicts: list[dict] = []
+    wf: WorkflowV2 | None = None
     if request.workflow_id:
         search_paths = get_workflow_search_paths(None)
-        wf = load_workflow_v2(request.workflow_id, search_paths)
+        wf = load_workflow_v2(request.workflow_id, search_paths, project_path=request.project_path)
         if wf:
             if wf.briefing:
                 builder.add_workflow_briefing(wf.briefing)
@@ -335,6 +337,71 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                     ctx_section_statuses[sid] = smeta.get("status", "empty") if isinstance(smeta, dict) else "empty"
                 ctx_section_contents = _parse_section_contents(doc_data.get("content", ""))
 
+            # Find current section (in_progress)
+            _current_section = None
+            _completed_count = 0
+            for ws in workflow_sections_dicts:
+                sid = ws.get("id", "")
+                status = ctx_section_statuses.get(sid, "empty")
+                if status == "in_progress":
+                    _current_section = ws
+                elif status == "complete":
+                    _completed_count += 1
+            _total_required = sum(1 for ws in workflow_sections_dicts if ws.get("required", True))
+
+            # Check for uploaded docs
+            _has_uploaded = False
+            try:
+                doc_data_check = doc_store_ctx.get_document(doc_id)
+                _has_uploaded = bool(doc_data_check and doc_data_check.get("meta", {}).get("attached_files"))
+            except Exception:
+                pass
+
+            # Check for project context
+            _has_project_ctx = False
+            try:
+                _has_project_ctx = (Path(request.project_path) / ".unreal-companion" / "project-memory.md").exists()
+            except Exception:
+                pass
+
+            # Check user renamed
+            _user_renamed = False
+            try:
+                _user_renamed = bool(doc_data and doc_data.get("meta", {}).get("user_renamed"))
+            except Exception:
+                pass
+
+            # Determine turn number from conversation history
+            _turn_number = 0
+            try:
+                _prev = conv_history.get_recent(doc_id, max_messages=100)
+                _turn_number = sum(1 for m in _prev if m.get("role") == "user") if _prev else 0
+            except Exception:
+                pass
+
+            # Rebuild PromptContext with full runtime state
+            prompt_ctx_full = PromptContext(
+                is_workflow_start=False,
+                turn_number=_turn_number,
+                doc_id=doc_id,
+                workflow_id=request.workflow_id or None,
+                workflow_name=wf.name if (request.workflow_id and wf) else None,
+                workflow_sections=workflow_sections_dicts,
+                section_statuses=ctx_section_statuses,
+                section_contents=ctx_section_contents,
+                current_section=_current_section,
+                completed_section_count=_completed_count,
+                total_required_sections=_total_required,
+                has_uploaded_docs=_has_uploaded,
+                has_project_context=_has_project_ctx,
+                user_renamed_doc=_user_renamed,
+                language=request.language,
+            )
+
+            # Replace the fallback interaction guide with the full dynamic guide
+            builder.sections = [s for s in builder.sections if s.name != "InteractionGuide"]
+            builder.add_dynamic_guide(prompt_ctx_full)
+
             session_snap = _load_session_snapshot(request.project_path, doc_id)
             context_brief = build_context_brief(
                 project_path=request.project_path,
@@ -345,7 +412,11 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 session_snapshot=session_snap,
             )
             builder.add_context_brief(context_brief)
-            system = builder.build()  # Rebuild with context brief
+            system = builder.build()  # Rebuild with context brief + dynamic guide
+
+            # Debug: log approximate token count for the dynamic guide vs old INTERACTION_GUIDE
+            _guide_text = assemble_dynamic_guide(prompt_ctx_full)
+            logger.info(f"[prompt] system≈{len(system)//4}tok dynamic_guide≈{len(_guide_text)//4}tok (old INTERACTION_GUIDE≈700tok)")
 
             # Trimmed history — only last 6 messages
             previous_messages = conv_history.get_recent(doc_id, max_messages=6)

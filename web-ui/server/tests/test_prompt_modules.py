@@ -721,3 +721,53 @@ class TestSystemPromptBuilderIntegration:
         assert "French" in prompt or "français" in prompt
         assert "Security" in prompt
         assert "step_done" in prompt
+
+
+class TestStudioV2PromptContextBuilding:
+    """Test that PromptContext can be built from typical studio_v2 data."""
+
+    def test_build_context_from_request_data(self):
+        """Simulate building PromptContext from studio_v2 request data."""
+        # Simulating the data studio_v2.py would have
+        workflow_id = "game-brief"
+        workflow_name = "Game Brief"
+        is_workflow_start = False
+        turn_number = 5
+        language = "fr"
+        doc_id = "concept/game-brief"
+        current_section = {"id": "vision", "name": "Vision"}
+        section_statuses = {"identity": "complete", "vision": "in_progress", "pillars": "empty"}
+        section_contents = {"identity": "Name: Tactical Hearts\nGenre: Tactical RPG", "vision": "A game about emotions."}
+        completed_count = sum(1 for s in section_statuses.values() if s == "complete")
+        total_required = 3
+        has_uploaded_docs = True
+        has_project_context = True
+        user_renamed_doc = False
+
+        ctx = PromptContext(
+            is_workflow_start=is_workflow_start,
+            turn_number=turn_number,
+            doc_id=doc_id,
+            workflow_id=workflow_id,
+            workflow_name=workflow_name,
+            current_section=current_section,
+            section_statuses=section_statuses,
+            section_contents=section_contents,
+            completed_section_count=completed_count,
+            total_required_sections=total_required,
+            has_uploaded_docs=has_uploaded_docs,
+            has_project_context=has_project_context,
+            user_renamed_doc=user_renamed_doc,
+            language=language,
+        )
+
+        assert ctx.workflow_id == "game-brief"
+        assert ctx.completed_section_count == 1
+        assert ctx.language == "fr"
+        assert ctx.current_section["id"] == "vision"
+
+        # Now verify it assembles correctly
+        result = assemble_dynamic_guide(ctx)
+        assert "A game about emotions." in result  # BUG 1 FIX: section content injected
+        assert "tutoiement" in result  # French language rules
+        assert "First Step of Every Workflow" not in result  # Not first step (turn_number=5)
