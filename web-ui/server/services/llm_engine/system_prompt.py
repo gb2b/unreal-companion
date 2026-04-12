@@ -243,8 +243,30 @@ class SystemPromptBuilder:
         return self
 
     def add_interaction_guide(self) -> "SystemPromptBuilder":
-        """Add the interaction guide for interceptor tools."""
+        """Add the interaction guide for interceptor tools.
+
+        DEPRECATED: Use add_dynamic_guide(ctx) instead for context-aware modular rules.
+        This method is kept for backward compatibility only.
+        """
+        import warnings
+        warnings.warn(
+            "add_interaction_guide() is deprecated. Use add_dynamic_guide(ctx) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.add("InteractionGuide", INTERACTION_GUIDE, priority=40)
+
+    def add_dynamic_guide(self, ctx) -> "SystemPromptBuilder":
+        """Add the dynamic interaction guide assembled from prompt modules.
+
+        This replaces add_interaction_guide() with context-aware modular rules.
+        The ctx parameter is a PromptContext instance from prompt_modules.
+        """
+        from services.llm_engine.prompt_modules import assemble_dynamic_guide
+        guide = assemble_dynamic_guide(ctx)
+        if guide.strip():
+            return self.add("DynamicGuide", f"## Behavioral Guide\n\n{guide}", priority=40)
+        return self
 
     def add_uploaded_context(self, documents: list[dict]) -> "SystemPromptBuilder":
         """Add content from uploaded documents."""

@@ -97,3 +97,54 @@ class TestLoadWorkflowV2:
         result = load_workflow_v2("brainstorming", [tmp_path])
         assert result is not None
         assert result.is_v2 is False
+
+
+import re
+from datetime import datetime
+
+
+class TestResolveWorkflowVariables:
+    """Test that {date} and other placeholders are resolved."""
+
+    def test_date_placeholder_resolved_in_briefing(self, tmp_path):
+        """Bug fix #3: {date} in workflow YAML should be resolved."""
+        wf_dir = tmp_path / "workflows" / "test-wf"
+        wf_dir.mkdir(parents=True)
+        yaml_content = """
+id: test-wf
+name: "Test Workflow -- {date}"
+description: "Created on {date}"
+briefing: "Today is {date}. Help the user."
+sections:
+  - id: intro
+    name: Introduction
+"""
+        (wf_dir / "workflow.yaml").write_text(yaml_content)
+
+        result = load_workflow_v2("test-wf", [tmp_path / "workflows"], project_path="")
+        assert result is not None
+        # {date} should be replaced with today's date (YYYY-MM-DD format)
+        today = datetime.now().strftime("%Y-%m-%d")
+        assert today in result.name, f"Expected {today} in name, got {result.name}"
+        assert today in result.briefing, f"Expected {today} in briefing, got {result.briefing}"
+        assert "{date}" not in result.name
+        assert "{date}" not in result.briefing
+
+    def test_no_placeholder_unchanged(self, tmp_path):
+        """Workflows without placeholders should not be affected."""
+        wf_dir = tmp_path / "workflows" / "plain-wf"
+        wf_dir.mkdir(parents=True)
+        yaml_content = """
+id: plain-wf
+name: "Plain Workflow"
+briefing: "Just a normal briefing."
+sections:
+  - id: intro
+    name: Introduction
+"""
+        (wf_dir / "workflow.yaml").write_text(yaml_content)
+
+        result = load_workflow_v2("plain-wf", [tmp_path / "workflows"], project_path="")
+        assert result is not None
+        assert result.name == "Plain Workflow"
+        assert result.briefing == "Just a normal briefing."

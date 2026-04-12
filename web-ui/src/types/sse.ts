@@ -21,6 +21,7 @@ export type SSEEventType =
   | 'micro_step'
   | 'section_transition'
   | 'section_added'
+  | 'learning_card'
 
 export interface TextDeltaEvent {
   content: string
@@ -95,6 +96,13 @@ export interface SectionAddedEvent {
   required?: boolean
 }
 
+export interface LearningCardEvent {
+  term: string
+  explanation: string
+  examples: Array<{ game: string; how: string }>
+  category: 'design' | 'production' | 'technical' | 'art' | 'audio' | 'narrative'
+}
+
 export type SSEEventData =
   | TextDeltaEvent
   | TextDoneEvent
@@ -111,6 +119,7 @@ export type SSEEventData =
   | MicroStepEvent
   | SectionTransitionEvent
   | SectionAddedEvent
+  | LearningCardEvent
   | Record<string, never> // done event
 
 export interface SSEEvent {

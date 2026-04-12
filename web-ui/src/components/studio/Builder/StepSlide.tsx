@@ -6,6 +6,7 @@ import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
 import { AttachModal } from './AttachModal'
+import { LearningCard } from './LearningCard'
 import type { AttachResult } from './AttachModal'
 
 interface AttachedFile {
@@ -100,8 +101,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   report_progress: 'Progress',
 }
 
-function ToolCallCard({ name, label, status, startTime, endTime, result }: {
-  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string
+function ToolCallCard({ name, label, status, startTime, endTime, result, summary }: {
+  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; summary?: string
 }) {
   if (HIDDEN_TOOLS.includes(name)) return null
   const [expanded, setExpanded] = useState(false)
@@ -110,7 +111,7 @@ function ToolCallCard({ name, label, status, startTime, endTime, result }: {
 
   return (
     <div className="py-0.5">
-      {/* Line 1: Icon — Tool Name — Description — Timer */}
+      {/* Line 1: Icon — Tool Name — Summary/Description — Timer */}
       <button
         onClick={() => hasResult && setExpanded(v => !v)}
         className={`flex w-full items-center gap-1.5 text-left text-[11px] ${hasResult ? 'cursor-pointer' : 'cursor-default'}`}
@@ -127,11 +128,11 @@ function ToolCallCard({ name, label, status, startTime, endTime, result }: {
           {displayName}
         </span>
 
-        {/* LLM description */}
+        {/* Summary (after completion) or LLM description (during pending) */}
         <span className={`flex-1 truncate ${
           status === 'error' ? 'text-red-400/60 line-through' : 'text-muted-foreground/50'
         }`}>
-          {label}
+          {status !== 'pending' && summary ? summary : label}
         </span>
 
         {/* Timer */}
@@ -388,7 +389,7 @@ export function StepSlide({
           {blocks.map((block, i) => {
             switch (block.kind) {
               case 'tool_call':
-                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={(block as any).startTime} endTime={(block as any).endTime} result={(block as any).result} />
+                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={block.startTime} endTime={block.endTime} result={block.result} summary={block.summary} />
               case 'text':
                 return (
                   <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>
@@ -431,6 +432,16 @@ export function StepSlide({
                       disabled={isProcessing || !!isReadonly}
                     />
                   </div>
+                )
+              case 'learning_card':
+                return (
+                  <LearningCard
+                    key={i}
+                    term={block.term}
+                    explanation={block.explanation}
+                    examples={block.examples}
+                    category={block.category}
+                  />
                 )
               case 'thinking':
                 // Thinking blocks are transient — don't render as persistent blocks

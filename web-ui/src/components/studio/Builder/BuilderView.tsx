@@ -12,6 +12,32 @@ import { OnboardingTour } from './OnboardingTour'
 import { ResumeBanner, RepeatableBanner } from './ResumeBanner'
 import './animations.css'
 
+function LearningModeToggle() {
+  const [enabled, setEnabled] = useState(() => localStorage.getItem('learning_mode') === 'true')
+
+  function toggle() {
+    const next = !enabled
+    setEnabled(next)
+    localStorage.setItem('learning_mode', next ? 'true' : 'false')
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+        enabled
+          ? 'border-violet-500/30 bg-violet-500/10 text-violet-300'
+          : 'border-border/30 bg-transparent text-muted-foreground/50 hover:text-muted-foreground'
+      }`}
+      title={enabled ? 'Learning Mode ON' : 'Learning Mode OFF'}
+    >
+      <span aria-hidden="true">🎓</span>
+      <span className="hidden sm:inline">{enabled ? 'Learning' : 'Learn'}</span>
+      <span className={`h-2 w-2 rounded-full ${enabled ? 'bg-violet-400' : 'bg-muted-foreground/30'}`} />
+    </button>
+  )
+}
+
 export interface BuilderBannerConfig {
   type: 'resume' | 'repeatable'
   documentName?: string
@@ -170,6 +196,11 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
           onDismiss={() => setBannerVisible(false)}
         />
       )}
+
+      {/* Builder toolbar */}
+      <div className="flex items-center justify-end gap-2 px-3 py-1 border-b border-border/20">
+        <LearningModeToggle />
+      </div>
 
       {/* Main area: SessionHistory (fixed) + resizable center/right */}
       <div className="flex flex-1 overflow-hidden">

@@ -25,6 +25,8 @@ from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
 from services.conversation_history import ConversationHistory
 from services.context_brief import build_context_brief
+from services.llm_engine.prompt_modules import PromptContext, assemble_dynamic_guide
+from services.llm_engine.tool_modules import SessionState, assemble_tools as assemble_tool_modules
 from services.migrate_structure import needs_migration, migrate_project
 
 logger = logging.getLogger(__name__)
@@ -43,6 +45,9 @@ async def _call_llm_simple(prompt: str, max_tokens: int = 1024) -> str:
 # Per-conversation context managers (in-memory for now)
 _context_managers: dict[str, ContextManager] = {}
 
+# Per-document session states (in-memory)
+_session_states: dict[str, SessionState] = {}
+
 
 class StudioChatRequest(BaseModel):
     message: str
@@ -53,6 +58,7 @@ class StudioChatRequest(BaseModel):
     section_focus: str = ""  # Optional: which section to focus on
     language: str = "en"  # User's preferred language (en, fr, etc.)
     project_path: str = ""  # Project path for document context
+    learning_mode: bool = False  # When True, explain_concept tool is active
 
 
 class DocumentResumeRequest(BaseModel):
@@ -119,7 +125,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         .add_language(request.language)
         .add_user_identity(user_name)
         .add_agent_persona(agent_prompt)
-        .add_interaction_guide()
+        .add_interaction_guide()  # Fallback — replaced by add_dynamic_guide once full context is available
         .add_security_rules()
     )
 
@@ -130,9 +136,10 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
 
     # Add workflow briefing and document template if workflow specified
     workflow_sections_dicts: list[dict] = []
+    wf: WorkflowV2 | None = None
     if request.workflow_id:
         search_paths = get_workflow_search_paths(None)
-        wf = load_workflow_v2(request.workflow_id, search_paths)
+        wf = load_workflow_v2(request.workflow_id, search_paths, project_path=request.project_path)
         if wf:
             if wf.briefing:
                 builder.add_workflow_briefing(wf.briefing)
@@ -148,130 +155,24 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     messages = [{"role": "user", "content": request.message}]
     conv_history = None
 
-    # Tool executor: handles local tools, then forwards to MCP bridge
+    # Tool executor: handles tools not covered by tool_modules — forwards to MCP bridge
     async def tool_executor(name: str, tool_input: dict) -> str:
-        # Strip _description from input (UI-only field)
+        """Handle tools not covered by tool_modules — forwards to MCP bridge."""
         tool_input.pop("_description", None)
         logger.info(f"[tool_executor] {name} | doc_id={doc_id} | input_keys={list(tool_input.keys())}")
-        # Handle read_project_document locally (not via MCP)
-        if name == "read_project_document":
-            read_doc_id = tool_input.get("document_id", "")
-            try:
-                store = DocumentStore(request.project_path)
-                doc = store.get_document(read_doc_id)
-                if doc:
-                    return json.dumps({"success": True, "content": doc["content"][:4000]})
-                return json.dumps({"success": False, "error": f"Document '{doc_id}' not found"})
-            except Exception as e:
-                return json.dumps({"success": False, "error": str(e)})
-
-        # Handle update_project_context locally (not via MCP)
-        if name == "update_project_context":
-            summary = tool_input.get("summary", "")
-            try:
-                context_path = Path(request.project_path) / ".unreal-companion" / "project-memory.md"
-                context_path.parent.mkdir(parents=True, exist_ok=True)
-                context_path.write_text(summary, encoding="utf-8")
-                return json.dumps({"success": True})
-            except Exception as e:
-                return json.dumps({"success": False, "error": str(e)})
-
-        # Handle rename_document locally (not via MCP)
-        if name == "rename_document":
-            new_name = tool_input.get("new_name", "")
-            try:
-                store = DocumentStore(request.project_path)
-                meta_path = store.root / doc_id / "meta.json"
-                if not meta_path.exists():
-                    return json.dumps({"success": False, "error": "Document not found"})
-                raw = json.loads(meta_path.read_text(encoding="utf-8"))
-                if raw.get("user_renamed", False):
-                    return json.dumps({"success": False, "error": "User has renamed this document. Do not rename."})
-                raw["name"] = new_name
-                meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-                # Also update the # Title in the document.md file
-                md_path = store.root / doc_id / "document.md"
-                if md_path.exists():
-                    content = md_path.read_text(encoding="utf-8")
-                    lines = content.split("\n")
-                    if lines and lines[0].startswith("#"):
-                        lines[0] = f"# {new_name}"
-                    md_path.write_text("\n".join(lines), encoding="utf-8")
-                return json.dumps({"success": True, "new_name": new_name})
-            except Exception as e:
-                return json.dumps({"success": False, "error": str(e)})
-
-        if name == "update_session_memory":
-            memory = tool_input.get("memory", "")
-            if request.project_path and doc_id:
-                snapshot_path = Path(request.project_path) / ".unreal-companion" / "documents" / doc_id / "session.json"
-                snapshot = {}
-                if snapshot_path.exists():
-                    try:
-                        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
-                    except Exception:
-                        pass
-                snapshot["memory"] = memory
-                snapshot["memory_updated"] = datetime.now(timezone.utc).isoformat()
-                snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-                snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
-            return json.dumps({"success": True})
-
-        if name == "doc_scan":
-            from services.doc_tools import DocTools
-            did = tool_input.get("doc_id", "")
-            logger.info(f"[tool] doc_scan: doc_id={did}")
-            dt = DocTools(request.project_path)
-            result = await dt.scan(did)
-            if "error" in result:
-                logger.warning(f"[tool] doc_scan error: {result}")
-            return json.dumps(result, ensure_ascii=False)
-
-        if name == "doc_read_summary":
-            from services.doc_tools import DocTools
-            did = tool_input.get("doc_id", "")
-            logger.info(f"[tool] doc_read_summary: doc_id={did}")
-            dt = DocTools(request.project_path)
-            result = dt.read_summary(did)
-            if "error" in result:
-                logger.warning(f"[tool] doc_read_summary error: {result}")
-            return json.dumps(result, ensure_ascii=False)
-
-        if name == "doc_read_section":
-            from services.doc_tools import DocTools
-            did = tool_input.get("doc_id", "")
-            sec = tool_input.get("section", "")
-            logger.info(f"[tool] doc_read_section: doc_id={did}, section={sec}")
-            dt = DocTools(request.project_path)
-            result = dt.read_section(did, sec)
-            if "error" in result:
-                logger.warning(f"[tool] doc_read_section error: {result}")
-            return json.dumps(result, ensure_ascii=False)
-
-        if name == "doc_grep":
-            from services.doc_tools import DocTools
-            query = tool_input.get("query", "")
-            doc_ids = tool_input.get("doc_ids")
-            logger.info(f"[tool] doc_grep: query={query}, doc_ids={doc_ids}")
-            dt = DocTools(request.project_path)
-            result = dt.grep(query, doc_ids)
-            logger.info(f"[tool] doc_grep: {len(result)} results")
-            return json.dumps(result, ensure_ascii=False)
-
-        # All other tools → MCP bridge
         try:
             result = await execute_tool(name, tool_input)
             return json.dumps(result, default=str)
         except Exception as e:
             return json.dumps({"error": str(e)})
 
-    # Get Unreal tools
+    # Get Unreal tools (MCP bridge)
     from services.mcp_bridge import get_tool_definitions
-    tools = []
+    unreal_tools = []
     try:
-        tools = get_tool_definitions()
+        unreal_tools = get_tool_definitions()
     except Exception:
-        pass  # No Unreal connection -- interceptor tools still work
+        pass  # No Unreal connection -- tool module tools still work
 
     # --- Document persistence setup ---
     # If [WORKFLOW_START] is in the message, create the document record now
@@ -335,6 +236,72 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                     ctx_section_statuses[sid] = smeta.get("status", "empty") if isinstance(smeta, dict) else "empty"
                 ctx_section_contents = _parse_section_contents(doc_data.get("content", ""))
 
+            # Find current section (in_progress)
+            _current_section = None
+            _completed_count = 0
+            for ws in workflow_sections_dicts:
+                sid = ws.get("id", "")
+                status = ctx_section_statuses.get(sid, "empty")
+                if status == "in_progress":
+                    _current_section = ws
+                elif status == "complete":
+                    _completed_count += 1
+            _total_required = sum(1 for ws in workflow_sections_dicts if ws.get("required", True))
+
+            # Check for uploaded docs
+            _has_uploaded = False
+            try:
+                doc_data_check = doc_store_ctx.get_document(doc_id)
+                _has_uploaded = bool(doc_data_check and doc_data_check.get("meta", {}).get("attached_files"))
+            except Exception:
+                pass
+
+            # Check for project context
+            _has_project_ctx = False
+            try:
+                _has_project_ctx = (Path(request.project_path) / ".unreal-companion" / "project-memory.md").exists()
+            except Exception:
+                pass
+
+            # Check user renamed
+            _user_renamed = False
+            try:
+                _user_renamed = bool(doc_data and doc_data.get("meta", {}).get("user_renamed"))
+            except Exception:
+                pass
+
+            # Determine turn number from conversation history
+            _turn_number = 0
+            try:
+                _prev = conv_history.get_recent(doc_id, max_messages=100)
+                _turn_number = sum(1 for m in _prev if m.get("role") == "user") if _prev else 0
+            except Exception:
+                pass
+
+            # Rebuild PromptContext with full runtime state
+            prompt_ctx_full = PromptContext(
+                is_workflow_start=False,
+                turn_number=_turn_number,
+                doc_id=doc_id,
+                workflow_id=request.workflow_id or None,
+                workflow_name=wf.name if (request.workflow_id and wf) else None,
+                workflow_sections=workflow_sections_dicts,
+                section_statuses=ctx_section_statuses,
+                section_contents=ctx_section_contents,
+                current_section=_current_section,
+                completed_section_count=_completed_count,
+                total_required_sections=_total_required,
+                has_uploaded_docs=_has_uploaded,
+                has_project_context=_has_project_ctx,
+                user_renamed_doc=_user_renamed,
+                language=request.language,
+                learning_mode=request.learning_mode,
+            )
+
+            # Replace the fallback interaction guide with the full dynamic guide
+            builder.sections = [s for s in builder.sections if s.name != "InteractionGuide"]
+            builder.add_dynamic_guide(prompt_ctx_full)
+
             session_snap = _load_session_snapshot(request.project_path, doc_id)
             context_brief = build_context_brief(
                 project_path=request.project_path,
@@ -345,7 +312,11 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 session_snapshot=session_snap,
             )
             builder.add_context_brief(context_brief)
-            system = builder.build()  # Rebuild with context brief
+            system = builder.build()  # Rebuild with context brief + dynamic guide
+
+            # Debug: log approximate token count for the dynamic guide vs old INTERACTION_GUIDE
+            _guide_text = assemble_dynamic_guide(prompt_ctx_full)
+            logger.info(f"[prompt] system≈{len(system)//4}tok dynamic_guide≈{len(_guide_text)//4}tok (old INTERACTION_GUIDE≈700tok)")
 
             # Trimmed history — only last 6 messages
             previous_messages = conv_history.get_recent(doc_id, max_messages=6)
@@ -356,8 +327,45 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
     if ctx_mgr.needs_summarization:
         messages, _ = ctx_mgr.summarize_messages(messages)
 
+    # Build PromptContext for tool availability
+    prompt_ctx = PromptContext(
+        is_workflow_start=is_workflow_start,
+        turn_number=0,  # Will be refined in the non-workflow-start branch below
+        doc_id=doc_id or None,
+        workflow_id=request.workflow_id or None,
+        current_section={"id": request.section_focus, "name": request.section_focus} if request.section_focus else None,
+        has_uploaded_docs=bool(request.project_path),  # simplified check
+        has_project_context=bool(request.project_path),
+        user_renamed_doc=False,
+        language=request.language,
+        learning_mode=request.learning_mode,
+    )
+
+    # Use the full prompt_ctx_full if available (non-workflow-start with conv history)
+    _final_prompt_ctx = prompt_ctx
+    try:
+        _final_prompt_ctx = prompt_ctx_full  # type: ignore[name-defined]
+    except NameError:
+        pass
+
+    # Get or create SessionState
+    state_key = f"{request.project_path}:{doc_id}" if doc_id else ""
+    if state_key and state_key not in _session_states:
+        _session_states[state_key] = SessionState(
+            project_path=request.project_path,
+            doc_id=doc_id or "",
+            workflow_id=request.workflow_id or "",
+            language=request.language,
+            workflow_sections=workflow_sections_dicts,
+        )
+    session_state = _session_states.get(state_key)
+
+    # Assemble tool module tools + Unreal tools
+    module_tools = assemble_tool_modules(_final_prompt_ctx)
+    all_tools = module_tools + unreal_tools
+
     # Run the agentic loop as an SSE stream
-    loop = AgenticLoop(provider, tool_executor)
+    loop = AgenticLoop(provider, tool_executor, session_state=session_state)
 
     async def event_generator():
         from dataclasses import asdict
@@ -367,7 +375,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
             async for event in loop.run(
                 messages=messages,
                 system=system,
-                tools=tools,
+                tools=all_tools,
                 max_tokens=4096,
             ):
                 # Collect assistant text for conversation history
