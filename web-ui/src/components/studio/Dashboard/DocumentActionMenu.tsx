@@ -79,7 +79,7 @@ export function DocumentActionMenu({
   function handleContinue(e: React.MouseEvent) {
     e.stopPropagation()
     setOpen(false)
-    navigate(`/studio/build/${encodeURIComponent(workflowId)}`)
+    navigate(`/studio/build/${encodeURIComponent(workflowId)}/${encodeURIComponent(docId)}`)
   }
 
   function handleRename(e: React.MouseEvent) {

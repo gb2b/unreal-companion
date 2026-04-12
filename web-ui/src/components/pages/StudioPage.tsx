@@ -44,11 +44,25 @@ import { DependencyGraph } from '@/components/board/DependencyGraph'
 import { DocumentsDashboard } from '@/components/studio/Dashboard/DocumentsDashboard'
 import { LibraryTab } from '@/components/studio/Dashboard/LibraryTab'
 import { BuilderView, type BuilderBannerConfig } from '@/components/studio/Builder/BuilderView'
+import { BuilderHeaderActions } from '@/components/studio/Builder/BuilderHeaderActions'
+import { useBuilderStore } from '@/stores/builderStore'
+import { generateDatedDocId } from '@/lib/docId'
 import { EditorView as DocumentEditorView } from '@/components/studio/Editor/EditorView'
 import { NewDocumentModal } from '@/components/studio/NewDocumentModal'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
 import type { WorkflowV2 } from '@/types/studio'
+
+/** Subscribes to the builder store to get the live document ID, then renders the action buttons. */
+function BuilderHeaderActionsSlot({ workflowId, projectPath }: { workflowId: string; projectPath: string }) {
+  const documentId = useBuilderStore(s => s.documentId)
+  if (!documentId) return null
+  return (
+    <div className="ml-auto flex items-center gap-2">
+      <BuilderHeaderActions docId={documentId} workflowId={workflowId} projectPath={projectPath} />
+    </div>
+  )
+}
 
 // === Types ===
 
@@ -356,6 +370,7 @@ export function StudioPage() {
             Back to Workshop
           </Button>
           <span className="text-sm font-medium text-muted-foreground">{displayedV2Workflow.name}</span>
+          <BuilderHeaderActionsSlot workflowId={displayedV2Workflow.id} projectPath={projectPath} />
         </div>
         <div className="flex-1 overflow-hidden">
           <BuilderView
@@ -364,10 +379,12 @@ export function StudioPage() {
             projectPath={projectPath}
             bannerConfig={builderBanner}
             docIdOverride={effectiveDocIdOverride}
-            onNewDocument={() => {
-              // Force remount BuilderView with a new key + unique doc ID (fresh start)
-              const ts = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 15)
-              setBuilderDocIdOverride(`${displayedV2Workflow.id}-${ts}`)
+            onNewDocument={async () => {
+              // Force remount BuilderView with a new key + unique doc ID (fresh start).
+              // ID format: {workflow.id}-{YYYY-MM-DD}[-N] — date only, with numeric
+              // suffix if another doc with the same id already exists today.
+              const newId = await generateDatedDocId(displayedV2Workflow.id, projectPath)
+              setBuilderDocIdOverride(newId)
               setBuilderBanner(null)
               setBuilderKey(k => k + 1)
             }}

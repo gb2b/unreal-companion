@@ -2,14 +2,17 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DocumentActionMenu } from '../Dashboard/DocumentActionMenu'
 
 interface EditorBannerProps {
   docId: string
   docName: string
   description: string
   workflowId?: string
+  projectPath?: string
   updated?: string
   status?: string
+  onRenamed?: () => void
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -18,8 +21,9 @@ const STATUS_STYLES: Record<string, string> = {
   empty: 'bg-muted/60 text-muted-foreground border border-border/30',
 }
 
-export function EditorBanner({ docName, workflowId, updated, status }: EditorBannerProps) {
+export function EditorBanner({ docId, docName, workflowId, projectPath, updated, status, onRenamed }: EditorBannerProps) {
   const navigate = useNavigate()
+  const isProjectContext = docId === '__project-context__'
 
   const formatDate = (iso: string) => {
     if (!iso) return ''
@@ -59,11 +63,21 @@ export function EditorBanner({ docName, workflowId, updated, status }: EditorBan
         <Button
           size="sm"
           className="bg-gradient-to-r from-primary to-accent text-primary-foreground"
-          onClick={() => navigate(`/studio/build/${encodeURIComponent(workflowId)}`)}
+          onClick={() => navigate(`/studio/build/${encodeURIComponent(workflowId)}/${encodeURIComponent(docId)}`)}
         >
           Workflow assisté
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
+      )}
+
+      {!isProjectContext && projectPath && (
+        <DocumentActionMenu
+          docId={docId}
+          workflowId={workflowId || ''}
+          projectPath={projectPath}
+          onDeleted={() => navigate('/studio/library')}
+          onRenamed={() => onRenamed?.()}
+        />
       )}
     </div>
   )

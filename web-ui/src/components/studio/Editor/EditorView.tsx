@@ -193,8 +193,16 @@ export function EditorView({ docId, projectPath }: EditorViewProps) {
         docName={doc.name}
         description={description}
         workflowId={isProjectContext ? undefined : workflowId}
+        projectPath={projectPath}
         updated={doc.meta?.updated}
         status={doc.meta?.status}
+        onRenamed={() => {
+          // Refetch doc after rename
+          if (isProjectContext) return
+          api.get<StudioDocument>(
+            `/api/v2/studio/documents/${encodeURIComponent(docId)}?project_path=${encodeURIComponent(projectPath)}`
+          ).then(setDoc).catch(() => { /* ignore */ })
+        }}
       />
       <div className="flex items-center gap-3 border-b border-border/30 bg-card/60 px-4 py-1.5 text-sm">
         {/* Save status */}

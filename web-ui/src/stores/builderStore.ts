@@ -573,11 +573,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
       // Set initial active section to the first section
       const firstSectionId = workflow.sections[0]?.id || null
 
-      // Generate unique doc_id with timestamp if not provided
-      const docId = docIdOverride ?? (() => {
-        const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
-        return `${workflow.id}-${ts}`
-      })()
+      // Default doc_id = workflow.id (stable, reusable across sessions).
+      // Caller passes a timestamped docIdOverride when they explicitly want a new doc.
+      const docId = docIdOverride ?? workflow.id
 
       set({
         ...INITIAL_STATE,

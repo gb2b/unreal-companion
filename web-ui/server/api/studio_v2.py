@@ -446,6 +446,64 @@ async def get_document(doc_id: str, project_path: str = ""):
     return doc
 
 
+@router.put("/documents/{doc_id:path}/rename-folder")
+async def rename_document_folder(doc_id: str, request: Request):
+    """Rename the document's folder on disk (changes the doc_id itself).
+
+    Moves `documents/{old_id}/` to `documents/{new_id}/`. All nested files
+    (document.md, meta.json, versions/, prototypes/, steps.json, history.json)
+    travel with the folder automatically.
+
+    Afterwards, rewrites any old_id references stored inside meta.json
+    (currently just `prototypes`, whose entries are paths like
+    `{doc_id}/prototypes/foo.html`).
+
+    IMPORTANT: this route must be declared BEFORE `PUT /documents/{doc_id:path}`,
+    otherwise the greedy `:path` converter swallows `rename-folder` as part of
+    the doc_id and FastAPI routes the call to the generic update endpoint.
+    """
+    import re
+    import shutil
+
+    body = await request.json()
+    new_id = (body.get("new_id") or "").strip()
+    project_path = body.get("project_path", "")
+    if not project_path or not new_id:
+        raise HTTPException(400, "project_path and new_id required")
+    if not re.match(r"^[a-zA-Z0-9._\-]+$", new_id):
+        raise HTTPException(400, "Invalid id (only letters, digits, dash, underscore, dot)")
+
+    store = DocumentStore(project_path)
+    old_dir = store.root / doc_id
+    new_dir = store.root / new_id
+    if not old_dir.exists():
+        raise HTTPException(404, f"Document not found: {doc_id}")
+    if new_dir.exists():
+        raise HTTPException(409, f"A document with id '{new_id}' already exists")
+
+    shutil.move(str(old_dir), str(new_dir))
+
+    # Rewrite any doc_id references inside the moved meta.json
+    meta_path = new_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            prototypes = meta.get("prototypes") or []
+            old_prefix = f"{doc_id}/"
+            new_prefix = f"{new_id}/"
+            updated_prototypes = [
+                (new_prefix + p[len(old_prefix):]) if isinstance(p, str) and p.startswith(old_prefix) else p
+                for p in prototypes
+            ]
+            if updated_prototypes != prototypes:
+                meta["prototypes"] = updated_prototypes
+                meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"rename_folder: failed to rewrite meta references: {e}")
+
+    return {"success": True, "new_id": new_id}
+
+
 @router.put("/documents/{doc_id:path}")
 async def update_document_content(doc_id: str, body: DocumentContentUpdate):
     """Save document markdown content directly (user editing)."""

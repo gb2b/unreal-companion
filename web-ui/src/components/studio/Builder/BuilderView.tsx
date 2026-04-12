@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { WorkflowV2 } from '@/types/studio'
 import { useBuilderStore } from '@/stores/builderStore'
+import { generateDatedDocId } from '@/lib/docId'
 import { PreviewPanel } from '@/components/studio/Preview/PreviewPanel'
 import { SessionHistory } from './SessionHistory'
 import { StepSlide } from './StepSlide'
@@ -74,12 +75,16 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
   useEffect(() => {
     if (hasInitialized.current) return
     hasInitialized.current = true
-    // Use explicit override prop if provided; otherwise generate one for repeatable flows
-    const resolvedDocId = docIdOverride
-      ?? (bannerConfig?.type === 'repeatable'
-        ? `concept/${workflow.id}-${new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 15)}`
-        : undefined)
-    initWorkflow(workflow, projectPath, resolvedDocId)
+    // Use explicit override prop if provided; otherwise generate a dated id
+    // ONLY for repeatable flows (brainstorming, etc.). Non-repeatable flows get
+    // a stable doc_id from the store (workflow.id), so they can be reused/opened.
+    ;(async () => {
+      let resolvedDocId = docIdOverride
+      if (!resolvedDocId && bannerConfig?.type === 'repeatable') {
+        resolvedDocId = await generateDatedDocId(workflow.id, projectPath)
+      }
+      initWorkflow(workflow, projectPath, resolvedDocId)
+    })()
   }, [initWorkflow, workflow, projectPath]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset banner visibility whenever a new bannerConfig arrives
@@ -207,9 +212,13 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               onSectionClick={scrollToSection}
               onDocumentClick={() => {}}
               projectPath={projectPath}
-              documentId={useBuilderStore.getState().documentId ?? ''}
+              documentId={documentId ?? ''}
               onEditRequest={requestEditFromPreview}
-              documentName={workflow.name}
+              workflowTypeName={workflow.name}
+              onDocIdChanged={(newId) => {
+                useBuilderStore.setState({ documentId: newId })
+                builderNavigate(`/studio/build/${encodeURIComponent(workflow.id)}/${encodeURIComponent(newId)}`, { replace: true })
+              }}
             />
           </Panel>
         </Group>

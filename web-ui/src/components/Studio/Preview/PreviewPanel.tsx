@@ -25,8 +25,8 @@ interface PreviewPanelProps {
   projectPath?: string
   documentId?: string
   onEditRequest?: (sectionId: string, selectedText: string, prompt: string) => void
-  documentName?: string
-  onDocumentRenamed?: (newName: string) => void
+  workflowTypeName?: string
+  onDocIdChanged?: (newId: string) => void
 }
 
 export function PreviewPanel({
@@ -38,8 +38,8 @@ export function PreviewPanel({
   projectPath,
   documentId,
   onEditRequest,
-  documentName,
-  onDocumentRenamed,
+  workflowTypeName,
+  onDocIdChanged,
 }: PreviewPanelProps) {
   const { language } = useI18n()
   const [activeTab, setActiveTab] = useState<PreviewTab>('document')
@@ -190,12 +190,12 @@ export function PreviewPanel({
               />
             ) : docMode === 'preview' ? (
               <div className="h-full flex flex-col">
-                {documentName && (
+                {documentId && (
                   <EditableDocBanner
-                    name={documentName}
-                    documentId={documentId || ''}
+                    docId={documentId}
+                    workflowTypeName={workflowTypeName || ''}
                     projectPath={projectPath || ''}
-                    onRenamed={onDocumentRenamed}
+                    onIdChanged={onDocIdChanged}
                   />
                 )}
                 <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -417,67 +417,138 @@ function InlineContextEditor({ projectPath }: { projectPath: string }) {
 }
 
 
-/** Editable document name banner — click to rename inline. */
+/** Editable document folder id banner — click to rename the folder on disk. */
 function EditableDocBanner({
-  name,
-  documentId,
+  docId,
+  workflowTypeName,
   projectPath,
-  onRenamed,
+  onIdChanged,
 }: {
-  name: string
-  documentId: string
+  docId: string
+  workflowTypeName: string
   projectPath: string
-  onRenamed?: (newName: string) => void
+  onIdChanged?: (newId: string) => void
 }) {
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(name)
+  const [value, setValue] = useState(docId)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => { setValue(name) }, [name])
+  useEffect(() => { setValue(docId); setError(null) }, [docId])
 
   const handleSave = async () => {
     const trimmed = value.trim()
-    if (!trimmed || trimmed === name) { setEditing(false); return }
+    if (!trimmed || trimmed === docId) {
+      setEditing(false)
+      setError(null)
+      return
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+      setError('Only letters, digits, dash, underscore, dot')
+      return
+    }
     setSaving(true)
     try {
-      await fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}/rename`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, project_path: projectPath }),
-      })
-      onRenamed?.(trimmed)
-    } catch { /* ignore */ }
-    finally { setSaving(false); setEditing(false) }
+      const res = await fetch(
+        `/api/v2/studio/documents/${encodeURIComponent(docId)}/rename-folder`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ new_id: trimmed, project_path: projectPath }),
+        }
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        // FastAPI 422 errors return `detail` as an array of validation objects;
+        // plain HTTPException returns it as a string. Normalise to a string.
+        let msg = 'Rename failed'
+        if (typeof data.detail === 'string') {
+          msg = data.detail
+        } else if (Array.isArray(data.detail) && data.detail.length > 0) {
+          msg = data.detail[0]?.msg || msg
+        }
+        setError(msg)
+        return
+      }
+      const data = await res.json()
+      onIdChanged?.(data.new_id)
+      setEditing(false)
+      setError(null)
+    } catch {
+      setError('Network error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setValue(docId)
+    setError(null)
+    setEditing(false)
   }
 
   return (
-    <div className="shrink-0 border-b border-border/20 bg-muted/20 px-4 py-2">
+    <div className="shrink-0 border-b border-border/20 bg-muted/20 px-4 py-2.5">
+      {workflowTypeName && (
+        <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+          {workflowTypeName}
+        </div>
+      )}
       {editing ? (
-        <div className="flex items-center gap-2">
-          <input
-            autoFocus
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
-            onBlur={handleSave}
-            disabled={saving}
-            className="flex-1 rounded border border-primary/30 bg-background px-2 py-0.5 text-xs text-foreground outline-none focus:border-primary/60"
-          />
+        <div>
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              value={value}
+              onChange={e => { setValue(e.target.value); setError(null) }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleSave()
+                if (e.key === 'Escape') handleCancel()
+              }}
+              disabled={saving}
+              className="flex-1 rounded border border-primary bg-background px-2 py-1 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              placeholder="folder-name"
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded bg-primary px-2 py-1 text-[10px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? '...' : 'Save'}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={saving}
+              className="rounded border border-border/50 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+          {error && <div className="mt-1 text-[10px] text-destructive">{error}</div>}
         </div>
       ) : (
-        <div>
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs font-medium text-foreground/70 hover:text-foreground transition-colors"
-            title="Click to rename"
+        <button
+          onClick={() => setEditing(true)}
+          className="group flex w-full items-center gap-2 rounded border border-dashed border-border/50 bg-background/40 px-2 py-1 text-left font-mono text-xs text-foreground/80 transition-colors hover:border-primary/60 hover:bg-background hover:text-foreground"
+          title="Click to rename folder"
+        >
+          <span className="flex-1 truncate">{docId}</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-muted-foreground/50 transition-colors group-hover:text-primary"
           >
-            {name}
-            <span className="ml-1.5 text-[9px] text-muted-foreground/40">&#9998;</span>
-          </button>
-          {documentId && (
-            <div className="text-[10px] text-muted-foreground/40 mt-0.5">{documentId}</div>
-          )}
-        </div>
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            <path d="m15 5 4 4" />
+          </svg>
+        </button>
       )}
     </div>
   )
