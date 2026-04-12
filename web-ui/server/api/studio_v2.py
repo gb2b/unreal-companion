@@ -58,6 +58,7 @@ class StudioChatRequest(BaseModel):
     section_focus: str = ""  # Optional: which section to focus on
     language: str = "en"  # User's preferred language (en, fr, etc.)
     project_path: str = ""  # Project path for document context
+    learning_mode: bool = False  # When True, explain_concept tool is active
 
 
 class DocumentResumeRequest(BaseModel):
@@ -294,6 +295,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                 has_project_context=_has_project_ctx,
                 user_renamed_doc=_user_renamed,
                 language=request.language,
+                learning_mode=request.learning_mode,
             )
 
             # Replace the fallback interaction guide with the full dynamic guide
@@ -336,6 +338,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         has_project_context=bool(request.project_path),
         user_renamed_doc=False,
         language=request.language,
+        learning_mode=request.learning_mode,
     )
 
     # Use the full prompt_ctx_full if available (non-workflow-start with conv history)
