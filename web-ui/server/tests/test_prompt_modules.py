@@ -573,3 +573,104 @@ class TestGameDevModules:
         from services.llm_engine.prompt_modules.game_dev.learning import LearningModule
         text = LearningModule().render(self._ctx(learning_mode=True))
         assert "explain_concept" in text
+
+
+class TestFullAssembly:
+    """Integration test: assemble_dynamic_guide with realistic contexts."""
+
+    def test_no_workflow_only_core_modules(self):
+        """Without a workflow, only core/quality/game_dev modules should be active."""
+        ctx = PromptContext(is_workflow_start=False, turn_number=3, workflow_id=None)
+        result = assemble_dynamic_guide(ctx)
+        # Core modules should be present
+        assert "step_done" in result
+        assert "_description" in result
+        # Workflow modules should NOT be present
+        assert "ONE AT A TIME" not in result
+        assert "update_session_memory" not in result
+
+    def test_workflow_start_includes_first_step(self):
+        """Workflow start should include first_step module."""
+        ctx = PromptContext(
+            is_workflow_start=True,
+            turn_number=0,
+            workflow_id="game-brief",
+        )
+        result = assemble_dynamic_guide(ctx)
+        assert "attach_documents" in result
+        assert "step_done" in result  # core still present
+
+    def test_mid_workflow_with_section(self):
+        """Mid-workflow with current section activates section-specific modules."""
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=5,
+            workflow_id="game-brief",
+            current_section={"id": "vision", "name": "Vision"},
+            section_contents={"vision": "A roguelike about cooking."},
+            completed_section_count=2,
+        )
+        result = assemble_dynamic_guide(ctx)
+        # Section context awareness (BUG 1 FIX)
+        assert "A roguelike about cooking." in result
+        assert "MUST include EVERY fact" in result
+        # Mark complete rules (BUG 2 FIX)
+        assert "mark_section_complete" in result
+        # Progress recap
+        assert "2 sections" in result or "completed" in result.lower()
+
+    def test_french_language_rules(self):
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=1,
+            language="fr",
+        )
+        result = assemble_dynamic_guide(ctx)
+        assert "tutoiement" in result
+
+    def test_learning_mode(self):
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=3,
+            learning_mode=True,
+        )
+        result = assemble_dynamic_guide(ctx)
+        assert "explain_concept" in result
+
+    def test_cross_document_not_on_game_brief(self):
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=3,
+            workflow_id="game-brief",
+            has_project_context=True,
+        )
+        result = assemble_dynamic_guide(ctx)
+        assert "Cross-Document" not in result
+
+    def test_cross_document_on_gdd(self):
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=3,
+            workflow_id="gdd",
+            has_project_context=True,
+        )
+        result = assemble_dynamic_guide(ctx)
+        assert "Cross-Document" in result
+
+    def test_module_count_realistic(self):
+        """A full workflow context should activate many modules."""
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=5,
+            workflow_id="game-brief",
+            current_section={"id": "vision", "name": "Vision"},
+            section_contents={"vision": "Content here."},
+            completed_section_count=3,
+            has_uploaded_docs=True,
+            has_project_context=True,
+            language="fr",
+        )
+        result = assemble_dynamic_guide(ctx)
+        # Count major section markers to verify many modules are included
+        section_count = result.count("###")
+        assert section_count >= 20, f"Expected at least 20 module sections, got {section_count}"
