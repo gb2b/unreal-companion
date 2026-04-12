@@ -617,3 +617,45 @@ class TestFullRegistry:
     def test_tool_count(self):
         """Verify we have exactly 20 tools (16 migrated + 4 new)."""
         assert len(ALL_TOOL_MODULES) == 20, f"Expected 20 tools, got {len(ALL_TOOL_MODULES)}: {[m.name for m in ALL_TOOL_MODULES]}"
+
+    def test_no_duplicate_names_in_registry(self):
+        """No duplicate names allowed in the registry."""
+        names = [m.name for m in ALL_TOOL_MODULES]
+        dupes = [n for n in names if names.count(n) > 1]
+        assert not dupes, f"Duplicate tool names in registry: {set(dupes)}"
+
+    def test_assemble_tools_context_variation(self):
+        """Different PromptContext values produce different tool subsets."""
+        ctx_bare = PromptContext(is_workflow_start=False, turn_number=0)
+        ctx_workflow = PromptContext(
+            is_workflow_start=False, turn_number=3,
+            workflow_id="game-brief",
+            current_section={"id": "vision", "name": "Vision"},
+            has_uploaded_docs=True,
+            completed_section_count=2,
+        )
+        tools_bare = assemble_tools(ctx_bare)
+        tools_workflow = assemble_tools(ctx_workflow)
+        names_bare = {t["name"] for t in tools_bare}
+        names_wf = {t["name"] for t in tools_workflow}
+
+        # Workflow context should unlock tools that bare context doesn't
+        assert "update_document" in names_wf
+        assert "update_document" not in names_bare
+        assert "doc_scan" in names_wf  # has_uploaded_docs=True
+        assert "doc_scan" not in names_bare
+        assert "flag_contradiction" in names_wf  # completed_section_count >= 1
+        assert "flag_contradiction" not in names_bare
+
+        # Both should have always-available tools
+        assert "show_interaction" in names_bare
+        assert "show_interaction" in names_wf
+        assert "step_done" in names_bare
+        assert "step_done" in names_wf
+
+    def test_all_definitions_have_input_schema_type(self):
+        """Every tool's input_schema must have type=object."""
+        for mod in ALL_TOOL_MODULES:
+            defn = mod.definition()
+            schema = defn.get("input_schema", {})
+            assert schema.get("type") == "object", f"{mod.name}: input_schema type is not 'object'"
