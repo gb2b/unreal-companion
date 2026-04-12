@@ -5,6 +5,7 @@ import type {
   DocumentUpdateEvent, PrototypeReadyEvent,
   SectionCompleteEvent, UsageEvent, ErrorSSEEvent, ThinkingEvent,
   ProcessingStatusEvent, MicroStepEvent, SectionTransitionEvent,
+  LearningCardEvent,
 } from '@/types/sse'
 import type {
   SectionStatus, Prototype, WorkflowV2,
@@ -495,6 +496,19 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             }
             break
           }
+          case 'learning_card': {
+            const d = event.data as LearningCardEvent
+            const blocks = getBlocks()
+            blocks.push({
+              kind: 'learning_card',
+              term: d.term,
+              explanation: d.explanation,
+              examples: d.examples,
+              category: d.category,
+            })
+            setBlocks(blocks)
+            break
+          }
           case 'error': {
             const d = event.data as ErrorSSEEvent
             // Mark the last pending tool_call as error
@@ -535,6 +549,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
     })
 
     try {
+      // Read learning mode from localStorage
+      const learningMode = localStorage.getItem('learning_mode') === 'true'
+
       const stream = streamSSE({
         url: '/api/v2/studio/chat',
         body: {
@@ -545,6 +562,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           section_focus: options.sectionFocus || state.activeSection || '',
           language: options.language || 'en',
           project_path: state.projectPath,
+          learning_mode: learningMode,
         },
         signal: abortController.signal,
       })

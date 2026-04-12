@@ -77,6 +77,7 @@ export type StepBlock =
   | { kind: 'streaming'; content: string }
   | { kind: 'interaction'; type: InteractionBlockType; data: InteractionData }
   | { kind: 'thinking'; content: string }
+  | { kind: 'learning_card'; term: string; explanation: string; examples: Array<{ game: string; how: string }>; category: string }
 
 export interface MicroStep {
   id: string

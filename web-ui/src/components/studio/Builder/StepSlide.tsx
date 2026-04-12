@@ -6,6 +6,7 @@ import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
 import { AttachModal } from './AttachModal'
+import { LearningCard } from './LearningCard'
 import type { AttachResult } from './AttachModal'
 
 interface AttachedFile {
@@ -431,6 +432,16 @@ export function StepSlide({
                       disabled={isProcessing || !!isReadonly}
                     />
                   </div>
+                )
+              case 'learning_card':
+                return (
+                  <LearningCard
+                    key={i}
+                    term={block.term}
+                    explanation={block.explanation}
+                    examples={block.examples}
+                    category={block.category}
+                  />
                 )
               case 'thinking':
                 // Thinking blocks are transient — don't render as persistent blocks
