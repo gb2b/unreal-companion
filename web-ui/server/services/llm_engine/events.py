@@ -9,7 +9,7 @@ EventType = Literal[
     "text_delta", "text_done", "interaction_block", "document_update",
     "tool_call", "tool_result", "prototype_ready", "section_complete",
     "thinking", "usage", "error", "done", "context_summarized",
-    "processing_status", "section_added",
+    "processing_status", "section_added", "learning_card",
 ]
 
 
@@ -118,3 +118,12 @@ class SectionAdded(SSEEvent):
     section_id: str = ""
     section_name: str = ""
     required: bool = False
+
+
+@dataclass
+class LearningCard(SSEEvent):
+    event: EventType = field(default="learning_card", init=False)
+    term: str = ""
+    explanation: str = ""
+    examples: list = field(default_factory=list)  # [{game: str, how: str}]
+    category: str = "design"

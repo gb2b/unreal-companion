@@ -133,7 +133,7 @@ def _auto_register():
     package_path = __path__
     package_name = __name__
 
-    for subpackage in ["interaction", "document", "doc_tools", "memory", "meta"]:
+    for subpackage in ["interaction", "document", "doc_tools", "memory", "meta", "learning"]:
         full_name = f"{package_name}.{subpackage}"
         try:
             pkg = importlib.import_module(full_name)

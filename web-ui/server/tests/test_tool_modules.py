@@ -615,8 +615,8 @@ class TestFullRegistry:
             assert len(s) > 0, f"{mod.name}: summary is empty"
 
     def test_tool_count(self):
-        """Verify we have exactly 20 tools (16 migrated + 4 new)."""
-        assert len(ALL_TOOL_MODULES) == 20, f"Expected 20 tools, got {len(ALL_TOOL_MODULES)}: {[m.name for m in ALL_TOOL_MODULES]}"
+        """Verify we have exactly 21 tools (20 existing + explain_concept)."""
+        assert len(ALL_TOOL_MODULES) == 21, f"Expected 21 tools, got {len(ALL_TOOL_MODULES)}: {[m.name for m in ALL_TOOL_MODULES]}"
 
     def test_no_duplicate_names_in_registry(self):
         """No duplicate names allowed in the registry."""
@@ -732,8 +732,9 @@ class TestFinalIntegration:
             "step_done": {"title": "Test step"},
             "summarize_progress": {},
             "flag_contradiction": {"claim_a": "Fast-paced", "claim_b": "Slow exploration", "section": "gameplay"},
+            "explain_concept": {"term": "Core Loop", "explanation": "The cycle.", "examples": []},
         }
-        assert len(ALL_TOOL_MODULES) == 20, f"Expected 20 tools, got {len(ALL_TOOL_MODULES)}"
+        assert len(ALL_TOOL_MODULES) == 21, f"Expected 21 tools, got {len(ALL_TOOL_MODULES)}"
         # Pre-populate state so guard-gated tools pass
         state.updated_sections.add("s1")
         state.section_statuses = {"vision": "complete", "gameplay": "in_progress"}
