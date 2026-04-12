@@ -238,3 +238,90 @@ class TestCoreModules:
             AntiPatternsModule().priority,
         ]
         assert priorities == sorted(priorities), "Core modules must be in ascending priority order"
+
+
+class TestWorkflowModules:
+    """Workflow modules active only when workflow_id is set."""
+
+    def _ctx(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3, "workflow_id": "game-brief"}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def _ctx_no_workflow(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3, "workflow_id": None}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def test_section_progression_active_with_workflow(self):
+        from services.llm_engine.prompt_modules.workflow.section_progression import SectionProgressionModule
+        mod = SectionProgressionModule()
+        assert mod.is_active(self._ctx()) is True
+        assert mod.is_active(self._ctx_no_workflow()) is False
+
+    def test_section_progression_content(self):
+        from services.llm_engine.prompt_modules.workflow.section_progression import SectionProgressionModule
+        text = SectionProgressionModule().render(self._ctx())
+        assert "ONE AT A TIME" in text or "one at a time" in text.lower()
+        assert "mark_section_complete" in text
+
+    def test_section_context_awareness_inactive_without_section(self):
+        from services.llm_engine.prompt_modules.workflow.section_context_awareness import SectionContextAwarenessModule
+        mod = SectionContextAwarenessModule()
+        assert mod.is_active(self._ctx(current_section=None)) is False
+        assert mod.is_active(self._ctx(
+            current_section={"id": "vision", "name": "Vision"},
+            section_contents={},
+        )) is False
+
+    def test_section_context_awareness_active_with_content(self):
+        from services.llm_engine.prompt_modules.workflow.section_context_awareness import SectionContextAwarenessModule
+        mod = SectionContextAwarenessModule()
+        ctx = self._ctx(
+            current_section={"id": "vision", "name": "Vision"},
+            section_contents={"vision": "A puzzle game about memories."},
+        )
+        assert mod.is_active(ctx) is True
+        text = mod.render(ctx)
+        assert "A puzzle game about memories." in text
+        assert "Vision" in text
+        assert "MUST include EVERY fact" in text
+
+    def test_mark_complete_rules_content(self):
+        from services.llm_engine.prompt_modules.workflow.mark_complete_rules import MarkCompleteRulesModule
+        mod = MarkCompleteRulesModule()
+        ctx = self._ctx(current_section={"id": "vision", "name": "Vision"})
+        assert mod.is_active(ctx) is True
+        text = mod.render(ctx)
+        assert "update_document" in text
+        assert "user validation" in text or "user has validated" in text or "validated" in text
+
+    def test_mark_complete_inactive_without_section(self):
+        from services.llm_engine.prompt_modules.workflow.mark_complete_rules import MarkCompleteRulesModule
+        mod = MarkCompleteRulesModule()
+        assert mod.is_active(self._ctx(current_section=None)) is False
+
+    def test_update_document_rules_content(self):
+        from services.llm_engine.prompt_modules.workflow.update_document_rules import UpdateDocumentRulesModule
+        text = UpdateDocumentRulesModule().render(self._ctx())
+        assert "REPLACES" in text or "replaces" in text
+        assert "entire section" in text.lower() or "full section" in text.lower()
+
+    def test_no_autofill_content(self):
+        from services.llm_engine.prompt_modules.workflow.no_autofill import NoAutofillModule
+        text = NoAutofillModule().render(self._ctx())
+        assert "NEVER" in text or "never" in text
+        assert "validation" in text.lower() or "validate" in text.lower()
+
+    def test_document_naming_content(self):
+        from services.llm_engine.prompt_modules.workflow.document_naming import DocumentNamingModule
+        text = DocumentNamingModule().render(self._ctx())
+        assert "rename_document" in text
+
+    def test_progress_recap_active_when_enough_sections(self):
+        from services.llm_engine.prompt_modules.workflow.progress_recap import ProgressRecapModule
+        mod = ProgressRecapModule()
+        assert mod.is_active(self._ctx(completed_section_count=0)) is False
+        assert mod.is_active(self._ctx(completed_section_count=1)) is False
+        assert mod.is_active(self._ctx(completed_section_count=2)) is True
+        assert mod.is_active(self._ctx(completed_section_count=5)) is True
