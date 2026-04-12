@@ -123,7 +123,8 @@ class SectionAdded(SSEEvent):
 @dataclass
 class DocumentRenamed(SSEEvent):
     event: EventType = field(default="document_renamed", init=False)
-    new_name: str = ""
+    new_doc_id: str = ""
+    new_display_name: str = ""
 
 
 @dataclass

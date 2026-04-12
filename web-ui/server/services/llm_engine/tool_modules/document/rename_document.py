@@ -29,32 +29,26 @@ class RenameDocumentModule(ToolModule):
     async def execute(self, tool_input: dict, state: SessionState) -> str | None:
         new_name = tool_input.get("new_name", "")
         try:
-            from services.document_store import DocumentStore
-            store = DocumentStore(state.project_path)
-            meta_path = store.root / state.doc_id / "meta.json"
-            if not meta_path.exists():
-                return json.dumps({"success": False, "error": "Document not found"})
-            raw = json.loads(meta_path.read_text(encoding="utf-8"))
-            if raw.get("user_renamed", False):
-                return json.dumps({"success": False, "error": "User has renamed this document. Do not rename."})
-            raw["name"] = new_name
-            meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-            # Also update the # Title in the document.md file
-            md_path = store.root / state.doc_id / "document.md"
-            if md_path.exists():
-                content = md_path.read_text(encoding="utf-8")
-                lines = content.split("\n")
-                if lines and lines[0].startswith("#"):
-                    lines[0] = f"# {new_name}"
-                md_path.write_text("\n".join(lines), encoding="utf-8")
-            return json.dumps({"success": True, "new_name": new_name})
+            from api.studio_v2 import rename_document_on_disk
+            result = rename_document_on_disk(
+                state.project_path,
+                state.doc_id,
+                new_name,
+                from_llm=True,
+            )
+            if result.get("success"):
+                # Update the session state doc_id so subsequent tool calls use the new id
+                state.doc_id = result["new_id"]
+            return json.dumps(result)
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)})
 
     def sse_events(self, tool_input: dict, state: SessionState) -> list:
         new_name = tool_input.get("new_name", "")
         if new_name:
-            return [DocumentRenamed(new_name=new_name)]
+            from api.studio_v2 import slugify_doc_name
+            new_id = slugify_doc_name(new_name)
+            return [DocumentRenamed(new_doc_id=new_id, new_display_name=new_name)]
         return []
 
     def summarize_result(self, tool_input: dict, result: str | None, error: str | None, language: str) -> str:

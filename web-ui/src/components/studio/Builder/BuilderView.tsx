@@ -248,8 +248,8 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               onEditRequest={requestEditFromPreview}
               workflowTypeName={workflow.name}
               documentDisplayName={documentDisplayName ?? undefined}
-              onDocIdChanged={(newId) => {
-                useBuilderStore.setState({ documentId: newId })
+              onDocIdChanged={(newId, newDisplayName) => {
+                useBuilderStore.setState({ documentId: newId, documentDisplayName: newDisplayName || null })
                 builderNavigate(`/studio/build/${encodeURIComponent(workflow.id)}/${encodeURIComponent(newId)}`, { replace: true })
               }}
             />

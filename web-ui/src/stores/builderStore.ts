@@ -499,9 +499,9 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
             break
           }
           case 'document_renamed': {
-            const d = event.data as { new_name?: string }
-            if (d.new_name) {
-              set({ documentDisplayName: d.new_name })
+            const d = event.data as { new_doc_id?: string; new_display_name?: string }
+            if (d.new_doc_id) {
+              set({ documentId: d.new_doc_id, documentDisplayName: d.new_display_name || null })
             }
             break
           }

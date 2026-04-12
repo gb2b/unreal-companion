@@ -27,7 +27,7 @@ interface PreviewPanelProps {
   onEditRequest?: (sectionId: string, selectedText: string, prompt: string) => void
   workflowTypeName?: string
   documentDisplayName?: string
-  onDocIdChanged?: (newId: string) => void
+  onDocIdChanged?: (newId: string, newDisplayName?: string) => void
 }
 
 export function PreviewPanel({
@@ -198,7 +198,7 @@ export function PreviewPanel({
                     workflowTypeName={workflowTypeName || ''}
                     displayName={documentDisplayName}
                     projectPath={projectPath || ''}
-                    onIdChanged={onDocIdChanged}
+                    onIdChanged={(newId, newDisplayName) => onDocIdChanged?.(newId, newDisplayName)}
                   />
                 )}
                 <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -432,7 +432,7 @@ function EditableDocBanner({
   workflowTypeName: string
   displayName?: string
   projectPath: string
-  onIdChanged?: (newId: string) => void
+  onIdChanged?: (newId: string, newDisplayName?: string) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(docId)
@@ -448,24 +448,18 @@ function EditableDocBanner({
       setError(null)
       return
     }
-    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
-      setError('Only letters, digits, dash, underscore, dot')
-      return
-    }
     setSaving(true)
     try {
       const res = await fetch(
-        `/api/v2/studio/documents/${encodeURIComponent(docId)}/rename-folder`,
+        `/api/v2/studio/documents/${encodeURIComponent(docId)}/rename`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ new_id: trimmed, project_path: projectPath }),
+          body: JSON.stringify({ new_name: trimmed, project_path: projectPath }),
         }
       )
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        // FastAPI 422 errors return `detail` as an array of validation objects;
-        // plain HTTPException returns it as a string. Normalise to a string.
         let msg = 'Rename failed'
         if (typeof data.detail === 'string') {
           msg = data.detail
@@ -476,7 +470,7 @@ function EditableDocBanner({
         return
       }
       const data = await res.json()
-      onIdChanged?.(data.new_id)
+      onIdChanged?.(data.new_id, data.new_name)
       setEditing(false)
       setError(null)
     } catch {
@@ -522,7 +516,7 @@ function EditableDocBanner({
               }}
               disabled={saving}
               className="flex-1 rounded border border-primary bg-background px-2 py-1 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-              placeholder="folder-name"
+              placeholder="Document name"
             />
             <button
               onClick={handleSave}

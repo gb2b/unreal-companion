@@ -34,6 +34,86 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v2/studio", tags=["studio-v2"])
 
 
+# ---------------------------------------------------------------------------
+# Shared rename helper — used by both the REST endpoint and the LLM tool
+# ---------------------------------------------------------------------------
+
+def slugify_doc_name(name: str) -> str:
+    """Convert a display name to a valid folder slug."""
+    import re as _re
+    slug = name.lower()
+    slug = slug.replace('\u2014', '-').replace(' ', '-').replace('_', '-')
+    slug = _re.sub(r'[^a-z0-9.\-]', '', slug)
+    slug = _re.sub(r'-+', '-', slug)
+    slug = slug.strip('-')
+    return slug or 'document'
+
+
+def rename_document_on_disk(
+    project_path: str,
+    old_doc_id: str,
+    new_name: str,
+    *,
+    from_llm: bool = False,
+) -> dict:
+    """Rename a document: slugify, move folder, update meta + md + prototype refs.
+
+    Returns ``{"success": True, "new_id": ..., "new_name": ...}`` on success or
+    ``{"success": False, "error": ...}`` on failure.
+    """
+    import re as _re
+    import shutil
+
+    new_id = slugify_doc_name(new_name)
+    store = DocumentStore(project_path)
+    old_dir = store.root / old_doc_id
+    new_dir = store.root / new_id
+
+    if not old_dir.exists():
+        return {"success": False, "error": f"Document not found: {old_doc_id}"}
+
+    # Move folder if the slug actually changed
+    if new_id != old_doc_id:
+        if new_dir.exists():
+            return {"success": False, "error": f"A document with id '{new_id}' already exists"}
+        shutil.move(str(old_dir), str(new_dir))
+
+    # --- Update meta.json ---
+    meta_path = new_dir / "meta.json"
+    if meta_path.exists():
+        try:
+            raw = json.loads(meta_path.read_text(encoding="utf-8"))
+            raw["name"] = new_name
+            if not from_llm:
+                raw["user_renamed"] = True
+            # Rewrite prototype refs (old_id/ → new_id/)
+            if new_id != old_doc_id:
+                prototypes = raw.get("prototypes") or []
+                old_prefix = f"{old_doc_id}/"
+                new_prefix = f"{new_id}/"
+                raw["prototypes"] = [
+                    (new_prefix + p[len(old_prefix):]) if isinstance(p, str) and p.startswith(old_prefix) else p
+                    for p in prototypes
+                ]
+            meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"rename_document_on_disk: meta update failed: {e}")
+
+    # --- Update document.md title ---
+    md_path = new_dir / "document.md"
+    if md_path.exists():
+        try:
+            content = md_path.read_text(encoding="utf-8")
+            lines = content.split("\n")
+            if lines and lines[0].startswith("#"):
+                lines[0] = f"# {new_name}"
+            md_path.write_text("\n".join(lines), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"rename_document_on_disk: md update failed: {e}")
+
+    return {"success": True, "new_id": new_id, "new_name": new_name}
+
+
 async def _call_llm_simple(prompt: str, max_tokens: int = 1024) -> str:
     """Quick LLM call via the project's LLM service (uses configured provider/key)."""
     result = await llm_service.chat(
@@ -497,60 +577,17 @@ async def get_document(doc_id: str, project_path: str = ""):
 
 @router.put("/documents/{doc_id:path}/rename-folder")
 async def rename_document_folder(doc_id: str, request: Request):
-    """Rename the document's folder on disk (changes the doc_id itself).
-
-    Moves `documents/{old_id}/` to `documents/{new_id}/`. All nested files
-    (document.md, meta.json, versions/, prototypes/, steps.json, history.json)
-    travel with the folder automatically.
-
-    Afterwards, rewrites any old_id references stored inside meta.json
-    (currently just `prototypes`, whose entries are paths like
-    `{doc_id}/prototypes/foo.html`).
-
-    IMPORTANT: this route must be declared BEFORE `PUT /documents/{doc_id:path}`,
-    otherwise the greedy `:path` converter swallows `rename-folder` as part of
-    the doc_id and FastAPI routes the call to the generic update endpoint.
-    """
-    import re
-    import shutil
-
+    """Legacy endpoint — redirects to the unified rename."""
     body = await request.json()
-    new_id = (body.get("new_id") or "").strip()
+    new_name = (body.get("new_id") or body.get("new_name") or "").strip()
     project_path = body.get("project_path", "")
-    if not project_path or not new_id:
-        raise HTTPException(400, "project_path and new_id required")
-    if not re.match(r"^[a-zA-Z0-9._\-]+$", new_id):
-        raise HTTPException(400, "Invalid id (only letters, digits, dash, underscore, dot)")
-
-    store = DocumentStore(project_path)
-    old_dir = store.root / doc_id
-    new_dir = store.root / new_id
-    if not old_dir.exists():
-        raise HTTPException(404, f"Document not found: {doc_id}")
-    if new_dir.exists():
-        raise HTTPException(409, f"A document with id '{new_id}' already exists")
-
-    shutil.move(str(old_dir), str(new_dir))
-
-    # Rewrite any doc_id references inside the moved meta.json
-    meta_path = new_dir / "meta.json"
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            prototypes = meta.get("prototypes") or []
-            old_prefix = f"{doc_id}/"
-            new_prefix = f"{new_id}/"
-            updated_prototypes = [
-                (new_prefix + p[len(old_prefix):]) if isinstance(p, str) and p.startswith(old_prefix) else p
-                for p in prototypes
-            ]
-            if updated_prototypes != prototypes:
-                meta["prototypes"] = updated_prototypes
-                meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        except Exception as e:
-            logger.warning(f"rename_folder: failed to rewrite meta references: {e}")
-
-    return {"success": True, "new_id": new_id}
+    if not project_path or not new_name:
+        raise HTTPException(400, "project_path and new_id/new_name required")
+    result = rename_document_on_disk(project_path, doc_id, new_name)
+    if not result["success"]:
+        code = 409 if "already exists" in result.get("error", "") else 404
+        raise HTTPException(code, result["error"])
+    return result
 
 
 @router.put("/documents/{doc_id:path}")
@@ -650,34 +687,23 @@ async def delete_document(doc_id: str, project_path: str = ""):
 
 @router.put("/documents/{doc_id:path}/rename")
 async def rename_document_endpoint(doc_id: str, request: Request):
-    """Rename a document (update the title in the .md file and set user_renamed in meta)."""
+    """Unified rename — slugifies, moves folder, updates meta + md + refs.
+
+    Accepts ``{new_name, project_path}`` (new) or legacy ``{name, project_path}``.
+    Returns ``{success, new_id, new_name}``.
+    """
     body = await request.json()
-    new_name = body.get("name", "")
+    new_name = (body.get("new_name") or body.get("name") or "").strip()
     project_path = body.get("project_path", "")
+    from_llm = body.get("from_llm", False)
     if not project_path or not new_name:
-        raise HTTPException(400, "project_path and name required")
+        raise HTTPException(400, "project_path and new_name required")
 
-    store = DocumentStore(project_path)
-    doc_dir = store.root / doc_id
-    md_path = doc_dir / "document.md"
-    meta_path = doc_dir / "meta.json"
-
-    # Update .md title line
-    if md_path.exists():
-        content = md_path.read_text(encoding="utf-8")
-        lines = content.split("\n")
-        if lines and lines[0].startswith("#"):
-            lines[0] = f"# {new_name}"
-        md_path.write_text("\n".join(lines), encoding="utf-8")
-
-    # Update meta: set name + user_renamed
-    if meta_path.exists():
-        raw = json.loads(meta_path.read_text(encoding="utf-8"))
-        raw["name"] = new_name
-        raw["user_renamed"] = True
-        meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-
-    return {"success": True}
+    result = rename_document_on_disk(project_path, doc_id, new_name, from_llm=from_llm)
+    if not result["success"]:
+        code = 409 if "already exists" in result.get("error", "") else 404
+        raise HTTPException(code, result["error"])
+    return result
 
 
 @router.post("/documents/{doc_id:path}/scan")

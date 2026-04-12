@@ -170,7 +170,7 @@ export function DocumentActionMenu({
     await fetch(`/api/v2/studio/documents/${encodeURIComponent(docId)}/rename`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.trim(), project_path: projectPath }),
+      body: JSON.stringify({ new_name: newName.trim(), project_path: projectPath }),
     })
     onRenamed()
   }
