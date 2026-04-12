@@ -66,6 +66,7 @@ class ToolResult(SSEEvent):
     event: EventType = field(default="tool_result", init=False)
     id: str = ""
     result: str = ""
+    summary: str = ""  # Human-readable one-liner summary of the result
 
 
 @dataclass

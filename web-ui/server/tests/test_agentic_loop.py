@@ -50,45 +50,51 @@ class TestSSEEvents:
         assert data["input_tokens"] == 100
 
 
-from services.llm_engine.interceptors import (
-    is_interceptor, handle_interceptor, INTERCEPTOR_TOOLS, INTERCEPTOR_NAMES,
-)
+from services.llm_engine.tool_modules import get_tool_module, ALL_TOOL_MODULES, assemble_tools, SessionState
 from services.llm_engine.events import InteractionBlock, PrototypeReady, DocumentUpdate, SectionComplete
+from services.llm_engine.prompt_modules import PromptContext
 
 
 class TestInterceptors:
-    def test_is_interceptor(self):
-        assert is_interceptor("show_interaction") is True
-        assert is_interceptor("show_prototype") is True
-        assert is_interceptor("core_query") is False
+    """Tests that the old interceptor functionality is now covered by tool_modules."""
 
-    def test_all_interceptor_tools_have_definitions(self):
-        defined = {t["name"] for t in INTERCEPTOR_TOOLS}
-        # INTERCEPTOR_NAMES is a subset of defined tools
-        # (some tools like read_project_document are defined but handled by tool_executor, not interceptors)
-        assert INTERCEPTOR_NAMES.issubset(defined), f"Missing definitions: {INTERCEPTOR_NAMES - defined}"
+    def test_is_tool_module(self):
+        assert get_tool_module("show_interaction") is not None
+        assert get_tool_module("show_prototype") is not None
+        assert get_tool_module("core_query") is None
 
-    def test_handle_show_interaction(self):
-        events = handle_interceptor("show_interaction", {
+    def test_all_tools_have_definitions(self):
+        for mod in ALL_TOOL_MODULES:
+            defn = mod.definition()
+            assert "name" in defn
+            assert defn["name"] == mod.name
+
+    def test_show_interaction_sse_events(self):
+        mod = get_tool_module("show_interaction")
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        events = mod.sse_events({
             "block_type": "choices",
             "data": {"options": [{"id": "a", "label": "RPG"}]},
-        })
+        }, state)
         assert len(events) == 1
         assert isinstance(events[0], InteractionBlock)
         assert events[0].block_type == "choices"
 
-    def test_handle_show_prototype(self):
-        events = handle_interceptor("show_prototype", {
+    def test_show_prototype_sse_events(self):
+        mod = get_tool_module("show_prototype")
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        events = mod.sse_events({
             "title": "Combat", "html": "<h1>Combat</h1>",
-        })
+        }, state)
         assert len(events) == 1
         assert isinstance(events[0], PrototypeReady)
         assert events[0].title == "Combat"
 
-    def test_handle_mark_section_complete(self):
-        events = handle_interceptor("mark_section_complete", {
-            "section_id": "overview",
-        })
+    def test_mark_section_complete_sse_events(self):
+        mod = get_tool_module("mark_section_complete")
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        state.updated_sections.add("overview")
+        events = mod.sse_events({"section_id": "overview"}, state)
         assert len(events) == 2
         assert isinstance(events[0], SectionComplete)
         assert isinstance(events[1], DocumentUpdate)
@@ -180,7 +186,7 @@ class TestAgenticLoop:
         assert "done" in types
 
     def test_interceptor_emits_sse(self):
-        """Interceptor tool calls emit SSE events instead of executing."""
+        """Tool module tools emit SSE events via dispatch_tool when session_state is set."""
         provider = MockProvider([
             [
                 StreamEvent(type="tool_use_start", tool_id="t1", tool_name="show_interaction"),
@@ -195,9 +201,10 @@ class TestAgenticLoop:
         ])
 
         async def no_executor(name, inp):
-            raise RuntimeError("Should not execute interceptors")
+            raise RuntimeError("Should not execute tool module tools via executor")
 
-        loop = AgenticLoop(provider, no_executor)
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        loop = AgenticLoop(provider, no_executor, session_state=state)
         events = []
 
         async def collect():
@@ -208,6 +215,39 @@ class TestAgenticLoop:
 
         types = [e.event for e in events]
         assert "interaction_block" in types
+
+    def test_backward_compat_no_session_state(self):
+        """Without session_state, all tools go through tool_executor (backward compat)."""
+        provider = MockProvider([
+            [
+                StreamEvent(type="tool_use_start", tool_id="t1", tool_name="show_interaction"),
+                StreamEvent(type="tool_use_done", tool_id="t1", tool_name="show_interaction",
+                            tool_input_json='{"block_type":"choices","data":{"options":[]}}'),
+                StreamEvent(type="stop", stop_reason="tool_use"),
+            ],
+            [
+                StreamEvent(type="text_delta", content="Done."),
+                StreamEvent(type="stop", stop_reason="end_turn"),
+            ],
+        ])
+
+        executor_called = []
+
+        async def mock_executor(name, inp):
+            executor_called.append(name)
+            return '{"success": true}'
+
+        # No session_state => dispatch_tool won't be used
+        loop = AgenticLoop(provider, mock_executor)
+        events = []
+
+        async def collect():
+            async for evt in loop.run([{"role": "user", "content": "start"}]):
+                events.append(evt)
+
+        asyncio.get_event_loop().run_until_complete(collect())
+
+        assert "show_interaction" in executor_called
 
 
 from services.llm_engine.system_prompt import SystemPromptBuilder

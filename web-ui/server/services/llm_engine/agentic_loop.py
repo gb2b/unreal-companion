@@ -10,10 +10,10 @@ from typing import AsyncIterator, Callable, Awaitable
 
 from .events import (
     SSEEvent, TextDelta, TextDone, ToolCall, ToolResult,
-    ThinkingEvent, UsageEvent, ErrorEvent, DoneEvent,
+    ThinkingEvent, UsageEvent, ErrorEvent, DoneEvent, ProcessingStatus,
 )
 from .providers.base import LLMProvider, StreamEvent
-from .interceptors import is_interceptor, handle_interceptor, INTERCEPTOR_TOOLS
+from .tool_modules import dispatch_tool, get_tool_module, SessionState
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class AgenticLoop:
     Run a streaming agentic loop.
 
     Usage:
-        loop = AgenticLoop(provider, tool_executor)
+        loop = AgenticLoop(provider, tool_executor, session_state=state)
         async for event in loop.run(messages, system, tools):
             yield event.to_sse()  # send to SSE client
     """
@@ -36,10 +36,12 @@ class AgenticLoop:
         provider: LLMProvider,
         tool_executor: ToolExecutor,
         max_iterations: int = MAX_ITERATIONS,
+        session_state: SessionState | None = None,
     ):
         self.provider = provider
         self.tool_executor = tool_executor
         self.max_iterations = max_iterations
+        self.session_state = session_state
 
     async def run(
         self,
@@ -49,19 +51,23 @@ class AgenticLoop:
         max_tokens: int = 4096,
     ) -> AsyncIterator[SSEEvent]:
         """Run the agentic loop, yielding SSE events."""
-        # Inject interceptor tools + add _description param to all tools
-        all_tools = list(tools or []) + INTERCEPTOR_TOOLS
-        for tool in all_tools:
-            props = tool.get("input_schema", {}).get("properties", {})
-            if "_description" not in props:
-                props["_description"] = {
-                    "type": "string",
-                    "description": "Short description of what this tool call does, in the user's language. Shown in the UI. E.g., 'Lecture du document game-pitch', 'Mise à jour de la section Vision'."
-                }
+        # Tools are passed already resolved (module tools + Unreal tools)
+        # When session_state is set, _description is already injected by assemble_tools.
+        # For backward compat (no session_state), inject _description here.
+        all_tools = list(tools or [])
+        if not self.session_state:
+            for tool in all_tools:
+                props = tool.get("input_schema", {}).get("properties", {})
+                if "_description" not in props:
+                    props["_description"] = {
+                        "type": "string",
+                        "description": "Short description of what this tool call does, in the user's language. Shown in the UI. E.g., 'Lecture du document game-pitch', 'Mise à jour de la section Vision'."
+                    }
 
         working_messages = list(messages)
         total_input = 0
         total_output = 0
+        step_done_called = False
 
         for iteration in range(self.max_iterations):
             logger.info(f"Agentic loop iteration {iteration + 1}/{self.max_iterations}")
@@ -142,37 +148,66 @@ class AgenticLoop:
                 # Execute tools and collect results
                 tool_results_content = []
                 for tc in tool_calls:
-                    if tc["name"] == "ask_user":
+                    tc_name = tc["name"]
+                    tc_input = tc["input"]
+
+                    # Track step_done
+                    if tc_name == "step_done":
+                        step_done_called = True
+
+                    # Special handling for ask_user (pause signal)
+                    if tc_name == "ask_user":
                         paused = True
                         tool_results_content.append({
                             "type": "tool_result",
                             "tool_use_id": tc["id"],
                             "content": "Waiting for user response.",
                         })
+                        # Still dispatch via tool_modules for SSE events if available
+                        if self.session_state:
+                            dispatch_result = await dispatch_tool(tc_name, tc_input, self.session_state)
+                            if dispatch_result:
+                                _, sse_events, _ = dispatch_result
+                                for sse_event in sse_events:
+                                    yield sse_event
                         break  # Stop processing remaining tools
 
-                    if is_interceptor(tc["name"]):
-                        # Emit SSE events from interceptor
-                        for sse_event in handle_interceptor(tc["name"], tc["input"]):
+                    # Try dispatching via tool_modules
+                    if self.session_state:
+                        dispatch_result = await dispatch_tool(tc_name, tc_input, self.session_state)
+                    else:
+                        dispatch_result = None
+
+                    if dispatch_result is not None:
+                        result_str, sse_events, summary = dispatch_result
+
+                        # Emit SSE events from the module
+                        for sse_event in sse_events:
                             yield sse_event
-                        # Yield ToolResult so the frontend spinner resolves
-                        yield ToolResult(id=tc["id"], result=json.dumps({"success": True}))
+
+                        # Build result for LLM
+                        if result_str is None:
+                            result_str = json.dumps({"success": True})
+
+                        # Yield ToolResult with summary
+                        yield ToolResult(id=tc["id"], result=result_str, summary=summary)
                         tool_results_content.append({
                             "type": "tool_result",
                             "tool_use_id": tc["id"],
-                            "content": json.dumps({"success": True}),
+                            "content": result_str,
                         })
+
                         # Tools that present content to the user = stop the loop
-                        if tc["name"] in ("show_interaction", "show_prototype"):
+                        if tc_name in ("show_interaction", "show_prototype"):
                             paused = True
-                            break  # Stop processing remaining tools
+                            break
                     else:
-                        # Execute real tool via executor (read_project_document, update_project_context, MCP tools)
+                        # Not a tool module — execute via tool_executor (MCP bridge)
                         try:
-                            result_str = await self.tool_executor(tc["name"], tc["input"])
+                            result_str = await self.tool_executor(tc_name, tc_input)
                         except Exception as e:
-                            logger.error(f"Tool {tc['name']} failed: {e}")
-                            result_str = json.dumps({"error": str(e), "tool": tc["name"], "message": f"Tool '{tc['name']}' failed: {e}. You can retry with different parameters or try an alternative approach."})
+                            logger.error(f"Tool {tc_name} failed: {e}")
+                            result_str = json.dumps({"error": str(e), "tool": tc_name, "message": f"Tool '{tc_name}' failed: {e}. You can retry with different parameters or try an alternative approach."})
                         yield ToolResult(id=tc["id"], result=result_str)
                         tool_results_content.append({
                             "type": "tool_result",
@@ -194,7 +229,6 @@ class AgenticLoop:
                 assistant_content = []
                 if full_text:
                     assistant_content.append({"type": "text", "text": full_text})
-                # Include any partial tool calls that were in progress
                 for tc in tool_calls:
                     assistant_content.append({
                         "type": "tool_use",
@@ -210,6 +244,14 @@ class AgenticLoop:
             else:
                 # end_turn or no more tool calls -- done
                 break
+
+        # Auto-generate step_done if the LLM forgot
+        if not step_done_called and full_text and self.session_state:
+            first_line = full_text.strip().split("\n")[0]
+            title = first_line[:60].rstrip(".")
+            if len(title) > 50:
+                title = title[:50] + "..."
+            yield ProcessingStatus(text=f"step_done:{title}")
 
         # Emit final usage and done
         yield UsageEvent(input_tokens=total_input, output_tokens=total_output)
