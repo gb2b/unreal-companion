@@ -42,6 +42,7 @@ interface BuilderState {
 
   // Document
   documentId: string | null
+  documentDisplayName: string | null  // set by rename_document tool SSE event
   sectionStatuses: Record<string, SectionStatus>
   sectionContents: Record<string, string>  // section_id → markdown content (live updates)
 
@@ -86,6 +87,7 @@ const INITIAL_STATE = {
   projectPath: '',
   agent: { id: 'game-designer', name: 'Agent', emoji: '🤖' },
   documentId: null,
+  documentDisplayName: null,
   sectionStatuses: {},
   activeSection: null,
   sectionContents: {},
@@ -493,6 +495,13 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
                 stepTokensIn: inTkn,
                 stepTokensOut: outTkn,
               } as any
+            }
+            break
+          }
+          case 'document_renamed': {
+            const d = event.data as { new_name?: string }
+            if (d.new_name) {
+              set({ documentDisplayName: d.new_name })
             }
             break
           }

@@ -22,6 +22,7 @@ export type SSEEventType =
   | 'section_transition'
   | 'section_added'
   | 'learning_card'
+  | 'document_renamed'
 
 export interface TextDeltaEvent {
   content: string

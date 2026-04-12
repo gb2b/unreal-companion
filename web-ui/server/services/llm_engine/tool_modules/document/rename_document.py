@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from .. import ToolModule, SessionState, _register
 from ...prompt_modules import PromptContext
+from ...events import DocumentRenamed
 
 
 class RenameDocumentModule(ToolModule):
@@ -51,6 +52,9 @@ class RenameDocumentModule(ToolModule):
             return json.dumps({"success": False, "error": str(e)})
 
     def sse_events(self, tool_input: dict, state: SessionState) -> list:
+        new_name = tool_input.get("new_name", "")
+        if new_name:
+            return [DocumentRenamed(new_name=new_name)]
         return []
 
     def summarize_result(self, tool_input: dict, result: str | None, error: str | None, language: str) -> str:

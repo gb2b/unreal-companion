@@ -26,6 +26,7 @@ interface PreviewPanelProps {
   documentId?: string
   onEditRequest?: (sectionId: string, selectedText: string, prompt: string) => void
   workflowTypeName?: string
+  documentDisplayName?: string
   onDocIdChanged?: (newId: string) => void
 }
 
@@ -39,6 +40,7 @@ export function PreviewPanel({
   documentId,
   onEditRequest,
   workflowTypeName,
+  documentDisplayName,
   onDocIdChanged,
 }: PreviewPanelProps) {
   const { language } = useI18n()
@@ -194,6 +196,7 @@ export function PreviewPanel({
                   <EditableDocBanner
                     docId={documentId}
                     workflowTypeName={workflowTypeName || ''}
+                    displayName={documentDisplayName}
                     projectPath={projectPath || ''}
                     onIdChanged={onDocIdChanged}
                   />
@@ -421,11 +424,13 @@ function InlineContextEditor({ projectPath }: { projectPath: string }) {
 function EditableDocBanner({
   docId,
   workflowTypeName,
+  displayName,
   projectPath,
   onIdChanged,
 }: {
   docId: string
   workflowTypeName: string
+  displayName?: string
   projectPath: string
   onIdChanged?: (newId: string) => void
 }) {
@@ -489,9 +494,19 @@ function EditableDocBanner({
 
   return (
     <div className="shrink-0 border-b border-border/20 bg-muted/20 px-4 py-2.5">
-      {workflowTypeName && (
-        <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50">
-          {workflowTypeName}
+      {(workflowTypeName || displayName) && (
+        <div className="mb-1 flex items-center gap-2">
+          {workflowTypeName && (
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+              {workflowTypeName}
+            </span>
+          )}
+          {displayName && (
+            <>
+              <span className="text-[9px] text-muted-foreground/30">—</span>
+              <span className="text-[10px] text-foreground/60 truncate">{displayName}</span>
+            </>
+          )}
         </div>
       )}
       {editing ? (
