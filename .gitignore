@@ -167,3 +167,4 @@ UNREAL/SOURCE/
 
 # Claude Code local settings
 .claude/settings.local.json
+.worktrees/
