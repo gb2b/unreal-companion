@@ -8,6 +8,7 @@ from __future__ import annotations
 import yaml
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -125,7 +126,7 @@ def parse_workflow_v2(data: dict) -> WorkflowV2:
     )
 
 
-def load_workflow_v2(workflow_id: str, search_paths: list[Path]) -> WorkflowV2 | None:
+def load_workflow_v2(workflow_id: str, search_paths: list[Path], project_path: str = "") -> WorkflowV2 | None:
     """
     Load a workflow by ID from the given search paths.
     Supports both V2 (section-based) and V1 (step-based) formats.
@@ -147,6 +148,25 @@ def load_workflow_v2(workflow_id: str, search_paths: list[Path]) -> WorkflowV2 |
                 try:
                     with open(yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
+                    # Resolve {date}, {user_name}, etc. placeholders
+                    if project_path:
+                        try:
+                            from services.unified_loader import resolve_workflow_variables
+                            data = resolve_workflow_variables(data, project_path)
+                        except Exception:
+                            pass  # If resolution fails (no config), continue with raw data
+                    else:
+                        # Minimal inline substitution when no project_path is available
+                        _date_str = datetime.now().strftime("%Y-%m-%d")
+                        def _replace_date(obj):
+                            if isinstance(obj, str):
+                                return obj.replace("{date}", _date_str)
+                            if isinstance(obj, dict):
+                                return {k: _replace_date(v) for k, v in obj.items()}
+                            if isinstance(obj, list):
+                                return [_replace_date(v) for v in obj]
+                            return obj
+                        data = _replace_date(data)
                     if is_v2_workflow(data):
                         return parse_workflow_v2(data)
                     else:
