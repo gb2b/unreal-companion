@@ -449,9 +449,50 @@ async def get_document(doc_id: str, project_path: str = ""):
         raise HTTPException(400, "project_path required")
     store = DocumentStore(project_path)
     doc = store.get_document(doc_id)
-    if not doc:
-        raise HTTPException(404, f"Document not found: {doc_id}")
-    return doc
+    if doc:
+        return doc
+
+    # Fallback: try references (doc_id may be "references/first-brief" or just "first-brief")
+    ref_stem = doc_id
+    if ref_stem.startswith("references/"):
+        ref_stem = ref_stem[len("references/"):]
+    ref_dir = store.refs_root / ref_stem
+    if ref_dir.exists() and ref_dir.is_dir():
+        # Find the original file
+        ref_file = None
+        meta_dict = {}
+        for f in ref_dir.iterdir():
+            if f.name == "meta.json":
+                try:
+                    meta_dict = json.loads(f.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            elif f.is_file() and not f.name.endswith(".content.txt"):
+                ref_file = f
+        if ref_file:
+            content = ref_file.read_text(encoding="utf-8") if ref_file.suffix in (".md", ".txt") else ""
+            return {
+                "id": f"references/{ref_dir.name}",
+                "name": meta_dict.get("name", ref_file.name),
+                "content": content,
+                "meta": {
+                    "workflow_id": "",
+                    "agent": "",
+                    "status": "complete",
+                    "created": meta_dict.get("upload_date", ""),
+                    "updated": meta_dict.get("upload_date", ""),
+                    "sections": {},
+                    "input_documents": [],
+                    "prototypes": [],
+                    "conversation_id": "",
+                    "tags": meta_dict.get("tags", ["reference"]),
+                    "user_renamed": meta_dict.get("user_renamed", False),
+                    "name": meta_dict.get("name", ref_file.name),
+                    "summary": "",
+                },
+            }
+
+    raise HTTPException(404, f"Document not found: {doc_id}")
 
 
 @router.put("/documents/{doc_id:path}/rename-folder")

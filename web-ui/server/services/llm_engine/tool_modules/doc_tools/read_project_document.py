@@ -30,12 +30,24 @@ class ReadProjectDocumentModule(ToolModule):
 
     async def execute(self, tool_input: dict, state: SessionState) -> str | None:
         from services.document_store import DocumentStore
+        from services.doc_tools import DocTools
         read_doc_id = tool_input.get("document_id", "")
         try:
             store = DocumentStore(state.project_path)
+            # Try DocumentStore first (workflow documents)
             doc = store.get_document(read_doc_id)
             if doc:
                 return json.dumps({"success": True, "content": doc["content"][:4000]})
+
+            # Fallback: use DocTools._resolve_file which handles references/,
+            # case normalization, and stem matching (e.g. "first-brief.md" → references/first-brief/)
+            dt = DocTools(state.project_path)
+            file_path = dt._resolve_file(read_doc_id)
+            if file_path and file_path.exists():
+                from services.doc_extractor import get_cached_text
+                content = get_cached_text(file_path)
+                return json.dumps({"success": True, "content": content[:4000]})
+
             return json.dumps({"success": False, "error": f"Document '{read_doc_id}' not found"})
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)})
