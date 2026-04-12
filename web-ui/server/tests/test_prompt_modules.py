@@ -771,3 +771,27 @@ class TestStudioV2PromptContextBuilding:
         assert "A game about emotions." in result  # BUG 1 FIX: section content injected
         assert "tutoiement" in result  # French language rules
         assert "First Step of Every Workflow" not in result  # Not first step (turn_number=5)
+
+
+class TestDeprecationCleanup:
+    def test_interaction_guide_still_exists_as_fallback(self):
+        """add_interaction_guide should still work as a deprecated fallback."""
+        import warnings
+        from services.llm_engine.system_prompt import SystemPromptBuilder
+        builder = SystemPromptBuilder()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = builder.add_interaction_guide()
+            assert result is builder
+            assert len(w) == 1
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "add_dynamic_guide" in str(w[0].message)
+        prompt = builder.build()
+        # Should still produce content (the old constant)
+        assert len(prompt) > 100
+
+    def test_old_constant_still_importable(self):
+        """INTERACTION_GUIDE constant should still exist for backward compatibility."""
+        from services.llm_engine.system_prompt import INTERACTION_GUIDE
+        assert isinstance(INTERACTION_GUIDE, str)
+        assert len(INTERACTION_GUIDE) > 100

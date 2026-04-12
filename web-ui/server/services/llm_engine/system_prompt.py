@@ -243,7 +243,17 @@ class SystemPromptBuilder:
         return self
 
     def add_interaction_guide(self) -> "SystemPromptBuilder":
-        """Add the interaction guide for interceptor tools."""
+        """Add the interaction guide for interceptor tools.
+
+        DEPRECATED: Use add_dynamic_guide(ctx) instead for context-aware modular rules.
+        This method is kept for backward compatibility only.
+        """
+        import warnings
+        warnings.warn(
+            "add_interaction_guide() is deprecated. Use add_dynamic_guide(ctx) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.add("InteractionGuide", INTERACTION_GUIDE, priority=40)
 
     def add_dynamic_guide(self, ctx) -> "SystemPromptBuilder":
