@@ -72,7 +72,7 @@ export type MicroStepStatus = 'active' | 'answered' | 'skipped'
 
 /** A block in the micro-step timeline — everything accumulates, nothing disappears */
 export type StepBlock =
-  | { kind: 'tool_call'; name: string; label: string; status: 'pending' | 'done' | 'error' }
+  | { kind: 'tool_call'; name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; summary?: string }
   | { kind: 'text'; content: string }
   | { kind: 'streaming'; content: string }
   | { kind: 'interaction'; type: InteractionBlockType; data: InteractionData }

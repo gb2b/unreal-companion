@@ -411,6 +411,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           case 'tool_result': {
             const d_tr = event.data as any
             const resultStr = d_tr?.result || ''
+            const sseSummary = d_tr?.summary || ''  // summary from tool module
             let isError = false
             let resultPreview = ''
             try {
@@ -429,10 +430,13 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
               resultPreview = resultStr.length > 100 ? resultStr.slice(0, 97) + '...' : resultStr
             }
 
+            // Prefer SSE summary from tool module over parsed preview
+            const summary = sseSummary || resultPreview
+
             const blocks = getBlocks()
             for (let i = blocks.length - 1; i >= 0; i--) {
               if (blocks[i].kind === 'tool_call' && (blocks[i] as any).status === 'pending') {
-                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done', result: resultPreview, endTime: Date.now() } as any
+                blocks[i] = { ...blocks[i], status: isError ? 'error' : 'done', result: resultPreview, summary, endTime: Date.now() } as any
                 break
               }
             }
