@@ -325,3 +325,251 @@ class TestWorkflowModules:
         assert mod.is_active(self._ctx(completed_section_count=1)) is False
         assert mod.is_active(self._ctx(completed_section_count=2)) is True
         assert mod.is_active(self._ctx(completed_section_count=5)) is True
+
+
+class TestInteractionModules:
+    """Interaction modules — active during workflows, some conditionally."""
+
+    def _ctx(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3, "workflow_id": "game-brief"}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def test_tools_active_with_workflow(self):
+        from services.llm_engine.prompt_modules.interaction.tools import InteractionToolsModule
+        mod = InteractionToolsModule()
+        assert mod.is_active(self._ctx()) is True
+        assert mod.is_active(self._ctx(workflow_id=None)) is False
+
+    def test_tools_content(self):
+        from services.llm_engine.prompt_modules.interaction.tools import InteractionToolsModule
+        text = InteractionToolsModule().render(self._ctx())
+        assert "choices" in text
+        assert "slider" in text
+        assert "emoji" in text
+
+    def test_first_step_active_on_start(self):
+        from services.llm_engine.prompt_modules.interaction.first_step import FirstStepModule
+        mod = FirstStepModule()
+        assert mod.is_active(self._ctx(is_workflow_start=True, turn_number=0)) is True
+        assert mod.is_active(self._ctx(turn_number=0)) is True
+        assert mod.is_active(self._ctx(turn_number=3)) is False
+
+    def test_first_step_content(self):
+        from services.llm_engine.prompt_modules.interaction.first_step import FirstStepModule
+        text = FirstStepModule().render(self._ctx(is_workflow_start=True, turn_number=0))
+        assert "attach_documents" in text
+        assert "upload" in text.lower() or "document" in text.lower()
+
+    def test_elicitation_content(self):
+        from services.llm_engine.prompt_modules.interaction.elicitation import ElicitationModule
+        text = ElicitationModule().render(self._ctx())
+        assert "broad" in text.lower() or "narrow" in text.lower()
+        assert "example" in text.lower() or "reference" in text.lower()
+
+    def test_rhythm_active_after_first_turn(self):
+        from services.llm_engine.prompt_modules.interaction.rhythm import RhythmModule
+        mod = RhythmModule()
+        assert mod.is_active(self._ctx(turn_number=0)) is False
+        assert mod.is_active(self._ctx(turn_number=1)) is False
+        assert mod.is_active(self._ctx(turn_number=2)) is True
+
+    def test_failure_recovery_active_after_turn_2(self):
+        from services.llm_engine.prompt_modules.interaction.failure_recovery import InteractionFailureRecoveryModule
+        mod = InteractionFailureRecoveryModule()
+        assert mod.is_active(self._ctx(turn_number=1)) is False
+        assert mod.is_active(self._ctx(turn_number=3)) is True
+
+    def test_context_aware_openings_content(self):
+        from services.llm_engine.prompt_modules.interaction.context_aware_openings import ContextAwareOpeningsModule
+        text = ContextAwareOpeningsModule().render(self._ctx())
+        assert "fresh start" in text.lower() or "resume" in text.lower()
+
+    def test_silent_interaction_content(self):
+        from services.llm_engine.prompt_modules.interaction.silent_interaction import SilentInteractionModule
+        text = SilentInteractionModule().render(self._ctx())
+        assert "saturated" in text.lower() or "no question" in text.lower()
+
+    def test_creative_pushback_content(self):
+        from services.llm_engine.prompt_modules.interaction.creative_pushback import CreativePushbackModule
+        text = CreativePushbackModule().render(self._ctx())
+        assert "challenge" in text.lower() or "pushback" in text.lower()
+
+    def test_party_mode_content(self):
+        from services.llm_engine.prompt_modules.interaction.party_mode import PartyModeModule
+        text = PartyModeModule().render(self._ctx())
+        assert "Party Mode" in text or "party mode" in text.lower()
+
+
+class TestMemoryModules:
+
+    def _ctx(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3, "workflow_id": "game-brief"}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def test_session_memory_active_with_workflow(self):
+        from services.llm_engine.prompt_modules.memory.session import SessionMemoryModule
+        mod = SessionMemoryModule()
+        assert mod.is_active(self._ctx()) is True
+        assert mod.is_active(self._ctx(workflow_id=None)) is False
+
+    def test_session_memory_content(self):
+        from services.llm_engine.prompt_modules.memory.session import SessionMemoryModule
+        text = SessionMemoryModule().render(self._ctx())
+        assert "update_session_memory" in text
+        assert "800 words" in text
+
+    def test_project_memory_content(self):
+        from services.llm_engine.prompt_modules.memory.project import ProjectMemoryModule
+        text = ProjectMemoryModule().render(self._ctx())
+        assert "update_project_context" in text
+        assert "HIGH-LEVEL" in text or "high-level" in text
+
+    def test_cross_document_active_conditions(self):
+        from services.llm_engine.prompt_modules.memory.cross_document import CrossDocumentModule
+        mod = CrossDocumentModule()
+        # Active: has project context AND not game-brief
+        assert mod.is_active(self._ctx(has_project_context=True, workflow_id="gdd")) is True
+        # Inactive: game-brief workflow
+        assert mod.is_active(self._ctx(has_project_context=True, workflow_id="game-brief")) is False
+        # Inactive: no project context
+        assert mod.is_active(self._ctx(has_project_context=False, workflow_id="gdd")) is False
+
+    def test_cross_document_content(self):
+        from services.llm_engine.prompt_modules.memory.cross_document import CrossDocumentModule
+        text = CrossDocumentModule().render(self._ctx(has_project_context=True, workflow_id="gdd"))
+        assert "doc_read_summary" in text or "reference" in text.lower()
+
+    def test_user_preferences_tracker_content(self):
+        from services.llm_engine.prompt_modules.memory.user_preferences_tracker import UserPreferencesTrackerModule
+        text = UserPreferencesTrackerModule().render(self._ctx())
+        assert "preference" in text.lower()
+        assert "session memory" in text.lower() or "session_memory" in text
+
+
+class TestUploadedDocsModules:
+
+    def _ctx(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3, "workflow_id": "game-brief"}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def test_doc_tools_active_with_uploads(self):
+        from services.llm_engine.prompt_modules.uploaded_docs.doc_tools import DocToolsModule
+        mod = DocToolsModule()
+        assert mod.is_active(self._ctx(has_uploaded_docs=True)) is True
+        assert mod.is_active(self._ctx(has_uploaded_docs=False)) is False
+
+    def test_doc_tools_content(self):
+        from services.llm_engine.prompt_modules.uploaded_docs.doc_tools import DocToolsModule
+        text = DocToolsModule().render(self._ctx(has_uploaded_docs=True))
+        assert "doc_scan" in text
+        assert "doc_read_summary" in text
+
+    def test_trust_hierarchy_active_conditions(self):
+        from services.llm_engine.prompt_modules.uploaded_docs.trust_hierarchy import TrustHierarchyModule
+        mod = TrustHierarchyModule()
+        assert mod.is_active(self._ctx(has_uploaded_docs=True)) is True
+        assert mod.is_active(self._ctx(has_project_context=True)) is True
+        assert mod.is_active(self._ctx(has_uploaded_docs=False, has_project_context=False)) is False
+
+    def test_trust_hierarchy_content(self):
+        from services.llm_engine.prompt_modules.uploaded_docs.trust_hierarchy import TrustHierarchyModule
+        text = TrustHierarchyModule().render(self._ctx(has_uploaded_docs=True))
+        assert "user" in text.lower()
+        assert "priority" in text.lower() or "takes priority" in text.lower()
+
+
+class TestQualityModules:
+
+    def _ctx(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def test_language_always_active(self):
+        from services.llm_engine.prompt_modules.quality.language import LanguageModule
+        mod = LanguageModule()
+        assert mod.is_active(self._ctx()) is True
+
+    def test_language_fr_content(self):
+        from services.llm_engine.prompt_modules.quality.language import LanguageModule
+        text = LanguageModule().render(self._ctx(language="fr"))
+        assert "tutoiement" in text or "French" in text
+
+    def test_language_en_content(self):
+        from services.llm_engine.prompt_modules.quality.language import LanguageModule
+        text = LanguageModule().render(self._ctx(language="en"))
+        assert "English" in text or "en" in text.lower()
+
+    def test_output_quality_content(self):
+        from services.llm_engine.prompt_modules.quality.output_quality import OutputQualityModule
+        text = OutputQualityModule().render(self._ctx())
+        assert "concrete" in text.lower()
+        assert "active voice" in text.lower() or "active" in text.lower()
+
+    def test_markdown_structure_content(self):
+        from services.llm_engine.prompt_modules.quality.markdown_structure import MarkdownStructureModule
+        text = MarkdownStructureModule().render(self._ctx())
+        assert "heading" in text.lower() or "##" in text
+
+    def test_consistency_check_active_with_completed(self):
+        from services.llm_engine.prompt_modules.quality.consistency_check import ConsistencyCheckModule
+        mod = ConsistencyCheckModule()
+        assert mod.is_active(self._ctx(completed_section_count=0)) is False
+        assert mod.is_active(self._ctx(completed_section_count=1)) is True
+
+    def test_verbosity_content(self):
+        from services.llm_engine.prompt_modules.quality.verbosity import VerbosityModule
+        text = VerbosityModule().render(self._ctx())
+        assert "200 words" in text or "200" in text
+
+    def test_opinion_on_demand_content(self):
+        from services.llm_engine.prompt_modules.quality.opinion_on_demand import OpinionOnDemandModule
+        text = OpinionOnDemandModule().render(self._ctx())
+        assert "opinion" in text.lower()
+
+    def test_question_density_content(self):
+        from services.llm_engine.prompt_modules.quality.question_density import QuestionDensityModule
+        text = QuestionDensityModule().render(self._ctx())
+        assert "one question" in text.lower()
+
+    def test_expertise_level_content(self):
+        from services.llm_engine.prompt_modules.quality.expertise_level import ExpertiseLevelModule
+        text = ExpertiseLevelModule().render(self._ctx())
+        assert "beginner" in text.lower() or "pro" in text.lower()
+
+
+class TestGameDevModules:
+
+    def _ctx(self, **kwargs):
+        defaults = {"is_workflow_start": False, "turn_number": 3}
+        defaults.update(kwargs)
+        return PromptContext(**defaults)
+
+    def test_vocabulary_always_active(self):
+        from services.llm_engine.prompt_modules.game_dev.vocabulary import GameDevVocabularyModule
+        mod = GameDevVocabularyModule()
+        assert mod.is_active(self._ctx()) is True
+
+    def test_vocabulary_content(self):
+        from services.llm_engine.prompt_modules.game_dev.vocabulary import GameDevVocabularyModule
+        text = GameDevVocabularyModule().render(self._ctx())
+        assert "MDA" in text or "core loop" in text
+
+    def test_mindset_content(self):
+        from services.llm_engine.prompt_modules.game_dev.mindset import GameDevMindsetModule
+        text = GameDevMindsetModule().render(self._ctx())
+        assert "player" in text.lower()
+
+    def test_learning_active_only_when_learning_mode(self):
+        from services.llm_engine.prompt_modules.game_dev.learning import LearningModule
+        mod = LearningModule()
+        assert mod.is_active(self._ctx(learning_mode=True)) is True
+        assert mod.is_active(self._ctx(learning_mode=False)) is False
+
+    def test_learning_content(self):
+        from services.llm_engine.prompt_modules.game_dev.learning import LearningModule
+        text = LearningModule().render(self._ctx(learning_mode=True))
+        assert "explain_concept" in text
