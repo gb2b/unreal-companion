@@ -659,3 +659,127 @@ class TestFullRegistry:
             defn = mod.definition()
             schema = defn.get("input_schema", {})
             assert schema.get("type") == "object", f"{mod.name}: input_schema type is not 'object'"
+
+
+# --- Final integration tests ---
+
+class TestFinalIntegration:
+    """Final integration tests verifying end-to-end dispatch, assembly, and summaries."""
+
+    @pytest.mark.asyncio
+    async def test_dispatch_step_done(self):
+        """step_done dispatch returns (None, [event], non-empty-summary)."""
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        result, events, summary = await dispatch_tool("step_done", {"title": "Integration test step"}, state)
+        assert result is None  # SSE-only tool
+        assert len(events) == 1
+        assert isinstance(summary, str) and len(summary) > 0
+
+    @pytest.mark.asyncio
+    async def test_dispatch_show_interaction(self):
+        """show_interaction dispatch emits one InteractionBlock event."""
+        from services.llm_engine.events import InteractionBlock
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        result, events, summary = await dispatch_tool(
+            "show_interaction",
+            {"block_type": "choices", "data": {"options": [{"id": "a", "label": "Option A"}]}, "step_title": "Pick one"},
+            state,
+        )
+        assert result is None
+        assert len(events) == 1
+        assert isinstance(events[0], InteractionBlock)
+        assert isinstance(summary, str) and len(summary) > 0
+
+    @pytest.mark.asyncio
+    async def test_dispatch_update_document(self):
+        """update_document dispatch emits one DocumentUpdate event and tracks section."""
+        from services.llm_engine.events import DocumentUpdate
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        result, events, summary = await dispatch_tool(
+            "update_document",
+            {"section_id": "vision", "content": "A sci-fi puzzle game.", "status": "in_progress"},
+            state,
+        )
+        assert len(events) == 1
+        assert isinstance(events[0], DocumentUpdate)
+        assert events[0].section_id == "vision"
+        assert "vision" in state.updated_sections
+        assert isinstance(summary, str) and len(summary) > 0
+
+    @pytest.mark.asyncio
+    async def test_dispatch_all_20_tools_return_triple(self):
+        """Every tool dispatches and returns a (result, events, summary) triple."""
+        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
+        # Provide minimal inputs for each tool
+        minimal_inputs: dict[str, dict] = {
+            "show_interaction": {"block_type": "confirm", "data": {"message": "Continue?"}, "step_title": "Confirm"},
+            "show_prototype": {"title": "Proto", "html": "<h1>Hi</h1>"},
+            "ask_user": {"question": "What genre?"},
+            "report_progress": {"status": "Working..."},
+            "update_document": {"section_id": "s1", "content": "Content"},
+            "mark_section_complete": {"section_id": "s1"},
+            "add_section": {"section_id": "new_sec", "section_name": "New Section"},
+            "rename_document": {"new_name": "New Name"},
+            "skip_section": {"section_id": "art", "reason": "Not needed"},
+            "doc_scan": {"doc_id": "refs/test"},
+            "doc_read_summary": {"doc_id": "refs/test"},
+            "doc_read_section": {"doc_id": "refs/test", "section": "Intro"},
+            "doc_grep": {"query": "combat"},
+            "read_project_document": {"document_id": "concept/game-brief"},
+            "cite_reference": {"doc_id": "refs/test", "section": "Intro", "quote": "A great game"},
+            "update_session_memory": {"memory": "Key facts here"},
+            "update_project_context": {"summary": "# Context\nA sci-fi game."},
+            "step_done": {"title": "Test step"},
+            "summarize_progress": {},
+            "flag_contradiction": {"claim_a": "Fast-paced", "claim_b": "Slow exploration", "section": "gameplay"},
+        }
+        assert len(ALL_TOOL_MODULES) == 20, f"Expected 20 tools, got {len(ALL_TOOL_MODULES)}"
+        # Pre-populate state so guard-gated tools pass
+        state.updated_sections.add("s1")
+        state.section_statuses = {"vision": "complete", "gameplay": "in_progress"}
+
+        for mod in ALL_TOOL_MODULES:
+            tool_input = minimal_inputs.get(mod.name, {})
+            dispatch_result = await dispatch_tool(mod.name, tool_input, state)
+            assert dispatch_result is not None, f"{mod.name}: dispatch returned None (tool not found)"
+            result, events, summary = dispatch_result
+            assert isinstance(events, list), f"{mod.name}: events is not a list"
+            assert isinstance(summary, str), f"{mod.name}: summary is not a string"
+            assert len(summary) > 0, f"{mod.name}: summary is empty"
+
+    def test_assemble_tools_varies_by_context(self):
+        """assemble_tools produces different sets for different PromptContext values."""
+        ctx_bare = PromptContext(is_workflow_start=False, turn_number=0)
+        ctx_workflow_section = PromptContext(
+            is_workflow_start=False, turn_number=2,
+            workflow_id="gdd",
+            current_section={"id": "gameplay", "name": "Gameplay"},
+            has_uploaded_docs=True,
+            completed_section_count=3,
+        )
+        tools_bare = {t["name"] for t in assemble_tools(ctx_bare)}
+        tools_full = {t["name"] for t in assemble_tools(ctx_workflow_section)}
+
+        # update_document only with workflow + current_section
+        assert "update_document" not in tools_bare
+        assert "update_document" in tools_full
+
+        # doc_scan only with has_uploaded_docs=True
+        assert "doc_scan" not in tools_bare
+        assert "doc_scan" in tools_full
+
+        # flag_contradiction only with completed_section_count >= 1
+        assert "flag_contradiction" not in tools_bare
+        assert "flag_contradiction" in tools_full
+
+        # Always-available
+        for always in ["show_interaction", "step_done", "ask_user"]:
+            assert always in tools_bare
+            assert always in tools_full
+
+    def test_summarize_result_non_empty_for_all_tools(self):
+        """Every tool's summarize_result() returns a non-empty string for both en and fr."""
+        for mod in ALL_TOOL_MODULES:
+            for lang in ("en", "fr"):
+                s = mod.summarize_result({}, None, None, lang)
+                assert isinstance(s, str) and len(s) > 0, f"{mod.name} ({lang}): summarize_result returned empty"
