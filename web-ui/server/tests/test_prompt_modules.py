@@ -674,3 +674,50 @@ class TestFullAssembly:
         # Count major section markers to verify many modules are included
         section_count = result.count("###")
         assert section_count >= 20, f"Expected at least 20 module sections, got {section_count}"
+
+
+class TestSystemPromptBuilderIntegration:
+    """Test that SystemPromptBuilder.add_dynamic_guide works."""
+
+    def test_add_dynamic_guide_method_exists(self):
+        from services.llm_engine.system_prompt import SystemPromptBuilder
+        builder = SystemPromptBuilder()
+        assert hasattr(builder, "add_dynamic_guide")
+
+    def test_add_dynamic_guide_replaces_interaction_guide(self):
+        from services.llm_engine.system_prompt import SystemPromptBuilder
+        ctx = PromptContext(
+            is_workflow_start=False,
+            turn_number=3,
+            workflow_id="game-brief",
+        )
+        builder = SystemPromptBuilder()
+        builder.add_dynamic_guide(ctx)
+        result = builder.build()
+        # Should contain module content
+        assert "step_done" in result
+        assert "_description" in result
+        # Should NOT contain the old INTERACTION_GUIDE header
+        # (the old guide starts with "## Interaction Tools")
+        assert result.count("## Interaction Tools") <= 1  # At most from tools module
+
+    def test_add_dynamic_guide_returns_self(self):
+        from services.llm_engine.system_prompt import SystemPromptBuilder
+        ctx = PromptContext(is_workflow_start=False, turn_number=0)
+        builder = SystemPromptBuilder()
+        result = builder.add_dynamic_guide(ctx)
+        assert result is builder
+
+    def test_builder_chaining_with_dynamic_guide(self):
+        from services.llm_engine.system_prompt import SystemPromptBuilder
+        ctx = PromptContext(is_workflow_start=False, turn_number=0, language="fr")
+        prompt = (
+            SystemPromptBuilder()
+            .add_language("fr")
+            .add_dynamic_guide(ctx)
+            .add_security_rules()
+            .build()
+        )
+        assert "French" in prompt or "français" in prompt
+        assert "Security" in prompt
+        assert "step_done" in prompt
