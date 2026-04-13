@@ -85,3 +85,43 @@ def test_grep_in_specific_doc(tools):
 def test_grep_no_match(tools):
     results = tools.grep("xyznonexistent")
     assert len(results) == 0
+
+
+@pytest.mark.asyncio
+async def test_scan_writes_llm_section(tools, project_dir):
+    """doc_scan populates llm section in meta.json from scan results."""
+    mock_result = {"text": json.dumps({
+        "summary": "A game pitch for a puzzle game about crystals",
+        "sections": [
+            {"title": "Overview", "key_points": ["puzzle game"]},
+            {"title": "Mechanics", "key_points": ["match-3"]},
+        ],
+        "keywords": ["puzzle", "crystals", "match-3"],
+    })}
+    with patch.object(tools, "_llm_call", new_callable=AsyncMock, return_value=mock_result):
+        await tools.scan("references/pitch")
+
+    meta_path = tools.refs_root / "pitch" / "meta.json"
+    meta = json.loads(meta_path.read_text())
+
+    assert "llm" in meta
+    assert meta["llm"]["purpose"] == "A game pitch for a puzzle game about crystals"
+    assert meta["llm"]["keywords"] == ["puzzle", "crystals", "match-3"]
+    assert meta["llm"]["sections"] == ["Overview", "Mechanics"]
+
+
+@pytest.mark.asyncio
+async def test_scan_llm_truncates_purpose(tools, project_dir):
+    """doc_scan truncates llm purpose to 200 chars."""
+    long_summary = "X" * 300
+    mock_result = {"text": json.dumps({
+        "summary": long_summary,
+        "sections": [],
+        "keywords": [],
+    })}
+    with patch.object(tools, "_llm_call", new_callable=AsyncMock, return_value=mock_result):
+        await tools.scan("references/pitch")
+
+    meta_path = tools.refs_root / "pitch" / "meta.json"
+    meta = json.loads(meta_path.read_text())
+    assert len(meta["llm"]["purpose"]) == 200
