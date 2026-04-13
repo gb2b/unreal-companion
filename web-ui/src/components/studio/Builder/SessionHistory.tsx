@@ -166,7 +166,9 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                           ? <span className="animate-pulse text-primary">&#9679;</span>
                           : step.status === 'answered'
                             ? <span className="text-accent">&#10003;</span>
-                            : <span className="text-muted-foreground/40">&#9675;</span>}
+                            : step.status === 'skipped'
+                              ? <span className="text-amber-500">&#9197;</span>
+                              : <span className="text-muted-foreground/40">&#9675;</span>}
                       </span>
 
                       {/* Label */}
@@ -180,6 +182,11 @@ export function SessionHistory({ microSteps, activeMicroStepIndex, onStepClick }
                             <span className="text-[11px] text-foreground/80 truncate">
                               {label}
                             </span>
+                            {step.status === 'skipped' && (
+                              <span className="text-[10px] text-amber-500/50 italic truncate">
+                                {language === 'fr' ? 'Passé' : 'Skipped'}
+                              </span>
+                            )}
                             {step.status === 'answered' && step.userResponse && (
                               <span className="text-[10px] text-muted-foreground/40 truncate">
                                 → {step.userResponse.split('\n')[0].replace(/\[DOCUMENT_ATTACHED\].*/, '📎').replace(/\[DOCUMENT_LINKED\].*/, '🔗').slice(0, 35)}

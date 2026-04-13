@@ -763,11 +763,18 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
     },
 
     skipSection: () => {
-      const { activeSection, workflow } = get()
+      const { activeSection, workflow, microSteps, activeMicroStepIndex } = get()
       if (!activeSection || !workflow) return
+      // Mark current micro-step as skipped
+      const steps = [...microSteps]
+      const activeStep = steps[activeMicroStepIndex]
+      if (activeStep && activeStep.status === 'active') {
+        steps[activeMicroStepIndex] = { ...activeStep, status: 'skipped' }
+      }
       // Mark current section as skipped (todo), move to next
       set(s => ({
         sectionStatuses: { ...s.sectionStatuses, [activeSection]: 'todo' },
+        microSteps: steps,
       }))
       sendToSSE(`[SKIP_SECTION] User skipped the "${activeSection}" section. Move to the next section.`, { hidden: true })
     },
