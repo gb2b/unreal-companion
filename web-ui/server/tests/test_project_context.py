@@ -132,3 +132,17 @@ class TestBuildProjectSummary:
         result = build_project_summary(str(tmp_path))
         assert "**brief**" in result
         assert "**gdd**" in result
+
+
+class TestProjectMemoryPrompt:
+    def test_prompt_mentions_update_doc_meta(self):
+        """The prompt instructs the LLM to call update_doc_meta."""
+        from services.llm_engine.prompt_modules.memory.project import ProjectMemoryModule
+        from services.llm_engine.prompt_modules import PromptContext
+
+        module = ProjectMemoryModule()
+        ctx = PromptContext(is_workflow_start=False, turn_number=1, workflow_id="game-brief")
+        text = module.render(ctx)
+
+        assert "update_doc_meta" in text
+        assert "update_project_context" in text
