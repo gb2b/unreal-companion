@@ -23,6 +23,7 @@ from services.microstep_store import MicroStepStore
 from services.workflow_loader_v2 import load_workflow_v2, WorkflowV2
 from services.unified_loader import get_workflow_search_paths
 from services.project_context import build_project_summary
+from services.project_index import schedule_rebuild
 from services.conversation_history import ConversationHistory
 from services.context_brief import build_context_brief
 from services.llm_engine.prompt_modules import PromptContext, assemble_dynamic_guide
@@ -286,6 +287,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                     ),
                 )
                 logger.info(f"Created document stub: {doc_id}")
+                schedule_rebuild(request.project_path)
             else:
                 # Update conversation_id on existing document
                 meta_path = doc_store.root / doc_id / "meta.json"
@@ -483,6 +485,7 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
                         status = event_data_doc.get("status", "in_progress")
                         if section_id:
                             persist_store.update_section(doc_id, section_id, content or "", status)
+                            schedule_rebuild(request.project_path)
                     except Exception as e:
                         logger.warning(f"Failed to persist document_update for {doc_id}: {e}")
 
@@ -614,6 +617,7 @@ async def update_document_content(doc_id: str, body: DocumentContentUpdate):
     meta = store._load_meta(doc_id)
     meta.updated = datetime.now(timezone.utc).isoformat()
     store._save_meta(doc_id, meta)
+    schedule_rebuild(body.project_path)
     return {"success": True}
 
 
@@ -692,6 +696,7 @@ async def delete_document(doc_id: str, project_path: str = ""):
     deleted = store.delete_document(doc_id)
     if not deleted:
         raise HTTPException(404, f"Document not found: {doc_id}")
+    schedule_rebuild(project_path)
     return {"success": True}
 
 
@@ -713,6 +718,7 @@ async def rename_document_endpoint(doc_id: str, request: Request):
     if not result["success"]:
         code = 409 if "already exists" in result.get("error", "") else 404
         raise HTTPException(code, result["error"])
+    schedule_rebuild(project_path)
     return result
 
 
@@ -726,6 +732,7 @@ async def scan_document(doc_id: str, project_path: str = ""):
     result = await dt.scan(doc_id)
     if "error" in result:
         raise HTTPException(404, result.get("message", "Scan failed"))
+    schedule_rebuild(project_path)
     return {"success": True, "index": result}
 
 
@@ -815,6 +822,7 @@ async def update_document_tags(doc_id: str, request: Request):
     raw = json.loads(meta_path.read_text(encoding="utf-8"))
     raw["tags"] = tags
     meta_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+    schedule_rebuild(project_path)
     return {"success": True}
 
 
@@ -878,6 +886,7 @@ async def upload_reference(
 
     doc_id = f"references/{ref_dir.name}"
     response_data = {"success": True, "doc_id": doc_id, "filename": dest.name, "tags": meta["tags"]}
+    schedule_rebuild(project_path)
 
     # Auto-scan the uploaded document (unless skip_scan is set — LLM will scan via tools)
     if skip_scan.lower() != 'true':
