@@ -197,6 +197,7 @@ interface StepSlideProps {
   onSubmitResponse: (response: string) => void
   onBack: () => void
   onSkip: () => void
+  onJumpToLatest: () => void
   onProposeModification: (stepIndex: number) => void
   projectPath?: string
   previousUserResponse?: string | null
@@ -214,6 +215,7 @@ export function StepSlide({
   onSubmitResponse,
   onBack,
   onSkip,
+  onJumpToLatest,
   onProposeModification,
   projectPath,
   previousUserResponse,
@@ -239,7 +241,7 @@ export function StepSlide({
   const hasTextInput = textValue.trim().length > 0
   const hasAttachments = attachments.length > 0
   const hasResponse = hasSelection || hasTextInput || hasAttachments
-  const isReadonly = microStep?.status === 'answered' && activeMicroStepIndex < totalMicroSteps - 1
+  const isReadonly = (microStep?.status === 'answered' || microStep?.status === 'skipped') && activeMicroStepIndex < totalMicroSteps - 1
 
   // Dynamic placeholder
   const placeholder = hasSelection
@@ -555,6 +557,8 @@ export function StepSlide({
         canGoBack={activeMicroStepIndex > 0}
         isProcessing={isProcessing}
         hasResponse={hasResponse}
+        isReadonly={isReadonly}
+        onJumpToLatest={onJumpToLatest}
       />
 
       {/* Attach modal — pick from computer or library */}

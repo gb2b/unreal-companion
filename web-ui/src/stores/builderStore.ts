@@ -790,9 +790,8 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         if (hasContent) break
         prevIdx--
       }
-      const steps = [...microSteps]
-      steps[prevIdx] = { ...steps[prevIdx], status: 'active' }
-      set({ activeMicroStepIndex: prevIdx, microSteps: steps })
+      // Just navigate — don't change the step's status (it stays answered/skipped)
+      set({ activeMicroStepIndex: prevIdx })
     },
 
     jumpToSection: (sectionId) => {

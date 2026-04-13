@@ -227,6 +227,7 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               onSubmitResponse={submitResponse}
               onBack={goBack}
               onSkip={skipSection}
+              onJumpToLatest={() => jumpToMicroStep(microSteps.length - 1)}
               onProposeModification={proposeModification}
               projectPath={projectPath}
               previousUserResponse={activeMicroStepIndex > 0 ? microSteps[activeMicroStepIndex - 1]?.userResponse : null}
