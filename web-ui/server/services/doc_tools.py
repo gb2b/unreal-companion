@@ -66,6 +66,11 @@ class DocTools:
         meta = self._load_meta(meta_path)
         meta["indexed"] = True
         meta["index"] = index
+        meta["llm"] = {
+            "purpose": index.get("summary", "")[:200],
+            "keywords": index.get("keywords", [])[:15],
+            "sections": [s["title"] for s in index.get("sections", []) if isinstance(s, dict) and "title" in s],
+        }
         meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
 
         return index

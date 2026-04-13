@@ -30,6 +30,13 @@ class SectionMeta:
 
 
 @dataclass
+class LLMIndex:
+    purpose: str = ""
+    keywords: list[str] = field(default_factory=list)
+    sections: list[str] = field(default_factory=list)
+
+
+@dataclass
 class DocumentMeta:
     workflow_id: str = ""
     agent: str = ""
@@ -44,6 +51,7 @@ class DocumentMeta:
     user_renamed: bool = False
     name: str = ""  # Display name, e.g., "Game Brief -- 06/04/2026"
     summary: str = ""  # First meaningful line of content
+    llm: LLMIndex = field(default_factory=LLMIndex)
 
 
 # Category mapping
@@ -153,6 +161,7 @@ class DocumentStore:
                         "summary": "",
                         "content_type": meta_dict.get("content_type", ""),
                         "size_bytes": meta_dict.get("size_bytes", 0),
+                        "llm": meta_dict.get("llm", {}),
                     },
                 })
 
@@ -268,6 +277,12 @@ class DocumentStore:
             sections = {}
             for sid, sdata in raw.get("sections", {}).items():
                 sections[sid] = SectionMeta(**sdata) if isinstance(sdata, dict) else SectionMeta()
+            llm_raw = raw.get("llm", {})
+            llm = LLMIndex(
+                purpose=llm_raw.get("purpose", ""),
+                keywords=llm_raw.get("keywords", []),
+                sections=llm_raw.get("sections", []),
+            ) if isinstance(llm_raw, dict) else LLMIndex()
             return DocumentMeta(
                 workflow_id=raw.get("workflow_id", ""),
                 agent=raw.get("agent", ""),
@@ -282,6 +297,7 @@ class DocumentStore:
                 user_renamed=raw.get("user_renamed", False),
                 name=raw.get("name", ""),
                 summary=raw.get("summary", ""),
+                llm=llm,
             )
         except Exception as e:
             logger.error(f"Failed to load meta {meta_path}: {e}")

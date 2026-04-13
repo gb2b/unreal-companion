@@ -13,6 +13,7 @@ class ProjectMemoryModule(PromptModule):
         return """### Project Memory — Living Document
 
 After EVERY section completion or major decision, call `update_project_context` to update the project memory.
+After completing a section, also call `update_doc_meta` to update the document's purpose, keywords, and section list so other agents can discover this document's content.
 
 The project memory is the SINGLE source of truth about the project state. It is read by every agent at the start of every conversation. Write it as a structured Markdown document with these sections:
 
