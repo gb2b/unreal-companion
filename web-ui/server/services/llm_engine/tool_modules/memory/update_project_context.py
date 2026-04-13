@@ -16,7 +16,7 @@ class UpdateProjectContextModule(ToolModule):
     def definition(self) -> dict:
         return {
             "name": "update_project_context",
-            "description": "Update the project context summary with key decisions and facts. Call this EVERY TIME you write or update a document section. Summarize the important facts -- game name, genre, core mechanics, target audience, key decisions made. Keep it concise (under 500 words). This context is read at the start of every future conversation so the entire studio knows the project state.",
+            "description": "Update the project memory (project-memory.md). This is the living memory of the project — read by every agent at the start of every conversation. Write it as structured Markdown with ## sections: Identity, Design Pillars, Key Decisions, Documents, Open Questions. Keep it under 500 words. Replace the full content each time, but preserve all existing info — only update what changed.",
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -34,6 +34,8 @@ class UpdateProjectContextModule(ToolModule):
 
     async def execute(self, tool_input: dict, state: SessionState) -> str | None:
         summary = tool_input.get("summary", "")
+        if summary and "##" not in summary:
+            logger.warning("[update_project_context] Content has no ## headings — may be unstructured")
         try:
             context_path = Path(state.project_path) / ".unreal-companion" / "project-memory.md"
             context_path.parent.mkdir(parents=True, exist_ok=True)

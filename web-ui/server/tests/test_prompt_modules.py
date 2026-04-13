@@ -424,7 +424,9 @@ class TestMemoryModules:
         from services.llm_engine.prompt_modules.memory.project import ProjectMemoryModule
         text = ProjectMemoryModule().render(self._ctx())
         assert "update_project_context" in text
-        assert "HIGH-LEVEL" in text or "high-level" in text
+        assert "## Identity" in text
+        assert "## Design Pillars" in text
+        assert "## Key Decisions" in text
 
     def test_cross_document_active_conditions(self):
         from services.llm_engine.prompt_modules.memory.cross_document import CrossDocumentModule

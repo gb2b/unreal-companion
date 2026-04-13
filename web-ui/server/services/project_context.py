@@ -19,16 +19,10 @@ def build_project_summary(project_path: str) -> str:
     if not project_path:
         return ""
 
-    parts = ["## Project Context\n"]
+    parts = ["## Project Documents\n"]
 
-    # Load project-context.md if it exists (human-written vision)
-    context_file = Path(project_path) / ".unreal-companion" / "project-context.md"
-    if context_file.exists():
-        content = context_file.read_text(encoding="utf-8")
-        # Take only the first 300 chars as a summary
-        if len(content) > 300:
-            content = content[:300] + "..."
-        parts.append(f"### Project Vision\n{content}\n")
+    # NOTE: project-memory.md (the living memory) is read separately by context_brief.py.
+    # This function provides only the auto-generated document index (always accurate from disk).
 
     # List existing documents with status (compact — no content)
     try:

@@ -297,6 +297,16 @@ async def studio_chat(request: StudioChatRequest, raw_request: Request):
         except Exception as e:
             logger.warning(f"Failed to init document {doc_id}: {e}")
 
+    # Ensure project-memory.md exists with a structured template on first workflow
+    if is_workflow_start and request.project_path:
+        pm_path = Path(request.project_path) / ".unreal-companion" / "project-memory.md"
+        if not pm_path.exists():
+            pm_path.parent.mkdir(parents=True, exist_ok=True)
+            pm_path.write_text(
+                "# New Project\n\n## Identity\n\n## Design Pillars\n\n## Key Decisions\n\n## Documents\n\n## Open Questions\n",
+                encoding="utf-8",
+            )
+
     # Load conversation history now that doc_id is resolved
     if request.project_path and doc_id:
         conv_history = ConversationHistory(request.project_path)
