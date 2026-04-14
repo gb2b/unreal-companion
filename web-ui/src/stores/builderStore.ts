@@ -356,13 +356,34 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           }
           case 'document_update': {
             const d = event.data as DocumentUpdateEvent
-            statuses[d.section_id] = d.status as SectionStatus
-            if (d.content) {
-              contents[d.section_id] = d.content
+            if (d.section_id === '_full' && d.content) {
+              // Full document refresh (from edit_content patch mode) — re-parse all sections
+              let currentId = ''
+              let currentLines: string[] = []
+              for (const line of d.content.split('\n')) {
+                if (line.startsWith('## ')) {
+                  if (currentId) {
+                    const text = currentLines.join('\n').trim()
+                    if (text) contents[currentId] = text
+                  }
+                  currentId = line.slice(3).trim().toLowerCase().replace(/\s+/g, '-')
+                  currentLines = []
+                } else if (currentId) {
+                  currentLines.push(line)
+                }
+              }
+              if (currentId) {
+                const text = currentLines.join('\n').trim()
+                if (text) contents[currentId] = text
+              }
+            } else {
+              statuses[d.section_id] = d.status as SectionStatus
+              if (d.content) {
+                contents[d.section_id] = d.content
+              }
+              // Only switch active section if there's no current section yet
+              if (d.status === 'in_progress' && !section) section = d.section_id
             }
-            // Only switch active section if there's no current section yet
-            // Cross-section updates (e.g., updating "references" while in "init") should NOT change active section
-            if (d.status === 'in_progress' && !section) section = d.section_id
             break
           }
           case 'section_complete': {

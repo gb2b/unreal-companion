@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Eye, PenLine } from 'lucide-react'
+import { Eye, PenLine, RefreshCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { MermaidBlock } from '../Editor/MermaidBlock'
@@ -166,6 +166,35 @@ export function PreviewPanel({
                   Editor
                 </button>
               </div>
+              {activeTab === 'document' && projectPath && documentId && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const r = await fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}?project_path=${encodeURIComponent(projectPath)}`)
+                      if (!r.ok) return
+                      const doc = await r.json()
+                      if (!doc?.content) return
+                      // Re-parse sections from fetched content into builderStore
+                      const { useBuilderStore } = await import('@/stores/builderStore')
+                      const newContents: Record<string, string> = {}
+                      let curId = '', curLines: string[] = []
+                      for (const line of doc.content.split('\n')) {
+                        if (line.startsWith('## ')) {
+                          if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
+                          curId = line.slice(3).trim().toLowerCase().replace(/\s+/g, '-')
+                          curLines = []
+                        } else if (curId) curLines.push(line)
+                      }
+                      if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
+                      useBuilderStore.setState(s => ({ sectionContents: { ...s.sectionContents, ...newContents } }))
+                    } catch { /* ignore */ }
+                  }}
+                  className="rounded px-1.5 py-0.5 text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30 transition-colors"
+                  title="Refresh preview"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </button>
+              )}
               {activeTab === 'document' && hasPrototype && (
                 <button
                   onClick={() => setViewingPrototype(!viewingPrototype)}
