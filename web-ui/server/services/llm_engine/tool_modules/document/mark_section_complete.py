@@ -33,24 +33,34 @@ class MarkSectionCompleteModule(ToolModule):
 
     async def execute(self, tool_input: dict, state: SessionState) -> str | None:
         section_id = tool_input.get("section_id", "")
-        # BUG 2 FIX: Guard — section must have been updated first
-        if section_id not in state.updated_sections:
-            return json.dumps({
-                "success": False,
-                "error": f"Cannot mark '{section_id}' complete: no content has been written via edit_content. Write the section content first, then mark it complete."
-            })
+        # BUG 2 FIX: Guard — check if the section actually has content on disk
+        if state.project_path and state.doc_id:
+            from pathlib import Path
+            doc_path = Path(state.project_path) / ".unreal-companion" / "documents" / state.doc_id / "document.md"
+            has_content = False
+            if doc_path.exists():
+                content = doc_path.read_text(encoding="utf-8")
+                # Find the section and check if it has substantive content (>20 chars, not just a heading)
+                import re
+                pattern = rf"## {re.escape(section_id)}\n(.*?)(?=\n## |\Z)"
+                match = re.search(pattern, content, re.DOTALL)
+                if match:
+                    section_text = match.group(1).strip()
+                    has_content = len(section_text) > 20
+            if not has_content:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Cannot mark '{section_id}' complete: the section has no substantive content yet. Write the section content first, then mark it complete."
+                })
         state.section_statuses[section_id] = "complete"
         return json.dumps({"success": True})
 
     def sse_events(self, tool_input: dict, state: SessionState) -> list:
         section_id = tool_input.get("section_id", "")
-        # Only emit SSE events if section was actually marked complete
-        if section_id in state.updated_sections:
-            return [
-                SectionComplete(section_id=section_id),
-                DocumentUpdate(section_id=section_id, content="", status="complete"),
-            ]
-        return []
+        return [
+            SectionComplete(section_id=section_id),
+            DocumentUpdate(section_id=section_id, content="", status="complete"),
+        ]
 
     def summarize_result(self, tool_input: dict, result: str | None, error: str | None, language: str) -> str:
         section_id = tool_input.get("section_id", "")

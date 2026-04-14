@@ -320,27 +320,38 @@ class TestReportProgressTool:
 class TestMarkSectionCompleteTool:
     @pytest.mark.asyncio
     async def test_bug2_rejects_without_update(self):
-        """BUG 2 FIX: mark_section_complete should fail if section was never updated."""
+        """BUG 2 FIX: mark_section_complete should fail if section has no content on disk."""
+        import tempfile, os
         from services.llm_engine.tool_modules.document.mark_section_complete import MarkSectionCompleteModule
         mod = MarkSectionCompleteModule()
-        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
-        # Section NOT in updated_sections
-        result = await mod.execute({"section_id": "vision"}, state)
-        assert result is not None
-        data = json.loads(result)
-        assert data.get("error") or data.get("success") is False
+        with tempfile.TemporaryDirectory() as td:
+            # Create empty document
+            doc_dir = os.path.join(td, ".unreal-companion", "documents", "test-doc")
+            os.makedirs(doc_dir)
+            with open(os.path.join(doc_dir, "document.md"), "w") as f:
+                f.write("# Test\n\n## vision\n\n")  # Empty section (just heading)
+            state = SessionState(project_path=td, doc_id="test-doc", workflow_id="w", language="en")
+            result = await mod.execute({"section_id": "vision"}, state)
+            assert result is not None
+            data = json.loads(result)
+            assert data.get("error") or data.get("success") is False
 
     @pytest.mark.asyncio
     async def test_succeeds_after_update(self):
+        """mark_section_complete should succeed if section has real content on disk."""
+        import tempfile, os
         from services.llm_engine.tool_modules.document.mark_section_complete import MarkSectionCompleteModule
         mod = MarkSectionCompleteModule()
-        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
-        state.updated_sections.add("vision")
-        result = await mod.execute({"section_id": "vision"}, state)
-        # Should succeed (None for SSE-only or success JSON)
-        if result is not None:
-            data = json.loads(result)
-            assert data.get("success") is True
+        with tempfile.TemporaryDirectory() as td:
+            doc_dir = os.path.join(td, ".unreal-companion", "documents", "test-doc")
+            os.makedirs(doc_dir)
+            with open(os.path.join(doc_dir, "document.md"), "w") as f:
+                f.write("# Test\n\n## vision\n\nA puzzle game about time travel and memories. The player explores a mysterious world.\n")
+            state = SessionState(project_path=td, doc_id="test-doc", workflow_id="w", language="en")
+            result = await mod.execute({"section_id": "vision"}, state)
+            if result is not None:
+                data = json.loads(result)
+                assert data.get("success") is True
 
     @pytest.mark.asyncio
     async def test_sse_events_on_success(self):
