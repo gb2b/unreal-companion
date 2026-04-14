@@ -86,7 +86,15 @@ class AgenticLoop:
                 tools=all_tools,
                 max_tokens=max_tokens,
             ):
-                if event.type == "text_delta":
+                if event.type == "error":
+                    # API error from provider (auth, billing, rate limit, overloaded)
+                    error_msg = event.error_message or "Unknown API error"
+                    error_type = event.error_type or "api_error"
+                    logger.error(f"Provider error: {error_type} — {error_msg}")
+                    yield ErrorEvent(message=f"[{error_type}] {error_msg}")
+                    return  # Stop the loop — can't continue without API access
+
+                elif event.type == "text_delta":
                     text_parts.append(event.content)
                     yield TextDelta(content=event.content)
 

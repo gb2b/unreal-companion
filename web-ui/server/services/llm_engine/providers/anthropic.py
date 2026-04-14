@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import AsyncIterator
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, APIError, AuthenticationError, RateLimitError, APIStatusError
 from .base import LLMProvider, StreamEvent
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,36 @@ class AnthropicProvider:
         if tools:
             kwargs["tools"] = tools
 
-        async with self._client.messages.stream(**kwargs) as stream:
+        try:
+          stream_ctx = self._client.messages.stream(**kwargs)
+        except AuthenticationError as e:
+            logger.error(f"Anthropic auth error: {e}")
+            yield StreamEvent(type="error", error_type="authentication", error_message="Invalid API key. Check your Anthropic API key in settings.")
+            return
+        except RateLimitError as e:
+            logger.warning(f"Anthropic rate limit: {e}")
+            yield StreamEvent(type="error", error_type="rate_limit", error_message="Rate limited by Anthropic. Please wait a moment and try again.")
+            return
+        except APIStatusError as e:
+            error_body = getattr(e, 'body', {}) or {}
+            error_type = error_body.get('error', {}).get('type', 'api_error') if isinstance(error_body, dict) else 'api_error'
+            error_msg = error_body.get('error', {}).get('message', str(e)) if isinstance(error_body, dict) else str(e)
+            if e.status_code == 529:
+                error_msg = "Claude is temporarily overloaded. Please try again in a few seconds."
+                error_type = "overloaded"
+            elif 'billing' in str(e).lower() or 'credit' in str(e).lower():
+                error_msg = "Billing limit reached. Check your Anthropic account billing status."
+                error_type = "billing"
+            logger.error(f"Anthropic API error {e.status_code}: {error_type} — {error_msg}")
+            yield StreamEvent(type="error", error_type=error_type, error_message=error_msg)
+            return
+        except APIError as e:
+            logger.error(f"Anthropic API error: {e}")
+            yield StreamEvent(type="error", error_type="api_error", error_message=str(e))
+            return
+
+        try:
+          async with stream_ctx as stream:
             current_tool_id = ""
             current_tool_name = ""
             tool_input_parts: list[str] = []
@@ -103,3 +132,13 @@ class AnthropicProvider:
                     input_tokens=final_msg.usage.input_tokens,
                     output_tokens=final_msg.usage.output_tokens,
                 )
+        except APIStatusError as e:
+            error_body = getattr(e, 'body', {}) or {}
+            error_msg = error_body.get('error', {}).get('message', str(e)) if isinstance(error_body, dict) else str(e)
+            if e.status_code == 529:
+                error_msg = "Claude is temporarily overloaded. Please try again in a few seconds."
+            logger.error(f"Anthropic stream error {e.status_code}: {error_msg}")
+            yield StreamEvent(type="error", error_type="api_error", error_message=error_msg)
+        except APIError as e:
+            logger.error(f"Anthropic stream error: {e}")
+            yield StreamEvent(type="error", error_type="api_error", error_message=str(e))

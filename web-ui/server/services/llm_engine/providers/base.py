@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 @dataclass
 class StreamEvent:
     """Raw event from a provider stream, normalized to a common shape."""
-    type: str  # "text_delta", "text_done", "tool_use_start", "tool_use_delta", "tool_use_done", "thinking", "usage", "stop"
+    type: str  # "text_delta", "text_done", "tool_use_start", "tool_use_delta", "tool_use_done", "thinking", "usage", "stop", "error"
     content: str = ""
     tool_id: str = ""
     tool_name: str = ""
@@ -15,6 +15,8 @@ class StreamEvent:
     input_tokens: int = 0
     output_tokens: int = 0
     stop_reason: str = ""  # "end_turn", "tool_use", "max_tokens"
+    error_type: str = ""  # "authentication", "rate_limit", "overloaded", "billing", "api_error"
+    error_message: str = ""  # human-readable error message
 
 
 @runtime_checkable
