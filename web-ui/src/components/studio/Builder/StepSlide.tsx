@@ -25,7 +25,10 @@ interface AttachedDoc {
 }
 
 // Tools whose spinner/card should not be shown — the result speaks for itself
-const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user', 'step_done', '_description']
+// Tools completely hidden from the UI (internal/metadata only)
+const HIDDEN_TOOLS = ['report_progress', 'ask_user', '_description']
+// Tools shown as a spinner while pending, hidden once done (their result IS the UI block)
+const SPINNER_ONLY_TOOLS = ['show_interaction', 'show_prototype']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
 /** Extract timestamp from step id: step-{n}-{Date.now()} */
@@ -108,6 +111,31 @@ function ToolCallCard({ name, label, status, startTime, endTime, result, rawResu
   name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; rawResult?: string; summary?: string; projectPath?: string
 }) {
   if (HIDDEN_TOOLS.includes(name)) return null
+
+  // Spinner-only tools (show_interaction, show_prototype): show a spinner while pending, nothing when done
+  if (SPINNER_ONLY_TOOLS.includes(name)) {
+    if (status !== 'pending') return null
+    return (
+      <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground/50">
+        <span className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/30 border-t-primary" />
+        <span>{label || (name === 'show_interaction' ? 'Preparing question...' : 'Building prototype...')}</span>
+      </div>
+    )
+  }
+
+  // step_done: rendered as a step footer, not a regular tool card
+  if (name === 'step_done') {
+    return (
+      <div className="mt-4 flex items-center gap-3 border-t border-border/20 pt-3 text-[10px] text-muted-foreground/40">
+        <span className="text-accent">✓</span>
+        <span className="font-medium">{summary || label || 'Step complete'}</span>
+        <span className="flex-1" />
+        {startTime && endTime && (
+          <span className="tabular-nums">{formatDuration(Math.floor((endTime - startTime) / 1000))}</span>
+        )}
+      </div>
+    )
+  }
   const [expanded, setExpanded] = useState(false)
   const [undoState, setUndoState] = useState<'idle' | 'loading' | 'done'>('idle')
   const displayName = TOOL_DISPLAY_NAMES[name] || name
@@ -651,7 +679,7 @@ export function StepSlide({
 
           {/* Thinking indicator — fun game-dev themed messages */}
           {isProcessing && !isStreaming && !blocks.some(
-            b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
+            b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name) && !SPINNER_ONLY_TOOLS.includes(b.name)
           ) && !blocks.some(b => b.kind === 'interaction') && (
             <ThinkingIndicator />
           )}
