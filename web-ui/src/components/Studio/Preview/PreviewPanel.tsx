@@ -179,9 +179,9 @@ export function PreviewPanel({
                       const newContents: Record<string, string> = {}
                       let curId = '', curLines: string[] = []
                       for (const line of doc.content.split('\n')) {
-                        if (line.startsWith('## ')) {
+                        if (line.match(/^#{1,2} /)) {
                           if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
-                          curId = line.slice(3).trim().toLowerCase().replace(/\s+/g, '-')
+                          curId = line.replace(/^#+\s*/, '').trim().toLowerCase().replace(/\s+/g, '-')
                           curLines = []
                         } else if (curId) curLines.push(line)
                       }

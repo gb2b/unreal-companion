@@ -1069,16 +1069,17 @@ async def update_project_context_content(body: ProjectContextUpdate):
 
 
 def _parse_section_contents(content: str) -> dict[str, str]:
-    """Parse markdown into {section_id: content} by splitting on ## headers."""
+    """Parse markdown into {section_id: content} by splitting on # or ## headers."""
+    import re
     sections: dict[str, str] = {}
     current_id = ""
     current_lines: list[str] = []
 
     for line in content.split("\n"):
-        if line.startswith("## "):
+        if re.match(r"^#{1,2} ", line):
             if current_id:
                 sections[current_id] = "\n".join(current_lines).strip()
-            header = line[3:].strip()
+            header = re.sub(r"^#+\s*", "", line).strip()
             current_id = header.lower().replace(" ", "-")
             current_lines = []
         elif current_id:
