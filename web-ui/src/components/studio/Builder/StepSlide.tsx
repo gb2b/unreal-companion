@@ -26,9 +26,7 @@ interface AttachedDoc {
 
 // Tools whose spinner/card should not be shown — the result speaks for itself
 // Tools completely hidden from the UI (internal/metadata only)
-const HIDDEN_TOOLS = ['report_progress', 'ask_user', '_description']
-// Tools shown as a spinner while pending, hidden once done (their result IS the UI block)
-const SPINNER_ONLY_TOOLS = ['show_interaction', 'show_prototype']
+const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user', '_description']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
 /** Extract timestamp from step id: step-{n}-{Date.now()} */
@@ -111,17 +109,6 @@ function ToolCallCard({ name, label, status, startTime, endTime, result, rawResu
   name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; rawResult?: string; summary?: string; projectPath?: string
 }) {
   if (HIDDEN_TOOLS.includes(name)) return null
-
-  // Spinner-only tools (show_interaction, show_prototype): show a spinner while pending, nothing when done
-  if (SPINNER_ONLY_TOOLS.includes(name)) {
-    if (status !== 'pending') return null
-    return (
-      <div className="flex items-center gap-2 py-2 text-[11px] text-muted-foreground/50">
-        <span className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/30 border-t-primary" />
-        <span>{label || (name === 'show_interaction' ? 'Preparing question...' : 'Building prototype...')}</span>
-      </div>
-    )
-  }
 
   // step_done: rendered as a step footer, not a regular tool card
   if (name === 'step_done') {
@@ -679,7 +666,7 @@ export function StepSlide({
 
           {/* Thinking indicator — fun game-dev themed messages */}
           {isProcessing && !isStreaming && !blocks.some(
-            b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name) && !SPINNER_ONLY_TOOLS.includes(b.name)
+            b => b.kind === 'tool_call' && b.status === 'pending' && !HIDDEN_TOOLS.includes(b.name)
           ) && !blocks.some(b => b.kind === 'interaction') && (
             <ThinkingIndicator />
           )}
