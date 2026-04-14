@@ -25,7 +25,7 @@ interface AttachedDoc {
 }
 
 // Tools whose spinner/card should not be shown — the result speaks for itself
-const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user', 'step_done']
+const HIDDEN_TOOLS = ['show_interaction', 'show_prototype', 'report_progress', 'ask_user', 'step_done', '_description']
 
 /** Tool call card — only shown for meaningful tools, hidden for show_interaction */
 /** Extract timestamp from step id: step-{n}-{Date.now()} */
