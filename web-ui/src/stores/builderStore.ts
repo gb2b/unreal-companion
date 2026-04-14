@@ -218,9 +218,8 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         case 'doc_read_summary': return `Read summary — ${shortId(input.doc_id || '')}`
         case 'doc_read_section': return `Read section — ${shortId(input.doc_id || '')} → ${input.section || ''}`
         case 'doc_grep': return `Search — "${input.query || ''}"${input.doc_ids?.length ? ` in ${input.doc_ids.map(shortId).join(', ')}` : ''}`
-        case 'update_document': return `Write — ${input.section_id || 'document'}`
+        case 'edit_content': return `Edit — ${input.file_path || input.section_id || 'content'}`
         case 'mark_section_complete': return `Complete — ${input.section_id || 'section'}`
-        case 'update_project_context': return 'Update project context'
         case 'update_session_memory': return 'Save session memory'
         case 'read_project_document': return `Read — ${shortId(input.doc_id || 'document')}`
         case 'rename_document': return `Rename — ${input.name || ''}`
@@ -733,7 +732,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
         `## Instructions`,
         `IMPORTANT: ALL sections of this document are empty and need to be filled. Even if the project context has relevant info, you MUST review each section with the user before writing it.`,
         hasContext
-          ? `The project context above is a REFERENCE — use it to propose content for each section, but always ask the user to validate before calling update_document. Start from the first section.`
+          ? `The project context above is a REFERENCE — use it to propose content for each section, but always ask the user to validate before calling edit_content. Start from the first section.`
           : `This is a new project with no existing context. Introduce yourself with your persona and start the workflow.`,
         `First, ask if the user has documents to upload. Then work through sections one by one.`,
         `Respond with exactly ONE text message followed by ONE show_interaction call with a step_title.`,

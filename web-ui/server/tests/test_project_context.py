@@ -135,8 +135,8 @@ class TestBuildProjectSummary:
 
 
 class TestProjectMemoryPrompt:
-    def test_prompt_mentions_update_doc_meta(self):
-        """The prompt instructs the LLM to call update_doc_meta."""
+    def test_prompt_mentions_edit_content(self):
+        """The prompt instructs the LLM to call edit_content for project memory and meta."""
         from services.llm_engine.prompt_modules.memory.project import ProjectMemoryModule
         from services.llm_engine.prompt_modules import PromptContext
 
@@ -144,5 +144,5 @@ class TestProjectMemoryPrompt:
         ctx = PromptContext(is_workflow_start=False, turn_number=1, workflow_id="game-brief")
         text = module.render(ctx)
 
-        assert "update_doc_meta" in text
-        assert "update_project_context" in text
+        assert "edit_content" in text
+        assert "meta.json" in text

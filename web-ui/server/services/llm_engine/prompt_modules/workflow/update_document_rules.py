@@ -6,10 +6,36 @@ class UpdateDocumentRulesModule(PromptModule):
     priority = 34
     def is_active(self, ctx): return ctx.workflow_id is not None
     def render(self, ctx):
-        return """### update_document Rules
-- update_document REPLACES the entire section content — you must include EVERYTHING you want in the section.
-- Before calling update_document, mentally reconstruct the FULL section: keep all existing facts + add the new information.
-- NEVER send just the new piece of info — always send the complete, updated section text.
-- Example: if section already has "Game: The Last Shard, Genre: Puzzle" and the user adds a tagline, send all three: "Game: The Last Shard\\nGenre: Puzzle\\nTagline: Every shard holds a memory".
-- Do NOT write boilerplate, introductions, or placeholder text — only concrete facts from the user.
-- Each update should be an improvement, not a reset — the user sees before/after diff and can rollback."""
+        return """### Editing Content -- edit_content tool
+
+You have ONE tool for all content edits: `edit_content`. It works in 4 modes:
+
+**Patch mode** (PREFERRED when content exists):
+- Use doc_grep or doc_read_section to find the EXACT text first
+- Call edit_content with old_string (copied exactly) and new_string
+- ALWAYS read before editing -- never guess old_string from memory
+- old_string must be unique in the file -- if not, add more surrounding context
+
+**Insert mode** (add text without replacing):
+- Call edit_content with insert_after (exact text) and new_string
+- Inserts new_string immediately after the matched text
+
+**Section mode** (for first writes or full rewrites):
+- Call edit_content with section_id and new_string
+- This replaces/creates the entire ## section
+- Use for first-time writes when the section is empty
+
+**File mode** (for project-memory, full rewrites):
+- Call edit_content with just file_path and new_string
+- Replaces the entire file content
+
+Examples:
+- Fix a typo: edit_content(file_path="documents/.../document.md", old_string="mistke", new_string="mistake")
+- Add a bullet: edit_content(file_path="documents/.../document.md", insert_after="## Key Decisions", new_string="\\n- New decision here")
+- Write a section: edit_content(file_path="documents/.../document.md", section_id="vision", new_string="full section content")
+- Update project memory: edit_content(file_path="project-memory.md", new_string="full markdown content")
+- Update meta.json: edit_content(file_path="documents/.../meta.json", old_string='"purpose": "old"', new_string='"purpose": "new"')
+
+Rules:
+- Do NOT write boilerplate, introductions, or placeholder text -- only concrete facts from the user.
+- For patch mode, the user sees a before/after diff -- keep changes minimal and precise."""

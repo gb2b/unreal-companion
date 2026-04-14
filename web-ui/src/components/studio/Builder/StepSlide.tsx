@@ -91,9 +91,8 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   doc_read_summary: 'Read',
   doc_read_section: 'Read',
   doc_grep: 'Search',
-  update_document: 'Write',
+  edit_content: 'Edit',
   mark_section_complete: 'Complete',
-  update_project_context: 'Context',
   update_session_memory: 'Memory',
   read_project_document: 'Read',
   rename_document: 'Rename',
@@ -102,7 +101,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   report_progress: 'Progress',
 }
 
-const DIFF_TOOLS = ['update_document', 'update_project_context']
+const DIFF_TOOLS = ['edit_content']
 
 function ToolCallCard({ name, label, status, startTime, endTime, result, rawResult, summary, projectPath }: {
   name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; rawResult?: string; summary?: string; projectPath?: string
@@ -124,6 +123,7 @@ function ToolCallCard({ name, label, status, startTime, endTime, result, rawResu
           newContent: parsed.new_content as string,
           sectionId: parsed.section_id as string | undefined,
           docId: parsed.doc_id as string | undefined,
+          filePath: parsed.file_path as string | undefined,
         }
       }
     } catch { /* ignore */ }
@@ -134,26 +134,29 @@ function ToolCallCard({ name, label, status, startTime, endTime, result, rawResu
     if (!diffData || undoState !== 'idle') return
     setUndoState('loading')
     try {
-      if (name === 'update_project_context') {
-        // Restore old content via PUT /api/v2/studio/project-context
-        await fetch('/api/v2/studio/project-context', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project_path: projectPath || '', content: diffData.oldContent }),
-        })
-      } else if (name === 'update_document' && diffData.docId && diffData.sectionId) {
-        // Restore old section content via the document update endpoint
-        await fetch(`/api/v2/studio/documents/${diffData.docId}/sections/${diffData.sectionId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: diffData.oldContent, status: 'complete', project_path: projectPath || '' }),
-        })
+      if (name === 'edit_content' && diffData.oldContent !== undefined) {
+        // Parse file_path from the raw result to determine undo strategy
+        const parsed = rawResult ? JSON.parse(rawResult) : {}
+        const filePath = parsed.file_path as string | undefined
+        if (filePath === 'project-memory.md') {
+          await fetch('/api/v2/studio/project-context', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_path: projectPath || '', content: diffData.oldContent }),
+          })
+        } else if (filePath?.endsWith('/document.md') && diffData.docId && diffData.sectionId) {
+          await fetch(`/api/v2/studio/documents/${diffData.docId}/sections/${diffData.sectionId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: diffData.oldContent, status: 'complete', project_path: projectPath || '' }),
+          })
+        }
       }
       setUndoState('done')
     } catch {
       setUndoState('idle')
     }
-  }, [diffData, name, undoState])
+  }, [diffData, name, undoState, rawResult, projectPath])
 
   return (
     <div className="py-0.5">

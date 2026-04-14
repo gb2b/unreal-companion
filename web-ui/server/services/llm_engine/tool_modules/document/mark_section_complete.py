@@ -1,7 +1,7 @@
 """mark_section_complete — mark a document section as complete.
 
 BUG 2 FIX: Server-side guard checks that the section has been updated
-via update_document before allowing mark_section_complete. Returns an
+via edit_content before allowing mark_section_complete. Returns an
 error to the LLM if the section has no substantive content.
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ class MarkSectionCompleteModule(ToolModule):
         if section_id not in state.updated_sections:
             return json.dumps({
                 "success": False,
-                "error": f"Cannot mark '{section_id}' complete: no content has been written via update_document. Write the section content first, then mark it complete."
+                "error": f"Cannot mark '{section_id}' complete: no content has been written via edit_content. Write the section content first, then mark it complete."
             })
         state.section_statuses[section_id] = "complete"
         return json.dumps({"success": True})
