@@ -1,5 +1,6 @@
 // web-ui/src/components/studio/Dashboard/ProjectContextDiffDialog.tsx
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 
 interface DiffBlock {
   id: number
@@ -108,7 +109,7 @@ export function ProjectContextDiffDialog({
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={onSkip}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
@@ -190,6 +191,7 @@ export function ProjectContextDiffDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

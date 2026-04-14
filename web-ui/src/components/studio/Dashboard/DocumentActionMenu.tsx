@@ -1,5 +1,6 @@
 // web-ui/src/components/studio/Dashboard/DocumentActionMenu.tsx
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ProjectContextDiffDialog } from './ProjectContextDiffDialog'
@@ -247,13 +248,14 @@ export function DocumentActionMenu({
       )}
 
       {/* Loading overlay while checking context */}
-      {deletePending && (
+      {deletePending && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-xl bg-card p-6 shadow-2xl border border-border">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
             <span className="text-sm text-muted-foreground">Checking project context…</span>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

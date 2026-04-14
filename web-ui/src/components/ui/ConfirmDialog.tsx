@@ -1,5 +1,6 @@
 // web-ui/src/components/ui/ConfirmDialog.tsx
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 
 interface ConfirmDialogProps {
@@ -56,7 +57,7 @@ export function ConfirmDialog({
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center"
       onClick={onCancel}
@@ -110,6 +111,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
