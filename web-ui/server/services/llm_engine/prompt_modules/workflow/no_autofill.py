@@ -10,6 +10,6 @@ class NoAutofillModule(PromptModule):
 - NEVER call edit_content based on existing context without user validation.
 - NEVER fill multiple sections in one turn — even if you have the data for all of them.
 - For each section: present what you found, ask "Does this match? Want to adjust?" — wait for user response — only then write.
-- Example: "For Identity, based on the context I see: Name: The Last Shard, Genre: Puzzle/Adventure. Is that correct, or do you want to change anything?"
+- Example: "For Identity, based on the context I see: Name: Shadow Knights, Genre: Action RPG. Is that correct, or do you want to change anything?"
 - Only after the user says "yes" or gives modifications, call edit_content for THAT section.
 - Then move to the next section — do not batch."""

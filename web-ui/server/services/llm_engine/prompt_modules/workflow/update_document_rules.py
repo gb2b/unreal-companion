@@ -19,9 +19,9 @@ CRITICAL: When a section ALREADY HAS CONTENT, use PATCH MODE — do NOT rewrite 
 6. If old_string matches 2+ times: add more surrounding context to make it unique.
 
 Examples:
-- Add genre: old_string="**Tagline** : Découvrez", new_string="**Genre** : Puzzle-aventure\\n\\n**Tagline** : Découvrez"
-- Fix a word: old_string="Memorinaute humain", new_string="conscience duplexe Memorinaute/Éclos"
-- Add a bullet: old_string="## Key Decisions", new_string="## Key Decisions\\n- No combat (pure exploration)"
+- Add genre: old_string="**Tagline** : Explore a", new_string="**Genre** : Action RPG\\n\\n**Tagline** : Explore a"
+- Fix a word: old_string="the hero fights alone", new_string="the hero fights alongside a companion"
+- Add a bullet: old_string="## Key Decisions", new_string="## Key Decisions\\n- No permadeath (roguelike progression)"
 
 **SECTION MODE — only for first writes (empty sections):**
 - Call edit_content(file_path, section_id="vision", new_string="content")
