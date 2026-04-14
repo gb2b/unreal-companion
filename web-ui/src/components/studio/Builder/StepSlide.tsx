@@ -428,13 +428,22 @@ export function StepSlide({
     if (!hasResponse) return
     const parts: string[] = []
 
-    // 1. Choices
+    // 1. Choices — store the full labels on the current step for display in the next step's bubble
     if (hasSelection) {
       const choicesData = microStep?.interactionData as any
       const options = choicesData?.options || []
       const labels = selectedChoices.map(id => options.find((o: any) => o.id === id)?.label || id)
       const cleanLabels = labels.map((l: string) => l.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim())
       parts.push(cleanLabels.join(', '))
+
+      // Pre-store the choice labels on the current step so they display as tags in the next step
+      const store = useBuilderStore.getState()
+      const steps = [...store.microSteps]
+      const activeStep = steps[store.activeMicroStepIndex]
+      if (activeStep) {
+        steps[store.activeMicroStepIndex] = { ...activeStep, selectedChoiceLabels: labels }
+        useBuilderStore.setState({ microSteps: steps })
+      }
     }
 
     // 2. Text
