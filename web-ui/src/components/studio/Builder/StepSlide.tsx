@@ -490,9 +490,19 @@ export function StepSlide({
     }
   }, [])
 
+  // Auto-scroll to bottom when new blocks appear
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const prevBlockCount = useRef(blocks.length)
+  useEffect(() => {
+    if (blocks.length > prevBlockCount.current && scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    }
+    prevBlockCount.current = blocks.length
+  }, [blocks.length])
+
   return (
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
-      <div className="min-h-0 flex-1 overflow-y-auto p-6">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
 
           {/* API error banner */}
