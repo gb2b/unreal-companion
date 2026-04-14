@@ -356,32 +356,33 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           }
           case 'document_update': {
             const d = event.data as DocumentUpdateEvent
-            if (d.section_id === '_full' && d.content) {
-              // Full document refresh (from edit_content patch mode) — re-parse all sections
-              let currentId = ''
-              let currentLines: string[] = []
-              for (const line of d.content.split('\n')) {
-                if (line.startsWith('## ')) {
-                  if (currentId) {
-                    const text = currentLines.join('\n').trim()
-                    if (text) contents[currentId] = text
-                  }
-                  currentId = line.slice(3).trim().toLowerCase().replace(/\s+/g, '-')
-                  currentLines = []
-                } else if (currentId) {
-                  currentLines.push(line)
-                }
-              }
-              if (currentId) {
-                const text = currentLines.join('\n').trim()
-                if (text) contents[currentId] = text
+            if (d.section_id === '_refresh') {
+              // edit_content signals a refresh — fetch the doc from the server
+              const { documentId, projectPath } = get()
+              if (documentId && projectPath) {
+                fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}?project_path=${encodeURIComponent(projectPath)}`)
+                  .then(r => r.ok ? r.json() : null)
+                  .then(doc => {
+                    if (!doc?.content) return
+                    const newContents: Record<string, string> = {}
+                    let curId = '', curLines: string[] = []
+                    for (const line of doc.content.split('\n')) {
+                      if (line.startsWith('## ')) {
+                        if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
+                        curId = line.slice(3).trim().toLowerCase().replace(/\s+/g, '-')
+                        curLines = []
+                      } else if (curId) curLines.push(line)
+                    }
+                    if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
+                    set(s => ({ sectionContents: { ...s.sectionContents, ...newContents } }))
+                  })
+                  .catch(() => {})
               }
             } else {
               statuses[d.section_id] = d.status as SectionStatus
               if (d.content) {
                 contents[d.section_id] = d.content
               }
-              // Only switch active section if there's no current section yet
               if (d.status === 'in_progress' && !section) section = d.section_id
             }
             break

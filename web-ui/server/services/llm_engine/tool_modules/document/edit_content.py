@@ -187,22 +187,15 @@ class EditContentModule(ToolModule):
 
     def sse_events(self, tool_input: dict, state: SessionState) -> list:
         file_path_str = tool_input.get("file_path", "")
-        section_id = tool_input.get("section_id", "")
 
         events = []
         if file_path_str.startswith("documents/") and file_path_str.endswith("/document.md"):
-            # Read the FULL file content after edit (execute runs before sse_events)
-            # so the preview gets the complete updated document
-            try:
-                uc_root = Path(state.project_path) / ".unreal-companion"
-                full_content = (uc_root / file_path_str).read_text(encoding="utf-8")
-                events.append(DocumentUpdate(
-                    section_id=section_id or "_full",
-                    content=full_content,
-                    status="in_progress",
-                ))
-            except Exception:
-                pass
+            # Signal the frontend to refresh the preview
+            events.append(DocumentUpdate(
+                section_id="_refresh",
+                content="",
+                status="in_progress",
+            ))
         return events
 
     def summarize_result(self, tool_input: dict, result: str | None, error: str | None, language: str) -> str:
