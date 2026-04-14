@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Paperclip, X, Undo2 } from 'lucide-react'
+import { Paperclip, X, Undo2, AlertTriangle, RefreshCw } from 'lucide-react'
 import type { MicroStep } from '@/types/studio'
+import { useBuilderStore } from '@/stores/builderStore'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
 import { InteractionRenderer } from './InteractionRenderer'
@@ -259,6 +260,71 @@ function formatDuration(secs: number): string {
   return `${Math.floor(secs / 60)}m${(secs % 60).toString().padStart(2, '0')}s`
 }
 
+/** Error banner — shown when an API error occurs (billing, rate limit, overloaded, etc.) */
+function ErrorBanner() {
+  const error = useBuilderStore(s => s.error)
+  const [dismissed, setDismissed] = useState(false)
+
+  // Reset dismissed when a new error comes in
+  useEffect(() => {
+    if (error) setDismissed(false)
+  }, [error])
+
+  if (!error || dismissed) return null
+
+  // Parse error type from "[type] message" format
+  const typeMatch = error.match(/^\[(\w+)\]\s*(.*)/)
+  const errorType = typeMatch?.[1] || 'error'
+  const errorMessage = typeMatch?.[2] || error
+
+  const isRetryable = ['rate_limit', 'overloaded'].includes(errorType)
+  const isBilling = errorType === 'billing'
+
+  const handleRetry = () => {
+    useBuilderStore.setState({ error: null, isProcessing: false })
+    setDismissed(true)
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-2xl mb-4">
+      <div className={`flex items-start gap-3 rounded-lg border p-4 ${
+        isBilling
+          ? 'border-amber-500/30 bg-amber-500/5'
+          : 'border-red-500/30 bg-red-500/5'
+      }`}>
+        <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${isBilling ? 'text-amber-400' : 'text-red-400'}`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium ${isBilling ? 'text-amber-300' : 'text-red-300'}`}>
+            {errorType === 'authentication' && 'API Key Invalid'}
+            {errorType === 'rate_limit' && 'Rate Limited'}
+            {errorType === 'overloaded' && 'Claude Overloaded'}
+            {errorType === 'billing' && 'Billing Limit Reached'}
+            {!['authentication', 'rate_limit', 'overloaded', 'billing'].includes(errorType) && 'Error'}
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">{errorMessage}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isRetryable && (
+            <button
+              onClick={handleRetry}
+              className="flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </button>
+          )}
+          <button
+            onClick={() => setDismissed(true)}
+            className="text-muted-foreground/50 hover:text-muted-foreground text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface StepSlideProps {
   microStep: MicroStep | null
   streamingText: string
@@ -428,6 +494,9 @@ export function StepSlide({
     <div data-tour="step-slide" className="flex flex-1 flex-col overflow-hidden h-full">
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <div className="mx-auto w-full max-w-2xl flex flex-col gap-5">
+
+          {/* API error banner */}
+          <ErrorBanner />
 
           {/* User's previous response — shown as a right-aligned bubble with context tags */}
           {previousUserResponse && (() => {
