@@ -285,7 +285,7 @@ class TestWorkflowModules:
         text = mod.render(ctx)
         assert "A puzzle game about memories." in text
         assert "Vision" in text
-        assert "MUST include EVERY fact" in text
+        assert "edit_content" in text
 
     def test_mark_complete_rules_content(self):
         from services.llm_engine.prompt_modules.workflow.mark_complete_rules import MarkCompleteRulesModule
@@ -293,7 +293,7 @@ class TestWorkflowModules:
         ctx = self._ctx(current_section={"id": "vision", "name": "Vision"})
         assert mod.is_active(ctx) is True
         text = mod.render(ctx)
-        assert "update_document" in text
+        assert "edit_content" in text
         assert "user validation" in text or "user has validated" in text or "validated" in text
 
     def test_mark_complete_inactive_without_section(self):
@@ -304,8 +304,8 @@ class TestWorkflowModules:
     def test_update_document_rules_content(self):
         from services.llm_engine.prompt_modules.workflow.update_document_rules import UpdateDocumentRulesModule
         text = UpdateDocumentRulesModule().render(self._ctx())
-        assert "REPLACES" in text or "replaces" in text
-        assert "entire section" in text.lower() or "full section" in text.lower()
+        assert "edit_content" in text
+        assert "patch" in text.lower() or "section" in text.lower()
 
     def test_no_autofill_content(self):
         from services.llm_engine.prompt_modules.workflow.no_autofill import NoAutofillModule
@@ -423,7 +423,7 @@ class TestMemoryModules:
     def test_project_memory_content(self):
         from services.llm_engine.prompt_modules.memory.project import ProjectMemoryModule
         text = ProjectMemoryModule().render(self._ctx())
-        assert "update_project_context" in text
+        assert "edit_content" in text
         assert "## Identity" in text
         assert "## Design Pillars" in text
         assert "## Key Decisions" in text
@@ -615,7 +615,7 @@ class TestFullAssembly:
         result = assemble_dynamic_guide(ctx)
         # Section context awareness (BUG 1 FIX)
         assert "A roguelike about cooking." in result
-        assert "MUST include EVERY fact" in result
+        assert "edit_content" in result
         # Mark complete rules (BUG 2 FIX)
         assert "mark_section_complete" in result
         # Progress recap

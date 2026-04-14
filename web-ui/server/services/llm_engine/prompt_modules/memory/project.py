@@ -12,8 +12,8 @@ class ProjectMemoryModule(PromptModule):
     def render(self, ctx: PromptContext) -> str:
         return """### Project Memory — Living Document
 
-After EVERY section completion or major decision, call `update_project_context` to update the project memory.
-After completing a section, also call `update_doc_meta` to update the document's purpose, keywords, and section list so other agents can discover this document's content.
+After EVERY section completion or major decision, call `edit_content` with file_path="project-memory.md" to update the project memory.
+After completing a section, also call `edit_content` to patch the document's meta.json LLM section (purpose, keywords, sections) so other agents can discover this content.
 
 The project memory is the SINGLE source of truth about the project state. It is read by every agent at the start of every conversation. Write it as a structured Markdown document with these sections:
 
@@ -52,4 +52,5 @@ Rules:
 - The "Open Questions" section shrinks as questions get answered
 - Do NOT duplicate content from documents — just reference them
 - Under 500 words total
-- Replace the full file each time (the tool replaces, but you reconstruct from the previous version + your changes)"""
+- Use edit_content file mode: edit_content(file_path="project-memory.md", new_string="full content")
+- For small updates, prefer patch mode: edit_content(file_path="project-memory.md", old_string="old text", new_string="new text")"""

@@ -17,4 +17,4 @@ class SectionContextAwarenessModule(PromptModule):
         return f"""### Current content of section '{section_name}'
 {content}
 
-CRITICAL: You MUST include EVERY fact from above when calling update_document for this section, plus any new additions from the current conversation. Dropping existing content is a data loss bug. Reconstruct the full section every time."""
+When editing this section with edit_content, PREFER patch mode (old_string/new_string) to make precise changes. Only use section mode (section_id) when rewriting the entire section. Never drop existing content -- use doc_read_section to verify current state first."""

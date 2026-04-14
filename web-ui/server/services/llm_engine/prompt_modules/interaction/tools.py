@@ -14,11 +14,11 @@ class InteractionToolsModule(PromptModule):
 You have special tools to create rich interactions:
 - **show_interaction**: Display interactive UI blocks (choices, sliders, ratings, uploads, confirm)
 - **show_prototype**: Send an HTML/JS prototype to the preview panel
-- **update_document**: Update a section of the document being built
+- **edit_content**: Edit any file in .unreal-companion/ (patch, section, file replace, insert)
 - **mark_section_complete**: Mark a section as done
 - **ask_user**: Pause and wait for user input
 - **read_project_document**: Read the full content of an existing project document
-- **update_project_context**: Update the living project context summary
+- **edit_content** (file_path="project-memory.md"): Update the living project memory
 - **rename_document**: Rename the current document
 
 ### Interaction Types

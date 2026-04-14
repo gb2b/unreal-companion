@@ -127,9 +127,9 @@ class TestRegistry:
         # Workflow context should have more tools available
         names_no_wf = {t["name"] for t in tools_no_wf}
         names_wf = {t["name"] for t in tools_wf}
-        # update_document requires workflow_id + current_section
-        assert "update_document" not in names_no_wf
-        assert "update_document" in names_wf
+        # edit_content requires workflow_id
+        assert "edit_content" not in names_no_wf
+        assert "edit_content" in names_wf
 
     def test_assemble_tools_adds_description_param(self):
         """Every assembled tool should have _description in properties."""
@@ -316,53 +316,6 @@ class TestReportProgressTool:
 
 
 # --- Document tools tests ---
-
-class TestUpdateDocumentTool:
-    def test_sse_events(self):
-        from services.llm_engine.tool_modules.document.update_document import UpdateDocumentModule
-        from services.llm_engine.events import DocumentUpdate
-        mod = UpdateDocumentModule()
-        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
-        events = mod.sse_events({
-            "section_id": "vision",
-            "content": "A puzzle game about time.",
-            "status": "in_progress",
-        }, state)
-        assert len(events) == 1
-        assert isinstance(events[0], DocumentUpdate)
-        assert events[0].section_id == "vision"
-        assert events[0].content == "A puzzle game about time."
-
-    @pytest.mark.asyncio
-    async def test_execute_tracks_updated_sections(self):
-        from services.llm_engine.tool_modules.document.update_document import UpdateDocumentModule
-        mod = UpdateDocumentModule()
-        state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
-        await mod.execute({"section_id": "vision", "content": "Content here"}, state)
-        assert "vision" in state.updated_sections
-
-    def test_available_when_workflow_and_section(self):
-        from services.llm_engine.tool_modules.document.update_document import UpdateDocumentModule
-        mod = UpdateDocumentModule()
-        ctx_no = PromptContext(is_workflow_start=False, turn_number=0)
-        ctx_yes = PromptContext(
-            is_workflow_start=False, turn_number=1,
-            workflow_id="game-brief",
-            current_section={"id": "vision", "name": "Vision"},
-        )
-        assert mod.is_available(ctx_no) is False
-        assert mod.is_available(ctx_yes) is True
-
-    def test_summary_includes_section_and_length(self):
-        from services.llm_engine.tool_modules.document.update_document import UpdateDocumentModule
-        mod = UpdateDocumentModule()
-        s = mod.summarize_result(
-            {"section_id": "vision", "content": "A" * 245},
-            None, None, "en"
-        )
-        assert "vision" in s.lower() or "Vision" in s
-        assert "245" in s
-
 
 class TestMarkSectionCompleteTool:
     @pytest.mark.asyncio
@@ -555,28 +508,6 @@ class TestUpdateSessionMemoryTool:
         assert "memory" in s.lower() or "updated" in s.lower()
 
 
-class TestUpdateProjectContextTool:
-    def test_available_when_workflow(self):
-        from services.llm_engine.tool_modules.memory.update_project_context import UpdateProjectContextModule
-        mod = UpdateProjectContextModule()
-        ctx_no = PromptContext(is_workflow_start=False, turn_number=0)
-        ctx_yes = PromptContext(is_workflow_start=False, turn_number=1, workflow_id="game-brief")
-        assert mod.is_available(ctx_no) is False
-        assert mod.is_available(ctx_yes) is True
-
-    @pytest.mark.asyncio
-    async def test_execute_writes_project_memory(self, tmp_path):
-        from services.llm_engine.tool_modules.memory.update_project_context import UpdateProjectContextModule
-        mod = UpdateProjectContextModule()
-        state = SessionState(project_path=str(tmp_path), doc_id="d", workflow_id="w", language="en")
-        result = await mod.execute({"summary": "# Project Context\nA sci-fi strategy game."}, state)
-        data = json.loads(result)
-        assert data["success"] is True
-        ctx_path = tmp_path / ".unreal-companion" / "project-memory.md"
-        assert ctx_path.exists()
-        assert "sci-fi strategy" in ctx_path.read_text()
-
-
 # --- Comprehensive registry validation ---
 
 class TestFullRegistry:
@@ -584,13 +515,15 @@ class TestFullRegistry:
         # interaction/
         "show_interaction", "show_prototype", "ask_user", "report_progress",
         # document/
-        "update_document", "mark_section_complete", "add_section", "rename_document", "skip_section",
+        "edit_content", "mark_section_complete", "add_section", "rename_document", "skip_section",
         # doc_tools/
         "doc_scan", "doc_read_summary", "doc_read_section", "doc_grep", "read_project_document", "cite_reference",
         # memory/
-        "update_session_memory", "update_project_context",
+        "update_session_memory",
         # meta/
         "step_done", "summarize_progress", "flag_contradiction",
+        # learning/
+        "explain_concept",
     }
 
     def test_all_expected_tools_registered(self):
@@ -615,8 +548,8 @@ class TestFullRegistry:
             assert len(s) > 0, f"{mod.name}: summary is empty"
 
     def test_tool_count(self):
-        """Verify we have exactly 22 tools (21 existing + update_doc_meta)."""
-        assert len(ALL_TOOL_MODULES) == 22, f"Expected 22 tools, got {len(ALL_TOOL_MODULES)}: {[m.name for m in ALL_TOOL_MODULES]}"
+        """Verify we have exactly 20 tools (22 - 3 removed + 1 edit_content)."""
+        assert len(ALL_TOOL_MODULES) == 20, f"Expected 20 tools, got {len(ALL_TOOL_MODULES)}: {[m.name for m in ALL_TOOL_MODULES]}"
 
     def test_no_duplicate_names_in_registry(self):
         """No duplicate names allowed in the registry."""
@@ -640,8 +573,8 @@ class TestFullRegistry:
         names_wf = {t["name"] for t in tools_workflow}
 
         # Workflow context should unlock tools that bare context doesn't
-        assert "update_document" in names_wf
-        assert "update_document" not in names_bare
+        assert "edit_content" in names_wf
+        assert "edit_content" not in names_bare
         assert "doc_scan" in names_wf  # has_uploaded_docs=True
         assert "doc_scan" not in names_bare
         assert "flag_contradiction" in names_wf  # completed_section_count >= 1
@@ -691,19 +624,18 @@ class TestFinalIntegration:
         assert isinstance(summary, str) and len(summary) > 0
 
     @pytest.mark.asyncio
-    async def test_dispatch_update_document(self):
-        """update_document dispatch emits one DocumentUpdate event and tracks section."""
+    async def test_dispatch_edit_content(self):
+        """edit_content dispatch emits DocumentUpdate for document.md edits."""
         from services.llm_engine.events import DocumentUpdate
         state = SessionState(project_path="/tmp", doc_id="d", workflow_id="w", language="en")
         result, events, summary = await dispatch_tool(
-            "update_document",
-            {"section_id": "vision", "content": "A sci-fi puzzle game.", "status": "in_progress"},
+            "edit_content",
+            {"file_path": "documents/d/document.md", "section_id": "vision", "new_string": "A sci-fi puzzle game."},
             state,
         )
         assert len(events) == 1
         assert isinstance(events[0], DocumentUpdate)
         assert events[0].section_id == "vision"
-        assert "vision" in state.updated_sections
         assert isinstance(summary, str) and len(summary) > 0
 
     @pytest.mark.asyncio
@@ -716,7 +648,7 @@ class TestFinalIntegration:
             "show_prototype": {"title": "Proto", "html": "<h1>Hi</h1>"},
             "ask_user": {"question": "What genre?"},
             "report_progress": {"status": "Working..."},
-            "update_document": {"section_id": "s1", "content": "Content"},
+            "edit_content": {"file_path": "documents/d/document.md", "new_string": "Content", "section_id": "s1"},
             "mark_section_complete": {"section_id": "s1"},
             "add_section": {"section_id": "new_sec", "section_name": "New Section"},
             "rename_document": {"new_name": "New Name"},
@@ -728,14 +660,12 @@ class TestFinalIntegration:
             "read_project_document": {"document_id": "concept/game-brief"},
             "cite_reference": {"doc_id": "refs/test", "section": "Intro", "quote": "A great game"},
             "update_session_memory": {"memory": "Key facts here"},
-            "update_project_context": {"summary": "# Context\nA sci-fi game."},
             "step_done": {"title": "Test step"},
             "summarize_progress": {},
             "flag_contradiction": {"claim_a": "Fast-paced", "claim_b": "Slow exploration", "section": "gameplay"},
             "explain_concept": {"term": "Core Loop", "explanation": "The cycle.", "examples": []},
-            "update_doc_meta": {"purpose": "Test purpose", "keywords": ["test"]},
         }
-        assert len(ALL_TOOL_MODULES) == 22, f"Expected 22 tools, got {len(ALL_TOOL_MODULES)}"
+        assert len(ALL_TOOL_MODULES) == 20, f"Expected 20 tools, got {len(ALL_TOOL_MODULES)}"
         # Pre-populate state so guard-gated tools pass
         state.updated_sections.add("s1")
         state.section_statuses = {"vision": "complete", "gameplay": "in_progress"}
@@ -762,9 +692,9 @@ class TestFinalIntegration:
         tools_bare = {t["name"] for t in assemble_tools(ctx_bare)}
         tools_full = {t["name"] for t in assemble_tools(ctx_workflow_section)}
 
-        # update_document only with workflow + current_section
-        assert "update_document" not in tools_bare
-        assert "update_document" in tools_full
+        # edit_content only with workflow
+        assert "edit_content" not in tools_bare
+        assert "edit_content" in tools_full
 
         # doc_scan only with has_uploaded_docs=True
         assert "doc_scan" not in tools_bare
