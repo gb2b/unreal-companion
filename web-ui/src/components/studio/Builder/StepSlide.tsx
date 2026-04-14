@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { Paperclip, X } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { Paperclip, X, Undo2 } from 'lucide-react'
 import type { MicroStep } from '@/types/studio'
 import { useI18n } from '@/i18n/useI18n'
 import { AgentPrompt } from './AgentPrompt'
@@ -7,6 +7,7 @@ import { InteractionRenderer } from './InteractionRenderer'
 import { StepNavigation } from './StepNavigation'
 import { AttachModal } from './AttachModal'
 import { LearningCard } from './LearningCard'
+import { UnifiedDiff } from '@/components/ui/UnifiedDiff'
 import type { AttachResult } from './AttachModal'
 
 interface AttachedFile {
@@ -101,13 +102,58 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   report_progress: 'Progress',
 }
 
-function ToolCallCard({ name, label, status, startTime, endTime, result, summary }: {
-  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; summary?: string
+const DIFF_TOOLS = ['update_document', 'update_project_context']
+
+function ToolCallCard({ name, label, status, startTime, endTime, result, rawResult, summary, projectPath }: {
+  name: string; label: string; status: 'pending' | 'done' | 'error'; startTime?: number; endTime?: number; result?: string; rawResult?: string; summary?: string; projectPath?: string
 }) {
   if (HIDDEN_TOOLS.includes(name)) return null
   const [expanded, setExpanded] = useState(false)
+  const [undoState, setUndoState] = useState<'idle' | 'loading' | 'done'>('idle')
   const displayName = TOOL_DISPLAY_NAMES[name] || name
   const hasResult = result && (status === 'done' || status === 'error')
+
+  // Parse diff data from raw result
+  const diffData = useMemo(() => {
+    if (!rawResult || !DIFF_TOOLS.includes(name)) return null
+    try {
+      const parsed = JSON.parse(rawResult)
+      if (parsed.old_content !== undefined && parsed.new_content !== undefined) {
+        return {
+          oldContent: parsed.old_content as string,
+          newContent: parsed.new_content as string,
+          sectionId: parsed.section_id as string | undefined,
+          docId: parsed.doc_id as string | undefined,
+        }
+      }
+    } catch { /* ignore */ }
+    return null
+  }, [rawResult, name])
+
+  const handleUndo = useCallback(async () => {
+    if (!diffData || undoState !== 'idle') return
+    setUndoState('loading')
+    try {
+      if (name === 'update_project_context') {
+        // Restore old content via PUT /api/v2/studio/project-context
+        await fetch('/api/v2/studio/project-context', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_path: projectPath || '', content: diffData.oldContent }),
+        })
+      } else if (name === 'update_document' && diffData.docId && diffData.sectionId) {
+        // Restore old section content via the document update endpoint
+        await fetch(`/api/v2/studio/documents/${diffData.docId}/sections/${diffData.sectionId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: diffData.oldContent, status: 'complete', project_path: projectPath || '' }),
+        })
+      }
+      setUndoState('done')
+    } catch {
+      setUndoState('idle')
+    }
+  }, [diffData, name, undoState])
 
   return (
     <div className="py-0.5">
@@ -147,14 +193,39 @@ function ToolCallCard({ name, label, status, startTime, endTime, result, summary
         )}
       </button>
 
-      {/* Line 2: Expanded result */}
+      {/* Line 2: Expanded result — diff or raw text */}
       {expanded && result && (
-        <div className={`ml-5 mt-1 mb-1 rounded-md px-2.5 py-1.5 text-[10px] leading-relaxed ${
-          status === 'error'
-            ? 'bg-red-500/5 border border-red-500/10 text-red-400/70'
-            : 'bg-muted/30 border border-border/20 text-muted-foreground/50'
-        }`}>
-          {result}
+        <div className="ml-5 mt-1 mb-1">
+          {diffData && diffData.oldContent !== diffData.newContent ? (
+            <div className="flex flex-col gap-1">
+              <UnifiedDiff
+                oldText={diffData.oldContent}
+                newText={diffData.newContent}
+                maxHeight="300px"
+              />
+              {status === 'done' && undoState !== 'done' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleUndo() }}
+                  disabled={undoState === 'loading'}
+                  className="self-end flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/30 transition-colors disabled:opacity-50"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  {undoState === 'loading' ? 'Reverting...' : 'Undo'}
+                </button>
+              )}
+              {undoState === 'done' && (
+                <span className="self-end text-[10px] text-emerald-400/60">Reverted</span>
+              )}
+            </div>
+          ) : (
+            <div className={`rounded-md px-2.5 py-1.5 text-[10px] leading-relaxed ${
+              status === 'error'
+                ? 'bg-red-500/5 border border-red-500/10 text-red-400/70'
+                : 'bg-muted/30 border border-border/20 text-muted-foreground/50'
+            }`}>
+              {result}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -391,7 +462,7 @@ export function StepSlide({
           {blocks.map((block, i) => {
             switch (block.kind) {
               case 'tool_call':
-                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={block.startTime} endTime={block.endTime} result={block.result} summary={block.summary} />
+                return <ToolCallCard key={i} name={block.name} label={block.label} status={block.status} startTime={block.startTime} endTime={block.endTime} result={block.result} rawResult={(block as any).rawResult} summary={block.summary} projectPath={projectPath} />
               case 'text':
                 return (
                   <div key={i} className={i === blocks.length - 1 && !hasInteraction ? 'relative' : undefined}>

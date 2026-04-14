@@ -968,6 +968,25 @@ async def list_section_versions(doc_id: str, section_id: str, project_path: str 
     return store.list_versions(doc_id, section_id)
 
 
+class SectionContentUpdate(BaseModel):
+    content: str
+    status: str = "complete"
+    project_path: str
+
+
+@router.put("/documents/{doc_id:path}/sections/{section_id}")
+async def update_section_content(doc_id: str, section_id: str, body: SectionContentUpdate):
+    """Update a single section's content directly (e.g., undo)."""
+    if not body.project_path:
+        raise HTTPException(400, "project_path required")
+    doc_store = DocumentStore(body.project_path)
+    doc = doc_store.get_document(doc_id)
+    if not doc:
+        raise HTTPException(404, f"Document not found: {doc_id}")
+    doc_store.update_section(doc_id, section_id, body.content, body.status)
+    return {"success": True}
+
+
 @router.post("/documents/{doc_id:path}/sections/{section_id}/rollback/{version:int}")
 async def rollback_section(doc_id: str, section_id: str, version: int, project_path: str = ""):
     """Rollback a section to a previous version."""

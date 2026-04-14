@@ -1,5 +1,7 @@
 """update_document — update a section of the document being built."""
 from __future__ import annotations
+import json
+import re
 from .. import ToolModule, SessionState, _register
 from ...prompt_modules import PromptContext
 from ...events import DocumentUpdate
@@ -32,7 +34,31 @@ class UpdateDocumentModule(ToolModule):
         content = tool_input.get("content", "")
         if section_id and content.strip():
             state.updated_sections.add(section_id)
-        return None  # SSE-only
+
+        # Read old section content before the SSE event triggers the write
+        old_content = ""
+        try:
+            from services.document_store import DocumentStore
+            store = DocumentStore(state.project_path)
+            doc = store.get_document(state.doc_id)
+            if doc:
+                doc_content = doc.get("content", "")
+                header = f"## {section_id}"
+                if header in doc_content:
+                    pattern = rf"## {re.escape(section_id)}\n(.*?)(?=\n## |\Z)"
+                    match = re.search(pattern, doc_content, flags=re.DOTALL)
+                    if match:
+                        old_content = match.group(1).strip()
+        except Exception:
+            pass
+
+        return json.dumps({
+            "success": True,
+            "old_content": old_content,
+            "new_content": content,
+            "section_id": section_id,
+            "doc_id": state.doc_id,
+        })
 
     def sse_events(self, tool_input: dict, state: SessionState) -> list:
         return [DocumentUpdate(

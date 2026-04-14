@@ -39,8 +39,9 @@ class UpdateProjectContextModule(ToolModule):
         try:
             context_path = Path(state.project_path) / ".unreal-companion" / "project-memory.md"
             context_path.parent.mkdir(parents=True, exist_ok=True)
+            old_content = context_path.read_text(encoding="utf-8") if context_path.exists() else ""
             context_path.write_text(summary, encoding="utf-8")
-            return json.dumps({"success": True})
+            return json.dumps({"success": True, "old_content": old_content, "new_content": summary})
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)})
 
