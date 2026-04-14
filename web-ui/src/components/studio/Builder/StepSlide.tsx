@@ -355,8 +355,7 @@ interface StepSlideProps {
   onJumpToLatest: () => void
   onProposeModification: (stepIndex: number) => void
   projectPath?: string
-  previousUserResponse?: string | null
-  previousChoiceLabels?: string[]
+  previousStep?: MicroStep | null
 }
 
 export function StepSlide({
@@ -374,8 +373,7 @@ export function StepSlide({
   onJumpToLatest,
   onProposeModification,
   projectPath,
-  previousUserResponse,
-  previousChoiceLabels,
+  previousStep,
 }: StepSlideProps) {
   const { language } = useI18n()
   const [textValue, setTextValue] = useState('')
@@ -534,44 +532,34 @@ export function StepSlide({
           {/* API error banner */}
           <ErrorBanner />
 
-          {/* User's previous response — choices as tags, prompt as bubble */}
-          {previousUserResponse && (() => {
-            const lines = previousUserResponse.split('\n').filter(l => l.trim())
-            const attachments = lines.filter(l => l.startsWith('[DOCUMENT_ATTACHED]') || l.startsWith('[DOCUMENT_LINKED]'))
-            const choiceLabels = previousChoiceLabels || []
-            // User text = everything that's not a choice label, attachment metadata, or system line
+          {/* User's previous response — structured from previousStep */}
+          {previousStep?.userResponse && (() => {
+            const choiceLabels = previousStep.selectedChoiceLabels || []
+            // Extract attachments and user text from the raw response
+            const lines = previousStep.userResponse.split('\n').filter(l => l.trim())
+            const attachmentLines = lines.filter(l => l.startsWith('[DOCUMENT_ATTACHED]') || l.startsWith('[DOCUMENT_LINKED]'))
+            // User text = lines that aren't system metadata or the choice labels joined string
             const systemPrefixes = ['[DOCUMENT_', 'Filename:', 'Summary:', 'Use doc_']
-            const cleanChoiceLabels = choiceLabels.map(l => l.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim())
-            const textLines = lines.filter(l => {
-              if (systemPrefixes.some(p => l.startsWith(p))) return false
-              if (cleanChoiceLabels.some(cl => l.trim() === cl || l.trim().startsWith(cl))) return false
-              // Also filter out the comma-joined choice string
-              if (cleanChoiceLabels.length > 0 && l.trim() === cleanChoiceLabels.join(', ')) return false
-              return true
-            })
-            const userText = textLines.join('\n').trim()
-
-            const hasChoices = choiceLabels.length > 0
-            const hasAttachments = attachments.length > 0
-            const hasText = userText.length > 0
+            const cleanChoices = choiceLabels.map(l => l.replace(/^[\p{Emoji}\p{Emoji_Presentation}\s]+/u, '').trim())
+            const choiceJoined = cleanChoices.join(', ')
+            const userText = lines
+              .filter(l => !systemPrefixes.some(p => l.startsWith(p)) && l.trim() !== choiceJoined)
+              .join('\n').trim()
 
             return (
               <div className="flex flex-col items-end gap-1.5 mb-3">
-                {/* Context tags: attached files */}
-                {hasAttachments && (
+                {/* Attached files */}
+                {attachmentLines.length > 0 && (
                   <div className="flex flex-wrap justify-end gap-1">
-                    {attachments.map((a, i) => {
-                      const name = a.replace(/\[DOCUMENT_\w+\]\s*/, '').replace(/references\//, '').split('\n')[0]
-                      return (
-                        <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted/50 border border-border/30 px-2 py-0.5 text-[10px] text-muted-foreground">
-                          📎 {name}
-                        </span>
-                      )
-                    })}
+                    {attachmentLines.map((a, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted/50 border border-border/30 px-2 py-0.5 text-[10px] text-muted-foreground">
+                        📎 {a.replace(/\[DOCUMENT_\w+\]\s*/, '').replace(/references\//, '').split('\n')[0]}
+                      </span>
+                    ))}
                   </div>
                 )}
-                {/* Selected choices — shown as tags outside the bubble */}
-                {hasChoices && (
+                {/* Selected choices as tags */}
+                {choiceLabels.length > 0 && (
                   <div className="flex flex-wrap justify-end gap-1">
                     {choiceLabels.map((label, i) => (
                       <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/15 border border-primary/25 px-2.5 py-0.5 text-[11px] text-primary/80">
@@ -580,13 +568,12 @@ export function StepSlide({
                     ))}
                   </div>
                 )}
-                {/* User text prompt — in a bubble, only if there's actual text beyond the choices */}
-                {hasText && (
+                {/* User text in bubble */}
+                {userText && (
                   <div className="max-w-[80%] rounded-xl rounded-tr-sm bg-primary/10 border border-primary/20 px-4 py-2">
                     <p className="text-sm text-foreground/80">{userText}</p>
                   </div>
                 )}
-                {/* If only choices and no text, show nothing in bubble (choices are already displayed as tags) */}
               </div>
             )
           })()}

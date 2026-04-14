@@ -231,8 +231,7 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               onJumpToLatest={() => jumpToMicroStep(microSteps.length - 1)}
               onProposeModification={proposeModification}
               projectPath={projectPath}
-              previousUserResponse={activeMicroStepIndex > 0 ? microSteps[activeMicroStepIndex - 1]?.userResponse : null}
-              previousChoiceLabels={activeMicroStepIndex > 0 ? microSteps[activeMicroStepIndex - 1]?.selectedChoiceLabels : undefined}
+              previousStep={activeMicroStepIndex > 0 ? microSteps[activeMicroStepIndex - 1] : null}
             />
           </Panel>
           <Separator className="w-1 bg-border/30 hover:bg-primary/30 transition-colors cursor-col-resize" />
