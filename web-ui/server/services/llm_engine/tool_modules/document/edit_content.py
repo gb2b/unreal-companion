@@ -172,11 +172,19 @@ class EditContentModule(ToolModule):
                 resolved.write_text(old_full_content, encoding="utf-8")
                 return json.dumps({"error": "Edit produced invalid JSON. Reverted."})
 
-        # Document.md post-processing: update meta timestamps + save version
+        # Document.md post-processing: update meta timestamps + save version + track for mark_section_complete guard
         is_doc_md = file_path_str.startswith("documents/") and file_path_str.endswith("/document.md")
         if is_doc_md and state.doc_id:
             self._update_meta_timestamps(state)
             self._save_version(state, section_id or "_edit", content)
+            # Track that this section (or the whole doc) has been written — needed by mark_section_complete guard
+            if section_id:
+                state.updated_sections.add(section_id)
+            else:
+                # Patch mode on the whole file — extract all ## section ids from the content as "updated"
+                for line in content.split("\n"):
+                    if line.startswith("## "):
+                        state.updated_sections.add(line[3:].strip())
 
         return json.dumps({
             "success": True,
