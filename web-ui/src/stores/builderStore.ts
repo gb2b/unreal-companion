@@ -45,6 +45,7 @@ interface BuilderState {
   documentDisplayName: string | null  // set by rename_document tool SSE event
   sectionStatuses: Record<string, SectionStatus>
   sectionContents: Record<string, string>  // section_id → markdown content (live updates)
+  documentContent: string  // raw markdown content of the full document
 
   // Current position
   activeSection: string | null
@@ -91,6 +92,7 @@ const INITIAL_STATE = {
   sectionStatuses: {},
   activeSection: null,
   sectionContents: {},
+  documentContent: '',
   microSteps: [],
   activeMicroStepIndex: 0,
   isProcessing: false,
@@ -374,7 +376,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
                       } else if (curId) curLines.push(line)
                     }
                     if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
-                    set(s => ({ sectionContents: { ...s.sectionContents, ...newContents } }))
+                    set(s => ({ sectionContents: { ...s.sectionContents, ...newContents }, documentContent: doc.content }))
                   })
                   .catch(() => {})
               }
@@ -384,6 +386,14 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
                 contents[d.section_id] = d.content
               }
               if (d.status === 'in_progress' && !section) section = d.section_id
+              // Re-fetch full document to update documentContent
+              const { documentId: did, projectPath: pp } = get()
+              if (did && pp) {
+                fetch(`/api/v2/studio/documents/${encodeURIComponent(did)}?project_path=${encodeURIComponent(pp)}`)
+                  .then(r => r.ok ? r.json() : null)
+                  .then(doc => { if (doc?.content) set({ documentContent: doc.content }) })
+                  .catch(() => {})
+              }
             }
             break
           }
@@ -683,6 +693,7 @@ export const useBuilderStore = create<BuilderState>()((set, get) => {
           if (Object.keys(existingSectionStatuses).length > 0 || Object.keys(existingSectionContents).length > 0) {
             set({ sectionStatuses: existingSectionStatuses, sectionContents: existingSectionContents })
           }
+          set({ documentContent: data?.content || '' })
         }
       } catch { /* ignore — document may not exist yet */ }
 

@@ -84,6 +84,7 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
     dynamicSections,
     documentId,
     documentDisplayName,
+    documentContent,
   } = useBuilderStore()
 
   const builderNavigate = useNavigate()
@@ -240,7 +241,7 @@ export function BuilderView({ workflow, projectPath, bannerConfig, docIdOverride
               sections={allSections}
               sectionStatuses={sectionStatuses}
               sectionContents={sectionContents}
-              documentContent=""
+              documentContent={documentContent}
               documents={[]}
               prototypes={prototypes}
               onSectionClick={scrollToSection}

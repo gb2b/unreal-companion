@@ -31,9 +31,10 @@ interface PreviewPanelProps {
 }
 
 export function PreviewPanel({
-  sections,
+  sections: _sections,
   sectionStatuses,
-  sectionContents,
+  sectionContents: _sectionContents,
+  documentContent,
   prototypes,
   onSectionClick: _onSectionClick,
   projectPath,
@@ -60,6 +61,35 @@ export function PreviewPanel({
   const [_sectionVersionCounts, setSectionVersionCounts] = useState<Record<string, number>>({})
   const prevCountsRef = useRef<Record<string, number>>({})
   const previewRef = useRef<HTMLDivElement>(null)
+  const [editorContent, setEditorContent] = useState(documentContent)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  // Sync editor content when documentContent changes from SSE
+  useEffect(() => {
+    if (docMode !== 'editor') setEditorContent(documentContent)
+  }, [documentContent, docMode])
+
+  const handleEditorSave = async () => {
+    if (!projectPath || !documentId) return
+    setSaving(true)
+    try {
+      await fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editorContent, project_path: projectPath }),
+      })
+      // Update store with saved content
+      const { useBuilderStore } = await import('@/stores/builderStore')
+      useBuilderStore.setState({ documentContent: editorContent })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      console.error('Save failed:', e)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const latestPrototype = prototypes.length > 0 ? prototypes[prototypes.length - 1] : null
   const hasPrototype = latestPrototype !== null
@@ -186,7 +216,7 @@ export function PreviewPanel({
                         } else if (curId) curLines.push(line)
                       }
                       if (curId) { const t = curLines.join('\n').trim(); if (t) newContents[curId] = t }
-                      useBuilderStore.setState(s => ({ sectionContents: { ...s.sectionContents, ...newContents } }))
+                      useBuilderStore.setState(s => ({ sectionContents: { ...s.sectionContents, ...newContents }, documentContent: doc.content }))
                     } catch { /* ignore */ }
                   }}
                   className="rounded px-1.5 py-0.5 text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30 transition-colors"
@@ -244,20 +274,26 @@ export function PreviewPanel({
                       },
                     }}
                   >
-                    {buildFullMarkdown(sections, sectionContents || {}, sectionStatuses)}
+                    {documentContent}
                   </ReactMarkdown>
                 </article>
                 </div>
               </div>
             ) : (
-              <div className="h-full">
-                <InlineDocEditor
-                  sections={sections}
-                  sectionContents={sectionContents || {}}
-                  sectionStatuses={sectionStatuses}
-                  projectPath={projectPath || ''}
-                  documentId={documentId || ''}
-                />
+              <div className="h-full flex flex-col">
+                <div className="flex items-center gap-2 border-b border-border/30 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
+                  <button
+                    onClick={handleEditorSave}
+                    disabled={saving}
+                    className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
+                  </button>
+                  <span className="text-muted-foreground/50">Edit the document markdown directly</span>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <MarkdownEditor content={editorContent} onChange={setEditorContent} placeholder="Document content..." editorOnly />
+                </div>
               </div>
             )}
 
@@ -301,92 +337,6 @@ export function PreviewPanel({
             </div>
           )
         )}
-      </div>
-    </div>
-  )
-}
-
-
-/** Build full markdown from section contents for the preview. */
-function buildFullMarkdown(
-  sections: WorkflowSection[],
-  sectionContents: Record<string, string>,
-  sectionStatuses: Record<string, SectionStatus>,
-): string {
-  const parts: string[] = []
-  for (const section of sections) {
-    const content = sectionContents[section.id]
-    const status = sectionStatuses[section.id] || 'empty'
-    parts.push(`## ${section.name}`)
-    if (content?.trim()) {
-      parts.push(content)
-    } else if (status === 'todo') {
-      parts.push('*[Skipped]*')
-    } else {
-      parts.push('*[To be completed]*')
-    }
-    parts.push('')
-  }
-  return parts.join('\n\n')
-}
-
-
-/** Inline markdown editor for the document within the Builder. */
-function InlineDocEditor({
-  sections,
-  sectionContents,
-  sectionStatuses,
-  projectPath,
-  documentId,
-}: {
-  sections: WorkflowSection[]
-  sectionContents: Record<string, string>
-  sectionStatuses: Record<string, SectionStatus>
-  projectPath: string
-  documentId: string
-}) {
-  const fullMd = buildFullMarkdown(sections, sectionContents, sectionStatuses)
-  const [content, setContent] = useState(fullMd)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  // Sync when sections update from the LLM
-  useEffect(() => {
-    setContent(buildFullMarkdown(sections, sectionContents, sectionStatuses))
-  }, [sections, sectionContents, sectionStatuses])
-
-  const handleSave = async () => {
-    if (!projectPath || !documentId) return
-    setSaving(true)
-    try {
-      await fetch(`/api/v2/studio/documents/${encodeURIComponent(documentId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, project_path: projectPath }),
-      })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (e) {
-      console.error('Save failed:', e)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border/30 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save'}
-        </button>
-        <span className="text-muted-foreground/50">Edit the document markdown directly</span>
-      </div>
-      <div className="flex-1 min-h-0">
-        <MarkdownEditor content={content} onChange={setContent} placeholder="Document content..." editorOnly />
       </div>
     </div>
   )
