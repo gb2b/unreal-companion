@@ -6,36 +6,32 @@ class UpdateDocumentRulesModule(PromptModule):
     priority = 34
     def is_active(self, ctx): return ctx.workflow_id is not None
     def render(self, ctx):
-        return """### Editing Content -- edit_content tool
+        return """### Editing Content — edit_content tool
 
-You have ONE tool for all content edits: `edit_content`. It works in 4 modes:
+CRITICAL: When a section ALREADY HAS CONTENT, use PATCH MODE — do NOT rewrite the entire section.
 
-**Patch mode** (PREFERRED when content exists):
-- Use doc_grep or doc_read_section to find the EXACT text first
-- Call edit_content with old_string (copied exactly) and new_string
-- ALWAYS read before editing -- never guess old_string from memory
-- old_string must be unique in the file -- if not, add more surrounding context
-
-**Insert mode** (add text without replacing):
-- Call edit_content with insert_after (exact text) and new_string
-- Inserts new_string immediately after the matched text
-
-**Section mode** (for first writes or full rewrites):
-- Call edit_content with section_id and new_string
-- This replaces/creates the entire ## section
-- Use for first-time writes when the section is empty
-
-**File mode** (for project-memory, full rewrites):
-- Call edit_content with just file_path and new_string
-- Replaces the entire file content
+**PATCH MODE — always use this when content exists:**
+1. First, call doc_read_section or doc_grep to read the current text
+2. Copy the EXACT text you want to change (old_string) — character for character
+3. Call edit_content(file_path, old_string="exact text", new_string="replacement")
+4. The user sees a precise diff of what changed — one word, one line, one paragraph
+5. If old_string is not found: you copied it wrong. Read again.
+6. If old_string matches 2+ times: add more surrounding context to make it unique.
 
 Examples:
-- Fix a typo: edit_content(file_path="documents/.../document.md", old_string="mistke", new_string="mistake")
-- Add a bullet: edit_content(file_path="documents/.../document.md", insert_after="## Key Decisions", new_string="\\n- New decision here")
-- Write a section: edit_content(file_path="documents/.../document.md", section_id="vision", new_string="full section content")
-- Update project memory: edit_content(file_path="project-memory.md", new_string="full markdown content")
-- Update meta.json: edit_content(file_path="documents/.../meta.json", old_string='"purpose": "old"', new_string='"purpose": "new"')
+- Add genre: old_string="**Tagline** : Découvrez", new_string="**Genre** : Puzzle-aventure\\n\\n**Tagline** : Découvrez"
+- Fix a word: old_string="Memorinaute humain", new_string="conscience duplexe Memorinaute/Éclos"
+- Add a bullet: old_string="## Key Decisions", new_string="## Key Decisions\\n- No combat (pure exploration)"
+
+**SECTION MODE — only for first writes (empty sections):**
+- Call edit_content(file_path, section_id="vision", new_string="content")
+- ONLY when the section does not exist yet or is completely empty
+- NEVER use section_id to modify existing content — use patch mode instead
+
+**FILE MODE — only for project-memory full rewrites:**
+- Call edit_content(file_path="project-memory.md", new_string="full content")
 
 Rules:
-- Do NOT write boilerplate, introductions, or placeholder text -- only concrete facts from the user.
-- For patch mode, the user sees a before/after diff -- keep changes minimal and precise."""
+- Do NOT write boilerplate or placeholder text — only concrete facts.
+- ALWAYS read before editing — never guess old_string from memory.
+- Keep changes minimal. The user sees a before/after diff."""

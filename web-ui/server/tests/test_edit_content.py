@@ -307,7 +307,7 @@ class TestJsonValidation:
 # --- SSE events ---
 
 class TestSSEEvents:
-    def test_document_md_emits_document_update(self, tool):
+    def test_document_md_emits_refresh(self, tool):
         from services.llm_engine.events import DocumentUpdate
         state = SessionState(project_path="/tmp", doc_id="game-brief", workflow_id="w", language="en")
         events = tool.sse_events({
@@ -317,8 +317,7 @@ class TestSSEEvents:
         }, state)
         assert len(events) == 1
         assert isinstance(events[0], DocumentUpdate)
-        assert events[0].section_id == "Vision"
-        assert events[0].content == "New vision content"
+        assert events[0].section_id == "_refresh"
 
     def test_non_document_emits_nothing(self, tool):
         state = SessionState(project_path="/tmp", doc_id="game-brief", workflow_id="w", language="en")
@@ -328,7 +327,7 @@ class TestSSEEvents:
         }, state)
         assert events == []
 
-    def test_document_md_patch_uses_full_section_id(self, tool):
+    def test_document_md_patch_emits_refresh(self, tool):
         from services.llm_engine.events import DocumentUpdate
         state = SessionState(project_path="/tmp", doc_id="game-brief", workflow_id="w", language="en")
         events = tool.sse_events({
@@ -337,7 +336,7 @@ class TestSSEEvents:
             "new_string": "new text",
         }, state)
         assert len(events) == 1
-        assert events[0].section_id == "_full"
+        assert events[0].section_id == "_refresh"
 
 
 # --- Availability ---

@@ -646,7 +646,7 @@ class TestFinalIntegration:
         )
         assert len(events) == 1
         assert isinstance(events[0], DocumentUpdate)
-        assert events[0].section_id == "vision"
+        assert events[0].section_id == "_refresh"
         assert isinstance(summary, str) and len(summary) > 0
 
     @pytest.mark.asyncio

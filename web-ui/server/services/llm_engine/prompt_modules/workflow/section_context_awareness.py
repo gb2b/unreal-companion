@@ -17,4 +17,8 @@ class SectionContextAwarenessModule(PromptModule):
         return f"""### Current content of section '{section_name}'
 {content}
 
-When editing this section with edit_content, PREFER patch mode (old_string/new_string) to make precise changes. Only use section mode (section_id) when rewriting the entire section. Never drop existing content -- use doc_read_section to verify current state first."""
+CRITICAL: This section has existing content. To modify it, you MUST use PATCH MODE:
+1. Copy the exact text to change as old_string
+2. Provide the replacement as new_string
+3. Do NOT use section_id mode — that would ERASE everything above and replace it entirely.
+Only add/change what's needed. The user sees a precise diff of each change."""

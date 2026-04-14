@@ -285,7 +285,7 @@ class TestWorkflowModules:
         text = mod.render(ctx)
         assert "A puzzle game about memories." in text
         assert "Vision" in text
-        assert "edit_content" in text
+        assert "PATCH MODE" in text
 
     def test_mark_complete_rules_content(self):
         from services.llm_engine.prompt_modules.workflow.mark_complete_rules import MarkCompleteRulesModule
