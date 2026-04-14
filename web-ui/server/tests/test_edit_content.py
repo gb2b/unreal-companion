@@ -116,60 +116,30 @@ class TestPatchMode:
 
 # --- Section replace mode ---
 
-class TestSectionMode:
+class TestDeleteMode:
     @pytest.mark.asyncio
-    async def test_replace_existing_section(self, tool, state, project_dir):
+    async def test_delete_text(self, tool, state, project_dir):
+        """Patch with empty new_string = delete."""
         result = await tool.execute({
             "file_path": "documents/game-brief/document.md",
-            "section_id": "Vision",
-            "new_string": "A horror game about memory loss.",
+            "old_string": "A puzzle game about time travel.",
+            "new_string": "",
         }, state)
         parsed = json.loads(result)
         assert parsed["success"] is True
         content = (project_dir / ".unreal-companion" / "documents" / "game-brief" / "document.md").read_text()
-        assert "memory loss" in content
         assert "time travel" not in content
-        # Other section should remain
-        assert "## Gameplay" in content
 
+class TestNoReplaceMode:
     @pytest.mark.asyncio
-    async def test_create_new_section(self, tool, state, project_dir):
-        result = await tool.execute({
-            "file_path": "documents/game-brief/document.md",
-            "section_id": "Art Direction",
-            "new_string": "Pixel art with neon palette.",
-        }, state)
-        parsed = json.loads(result)
-        assert parsed["success"] is True
-        content = (project_dir / ".unreal-companion" / "documents" / "game-brief" / "document.md").read_text()
-        assert "## Art Direction" in content
-        assert "neon palette" in content
-
-
-# --- File replace mode ---
-
-class TestFileReplaceMode:
-    @pytest.mark.asyncio
-    async def test_replace_entire_file(self, tool, state, project_dir):
-        result = await tool.execute({
-            "file_path": "project-memory.md",
-            "new_string": "# Updated Game\n\n## Identity\n\nA racing game.\n",
-        }, state)
-        parsed = json.loads(result)
-        assert parsed["success"] is True
-        content = (project_dir / ".unreal-companion" / "project-memory.md").read_text()
-        assert "racing game" in content
-        assert "puzzle" not in content
-
-    @pytest.mark.asyncio
-    async def test_file_replace_returns_old_content(self, tool, state):
+    async def test_requires_old_string_or_insert_after(self, tool, state):
+        """Without old_string or insert_after, should return error."""
         result = await tool.execute({
             "file_path": "project-memory.md",
             "new_string": "New content",
         }, state)
         parsed = json.loads(result)
-        assert "puzzle" in parsed["old_content"]
-        assert parsed["new_content"] == "New content"
+        assert "error" in parsed
 
 
 # --- Insert mode ---
@@ -252,7 +222,8 @@ class TestSecurity:
         """project-memory.md is an allowed root."""
         result = await tool.execute({
             "file_path": "project-memory.md",
-            "new_string": "New memory",
+            "old_string": "A puzzle game.",
+            "new_string": "A racing game.",
         }, state)
         parsed = json.loads(result)
         assert parsed["success"] is True
@@ -373,13 +344,14 @@ class TestSummarizeResult:
 
 class TestNewFileCreation:
     @pytest.mark.asyncio
-    async def test_creates_new_file_in_documents(self, tool, state, project_dir):
+    async def test_insert_into_existing_file(self, tool, state, project_dir):
+        """Insert mode works on existing files."""
         result = await tool.execute({
-            "file_path": "documents/game-brief/prototypes/combat.html",
-            "new_string": "<h1>Combat Prototype</h1>",
+            "file_path": "documents/game-brief/document.md",
+            "insert_after": "## Gameplay",
+            "new_string": "\n\nCore loop: explore, discover, learn.",
         }, state)
         parsed = json.loads(result)
         assert parsed["success"] is True
-        new_file = project_dir / ".unreal-companion" / "documents" / "game-brief" / "prototypes" / "combat.html"
-        assert new_file.exists()
-        assert "<h1>Combat Prototype</h1>" in new_file.read_text()
+        content = (project_dir / ".unreal-companion" / "documents" / "game-brief" / "document.md").read_text()
+        assert "Core loop" in content

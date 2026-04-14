@@ -23,11 +23,10 @@ class EditContentModule(ToolModule):
         return {
             "name": "edit_content",
             "description": (
-                "Universal edit tool for any file in .unreal-companion/. "
-                "Three modes: (1) Patch: provide old_string + new_string to replace exact text. "
-                "(2) Replace section: provide section_id + new_string to rewrite an entire document section. "
-                "(3) Replace file: provide only new_string to replace the entire file content. "
-                "ALWAYS read content first (doc_grep, doc_read_section) before patching -- never guess old_string from memory."
+                "Precision edit tool for any file in .unreal-companion/. Two modes: "
+                "(1) Patch: provide old_string + new_string to replace exact text. For deletions, set new_string to empty. "
+                "(2) Insert: provide insert_after + new_string to add text after a specific line. "
+                "ALWAYS read content first (doc_grep, doc_read_section) before editing — never guess old_string from memory."
             ),
             "input_schema": {
                 "type": "object",
@@ -43,28 +42,20 @@ class EditContentModule(ToolModule):
                     "old_string": {
                         "type": "string",
                         "description": (
-                            "PATCH MODE: exact text to find and replace. "
-                            "Must match character-for-character. Empty = replace mode (section or file)."
+                            "PATCH MODE: exact text to find and replace. Must match character-for-character. "
+                            "For deletions, provide old_string and set new_string to empty string."
                         ),
                     },
                     "new_string": {
                         "type": "string",
-                        "description": (
-                            "The new content. For patches: the replacement text. "
-                            "For section replace: the full section content. "
-                            "For file replace: the full file content."
-                        ),
-                    },
-                    "section_id": {
-                        "type": "string",
-                        "description": "SECTION MODE only: replace/create this section in a document.md. The section is identified by its ## heading.",
+                        "description": "The replacement text (patch mode) or text to insert (insert mode). Empty string = delete the old_string.",
                     },
                     "insert_after": {
                         "type": "string",
-                        "description": "INSERT MODE: when old_string is empty and no section_id, insert new_string after this exact text.",
+                        "description": "INSERT MODE: insert new_string after this exact text. Use when adding new content without replacing existing text.",
                     },
                 },
-                "required": ["file_path", "new_string"],
+                "required": ["file_path"],
             },
         }
 
@@ -82,15 +73,6 @@ class EditContentModule(ToolModule):
         if not any(file_path.startswith(r) or file_path == r for r in ALLOWED_ROOTS):
             raise ValueError(f"Access denied: only documents/, references/, project-memory.md are editable")
         return resolved
-
-    def _replace_section(self, content: str, section_id: str, new_content: str) -> str:
-        """Replace or create a ## section in markdown content."""
-        header = f"## {section_id}"
-        if header in content:
-            pattern = rf"(## {re.escape(section_id)}\n)(.*?)(?=\n## |\Z)"
-            return re.sub(pattern, f"## {section_id}\n\n{new_content}\n", content, flags=re.DOTALL)
-        else:
-            return content.rstrip() + f"\n\n## {section_id}\n\n{new_content}\n"
 
     def _update_meta_timestamps(self, state: SessionState) -> None:
         """Update the meta.json timestamps for the current document."""
@@ -116,7 +98,6 @@ class EditContentModule(ToolModule):
         file_path_str = tool_input.get("file_path", "")
         old_string = tool_input.get("old_string", "")
         new_string = tool_input.get("new_string", "")
-        section_id = tool_input.get("section_id", "")
         insert_after = tool_input.get("insert_after", "")
 
         # Resolve and validate path
@@ -134,11 +115,8 @@ class EditContentModule(ToolModule):
         old_full_content = content
 
         # --- MODE DISPATCH ---
-        if section_id:
-            # SECTION REPLACE MODE
-            content = self._replace_section(content, section_id, new_string)
-        elif old_string:
-            # PATCH MODE
+        if old_string:
+            # PATCH MODE (replace or delete)
             if old_string not in content:
                 return json.dumps({
                     "error": f"old_string not found in {file_path_str}. Use doc_grep or doc_read_section to find the exact text first."
@@ -157,8 +135,7 @@ class EditContentModule(ToolModule):
             pos = idx + len(insert_after)
             content = content[:pos] + new_string + content[pos:]
         else:
-            # FILE REPLACE MODE
-            content = new_string
+            return json.dumps({"error": "Either old_string (for patch/delete) or insert_after (for insert) is required."})
 
         # Write
         resolved.parent.mkdir(parents=True, exist_ok=True)
@@ -176,7 +153,7 @@ class EditContentModule(ToolModule):
         is_doc_md = file_path_str.startswith("documents/") and file_path_str.endswith("/document.md")
         if is_doc_md and state.doc_id:
             self._update_meta_timestamps(state)
-            self._save_version(state, section_id or "_edit", content)
+            self._save_version(state, "_edit", content)
 
         return json.dumps({
             "success": True,
@@ -203,17 +180,16 @@ class EditContentModule(ToolModule):
         if error:
             return f"Edit failed on {file_path}: {error[:60]}"
         old_string = tool_input.get("old_string", "")
-        section_id = tool_input.get("section_id", "")
         insert_after = tool_input.get("insert_after", "")
-        content_len = len(tool_input.get("new_string", ""))
-        if section_id:
-            return f"Section '{section_id}' written in {file_path} -- {content_len} chars"
+        new_string = tool_input.get("new_string", "")
+        if old_string and not new_string:
+            return f"Deleted from {file_path}"
         elif old_string:
-            return f"Patched {file_path} -- {content_len} chars"
+            return f"Patched {file_path}"
         elif insert_after:
-            return f"Inserted in {file_path} -- {content_len} chars"
+            return f"Inserted in {file_path} -- {len(new_string)} chars"
         else:
-            return f"Replaced {file_path} -- {content_len} chars"
+            return f"Edit on {file_path}"
 
 
 _register(EditContentModule())
