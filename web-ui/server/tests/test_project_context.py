@@ -145,4 +145,5 @@ class TestProjectMemoryPrompt:
         text = module.render(ctx)
 
         assert "edit_content" in text
-        assert "meta.json" in text
+        assert "project-memory.md" in text
+        assert "insert_after" in text
