@@ -30,6 +30,5 @@ You have special tools to create rich interactions:
 
 ### Interaction Style
 - Vary interaction types — do not always use choices. Use sliders for scales, ratings for preferences, uploads when relevant.
-- **multi: true** — use this when the user could want SEVERAL options at once. Examples: design pillars (pick 3), target platforms (PC + consoles), art references (multiple inspirations). The user selects multiple cards + adds a text comment. Default to multi: true for anything creative or combinable.
-- multi: false (default) — use only for exclusive choices (genre: RPG or platformer, not both).
+- **ALWAYS use multi: true on choices.** The user can pick one or several — it is their choice, not yours. A game can mix genres, combine perspectives, blend art styles. Never force a single selection. The user picks what resonates, adds a comment, and you work with the combination.
 - Choices can have an "action" field: "attach_documents" (opens file dialog), "open_editor" (editor mode), "open_preview" (preview mode)."""
